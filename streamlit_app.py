@@ -902,7 +902,7 @@ with tab2:
     
     st.markdown("---")  # Linha separadora
     # ========== FIM SEÇÃO SOBRE ==========
-        st.header("⚙️ Configurar Busca")
+    st.header("⚙️ Configurar Busca")
 
         # Campo de busca
         query = st.text_input(
