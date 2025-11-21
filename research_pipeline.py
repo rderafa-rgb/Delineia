@@ -1,123 +1,112 @@
 # -*- coding: utf-8 -*-
 
-import google.generativeai as genai
-import requests
-import json
-import re
 import time
-import traceback
+import re
 from typing import List, Dict, Tuple
-import networkx as nx
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-
-# ==================== CONFIGURAÇÃO ====================
-import streamlit as st
-
-# Ler credenciais do arquivo secrets.toml
-GEMINI_API_KEY = st.secrets["GOOGLE_API_KEY"]
-OPENALEX_EMAIL = st.secrets["OPENALEX_EMAIL"]
-
+import requests
 import google.generativeai as genai
-genai.configure(api_key=GEMINI_API_KEY)
+import networkx as nx
+import matplotlib.pyplot as plt
 
 # ==================== CLIENTE OPENALEX ====================
 class OpenAlexClient:
-    """Cliente para buscar artigos científicos no OpenAlex"""
+    """Cliente para buscar artigos no OpenAlex"""
 
     def __init__(self, email: str):
-        self.base_url = "https://api.openalex.org/works"
         self.email = email
+        self.base_url = "https://api.openalex.org/works"
 
     def normalize_query(self, query: str) -> str:
-        """Normaliza a query de busca"""
-        query = re.sub(r'"+', '"', query)
-        query = re.sub(r'\s*(AND|OR|NOT)\s*', r' \1 ', query, flags=re.IGNORECASE)
-        query = re.sub(r'\s+', ' ', query).strip()
+        """Normaliza query mantendo operadores booleanos"""
+        query = query.strip()
+        query = re.sub(r'\s+', ' ', query)
         return query
 
     def search_articles(self, query: str, limit: int = 500) -> List[Dict]:
-        query = self.normalize_query(query)
+        """Busca artigos na API do OpenAlex"""
         results = []
-        print("Buscando artigos...")
-
+        
+        print(f"  🔍 Buscando: {query[:100]}...")
+        
         for page in range(1, 4):
+            params = {
+                'search': query,
+                'per_page': min(200, limit - len(results)),
+                'page': page,
+                'mailto': self.email
+            }
+            
             try:
-                params = {
-                    'search': query,
-                    'per-page': 200,
-                    'page': page,
-                    'mailto': self.email,
-                    'filter': 'type:article'
-                }
-
                 response = requests.get(self.base_url, params=params, timeout=30)
-                response.raise_for_status()
-                data = response.json()
-                page_results = data.get('results', [])
-
-                print(f"Pagina {page}: {len(page_results)} artigos")
-
-                for work in page_results:
-                    doi = work.get('doi', '')
-                    url = doi if doi else work.get('id', '')
-
-                    results.append({
-                        'title': work.get('title', ''),
-                        'year': work.get('publication_year'),
-                        'doi': doi,
-                        'url': url,
-                        'concepts': [
-                            {
-                                'name': c['display_name'],
-                                'score': c['score'],
-                                'level': c['level']
-                            }
-                            for c in work.get('concepts', [])
-                            if c.get('score', 0) > 0.3
-                        ]
-                    })
-
-                if len(results) >= limit:
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    works = data.get('results', [])
+                    
+                    for work in works:
+                        doi = work.get('doi', '')
+                        if doi and doi.startswith('https://doi.org/'):
+                            doi = doi
+                        elif doi:
+                            doi = f"https://doi.org/{doi}"
+                        
+                        results.append({
+                            'id': work.get('id', ''),
+                            'title': work.get('title', ''),
+                            'year': work.get('publication_year', ''),
+                            'doi': work.get('doi', ''),
+                            'url': doi if doi else work.get('id', ''),
+                            'concepts': [
+                                {'name': c.get('display_name', ''), 
+                                 'score': c.get('score', 0),
+                                 'level': c.get('level', 0)}
+                                for c in work.get('concepts', [])
+                            ]
+                        })
+                    
+                    if len(results) >= limit or len(works) < 200:
+                        break
+                else:
+                    print(f"  ⚠️ Erro HTTP {response.status_code}")
                     break
-
+                    
             except Exception as e:
-                print(f"Erro na pagina {page}: {str(e)}")
+                print(f"  ⚠️ Erro: {str(e)[:50]}")
                 break
-
-        print(f"Total: {len(results)} artigos")
+        
+        print(f"  ✅ {len(results)} artigos encontrados")
         return results[:limit]
 
     def extract_concepts_for_cooccurrence(self, articles: List[Dict],
                                          min_score: float = 0.35,
                                          min_level: int = 0) -> List[List[str]]:
-        """Extrai conceitos dos artigos"""
+        """Extrai conceitos dos artigos para análise de coocorrência"""
         concepts_lists = []
-
+        
         for article in articles:
             concepts = [
-                c['name'] for c in article.get('concepts', [])
-                if c['score'] >= min_score and c['level'] >= min_level
+                c['name']
+                for c in article.get('concepts', [])
+                if c.get('score', 0) >= min_score and c.get('level', 0) >= min_level
             ]
+            
             if concepts:
                 concepts_lists.append(concepts)
-
-        print(f"  📊 {len(concepts_lists)} artigos com conceitos")
+        
         return concepts_lists
 
 
-# ==================== GERADOR COM GEMINI ====================
+# ==================== GERADOR GEMINI ====================
 class GeminiQueryGenerator:
     """
     Gerador de análises usando Gemini AI.
-    VERSÃO CORRIGIDA: Modelo estável + método de tradução
+    VERSÃO CORRIGIDA COM AJUSTES DO PROF. ELISEO REATEGUI
     """
 
     def __init__(self):
         try:
             self.model = genai.GenerativeModel(
-                'gemini-2.5-pro',  # MODELO ESTÁVEL
+                'gemini-2.5-pro',
                 generation_config={
                     'temperature': 0.95,
                     'top_p': 0.95,
@@ -125,8 +114,7 @@ class GeminiQueryGenerator:
                     'max_output_tokens': 8192,
                 }
             )
-            # FIX: Changed to string concatenation to avoid outer f-string evaluation of self.model
-            print("  ✅ Modelo Gemini inicializado: " + self.model.model_name + " (modo criativo)")
+            print(f"  ✅ Modelo Gemini inicializado: {self.model.model_name} (modo criativo)")
         except Exception as e:
             print(f"  ⚠️ Erro ao inicializar Gemini: {e}")
             self.model = None
@@ -181,7 +169,10 @@ class GeminiQueryGenerator:
 
     def generate_full_report(self, nome: str, tema: str, questao: str,
                             keywords: List[str]) -> str:
-        """Gera avaliação crítica e construtiva do projeto"""
+        """
+        Gera avaliação crítica e construtiva do projeto
+        AJUSTE DO PROF. ELISEO: Adiciona comentário explícito sobre questão de pesquisa
+        """
         keywords_str = ', '.join(keywords)
         primeiro_nome = nome.split()[0] if nome else "estudante"
 
@@ -198,48 +189,41 @@ Palavras-chave escolhidas: {keywords_str}
 
 **SUA TAREFA:**
 
-Escreva um parágrafo conversando com {primeiro_nome} sobre as palavras-chave que ele escolheu.
+Escreva DOIS parágrafos conversando com {primeiro_nome}:
 
-**DIRETRIZES (use seu julgamento profissional):**
-
+**PARÁGRAFO 1 - Sobre as palavras-chave:**
 • Comece com: "{primeiro_nome}, as palavras-chave que você designou para o projeto..."
+• Comente especificamente sobre as palavras-chave escolhidas
+• Seja autêntico: se estão boas, diga o que está bom; se há problemas, aponte com clareza mas cuidado
+• Se palavras forem muito amplas, diga quais e por quê
+• Se houver redundância, mostre
+• Se faltar algo importante, sugira especificamente
 
-• **Seja autêntico e direto:**
-  - Se o projeto fizer sentido, comente o que está bom
-  - Se houver problemas evidentes (tema absurdo, questão impossível, palavras sem relação),
-    aponte isso com clareza mas cuidado
-  - Se palavras forem muito amplas (ex: "Escola", "Psicologia"), diga quais e por quê
-  - Se houver redundância entre termos, mostre
-  - Se faltar algo importante, sugira especificamente o quê
+**PARÁGRAFO 2 - Sobre a questão de pesquisa:**
+• Comente explicitamente sobre a questão de pesquisa apresentada
+• Analise se está clara, viável e bem delimitada
+• Sugira refinamentos se necessário
+• Relacione com as palavras-chave escolhidas
+• Encerre com: "Recomendo que você converse com seu orientador sobre esses pontos e observe atentamente o grafo de coocorrências apresentado adiante, pois ele pode revelar relações importantes entre conceitos que ajudarão a refinar suas palavras-chave e a delimitar melhor o escopo da sua pesquisa."
 
-• **Tom de conversa:**
-  - Use "você" e o primeiro nome
-  - Honesto mas respeitoso
-  - Como um professor que realmente se importa com o aluno
-  - NÃO use linguagem de parecer formal ou formulário padrão
-  - Pode usar frases como "vejo que...", "considere...", "seria interessante..."
+**DIRETRIZES:**
+• Tom de conversa: use "você" e o primeiro nome
+• Honesto mas respeitoso
+• Como um professor que realmente se importa com o aluno
+• NÃO use linguagem de parecer formal
+• Seja específico sobre ESTAS palavras-chave e ESTA questão
+• NÃO use frases genéricas que servem para qualquer projeto
+• Projetos absurdos ou inviáveis merecem feedback honesto
 
-• **Seja específico:**
-  - Comente sobre ESTAS palavras-chave específicas
-  - Não use frases genéricas que servem para qualquer projeto
-  - Se um termo for bom, diga por quê
-  - Se um termo for problemático, explique o problema
-
-• **Encerre com:**
-  "Recomendo que você observe atentamente o grafo de coocorrências apresentado adiante,
-   pois ele pode revelar relações importantes entre conceitos que ajudarão a refinar suas
-   palavras-chave e a delimitar melhor o escopo da sua pesquisa."
-
-**IMPORTANTE:**
-- Projetos com temas claramente absurdos ou questões impossíveis merecem feedback honesto
-- Não finja que algo inviável é viável
-- Seja gentil mas não desonesto
+**IMPORTANTE:** NÃO use frases como "Com certeza..." ou expressões clichê. Seja direto e genuíno.
 
 ---
 
-Escreva agora o parágrafo para {primeiro_nome}:"""
+Escreva agora os dois parágrafos para {primeiro_nome}:"""
 
-        fallback = f"""{primeiro_nome}, as palavras-chave que você designou para o projeto ({keywords_str}) cobrem alguns aspectos do tema '{tema}'. Seria importante conversar com seu orientador para avaliar se esses termos capturam as nuances específicas da sua questão de pesquisa e se há necessidade de termos mais específicos ou complementares. Recomendo que você observe atentamente o grafo de coocorrências apresentado adiante, pois ele pode revelar relações importantes entre conceitos que ajudarão a refinar suas palavras-chave e a delimitar melhor o escopo da sua pesquisa."""
+        fallback = f"""{primeiro_nome}, as palavras-chave que você designou para o projeto ({keywords_str}) cobrem alguns aspectos do tema '{tema}'. No entanto, seria importante avaliar se esses termos capturam as nuances específicas da sua questão de pesquisa e se há necessidade de termos mais específicos ou complementares.
+
+Sobre sua questão de pesquisa, '{questao}', é fundamental verificar se está suficientemente delimitada e se oferece um caminho claro para investigação. Recomendo que você converse com seu orientador sobre esses pontos e observe atentamente o grafo de coocorrências apresentado adiante, pois ele pode revelar relações importantes entre conceitos que ajudarão a refinar suas palavras-chave e a delimitar melhor o escopo da sua pesquisa."""
 
         return self._safe_generate(prompt, fallback)
 
@@ -279,7 +263,8 @@ Gere agora os termos complementares:"""
         return result
 
     def translate_keywords_to_english(self, keywords: List[str]) -> List[str]:
-        """Traduz palavras-chave do português para inglês.
+        """
+        Traduz palavras-chave do português para inglês.
         Método necessário para compatibilidade com pipeline.
         """
         keywords_str = ', '.join(keywords)
@@ -309,8 +294,8 @@ Saída: Psychology, School, Teachers, Burnout
 
         # Limpar e separar
         result = result.replace('\n', ', ')
-        result = re.sub(r'[0-9]+\.\s*', '', result)  # Remove numeração
-        translated = [t.strip().strip('"').strip("' ") for t in result.split(',') if t.strip()]
+        result = re.sub(r'[0-9]+\.\s*', '', result)
+        translated = [t.strip().strip('"').strip("'") for t in result.split(',') if t.strip()]
 
         # Se não conseguiu traduzir ou número diferente, retornar original
         if len(translated) != len(keywords):
@@ -387,7 +372,7 @@ OBJETIVO: Identificar estudos sobre esgotamento docente relacionados à saúde m
             return ("Poucos conceitos identificados para análise detalhada.",
                     "Dados insuficientes para interpretação da rede conceitual.")
 
-        concepts = concepts[:15]
+        concepts = concepts[:9]  # AJUSTE DO PROF. ELISEO: 9 termos (Miller, 7±2)
         concepts_list = '\n'.join([f"{i+1}. {c}" for i, c in enumerate(concepts)])
 
         glossary_prompt = f"""Você é um especialista criando um glossário técnico.
@@ -414,6 +399,7 @@ Para CADA um dos {len(concepts)} conceitos acima, crie uma entrada de glossário
 - Relacionar com o tema '{tema}' quando possível
 - Ordem alfabética pelo termo em INGLÊS
 - NÃO pular nenhum conceito
+- NÃO use frases clichê como "Com certeza" ou similares
 
 **EXEMPLO DO FORMATO:**
 1. **Anxiety** (Ansiedade) - Estado emocional caracterizado por preocupação excessiva, tensão e sintomas físicos de estresse. No contexto de {tema}, este conceito contribui para compreender as dimensões psicológicas do fenômeno investigado.
@@ -428,7 +414,7 @@ Para CADA um dos {len(concepts)} conceitos acima, crie uma entrada de glossário
 Tema da pesquisa: {tema}
 Aluno: {primeiro_nome}
 
-**15 CONCEITOS MAIS CENTRAIS NA REDE:**
+**9 CONCEITOS MAIS CENTRAIS NA REDE (Miller, 7±2):**
 {concepts_list}
 
 ---
@@ -451,7 +437,7 @@ Escreva uma interpretação detalhada da rede em 3-4 parágrafos (mínimo 12 lin
 **Parágrafo 3 - Implicações para {primeiro_nome} (4-6 linhas):**
 - Como essa estrutura pode orientar o delineamento do escopo?
 - Há lacunas que poderiam ser exploradas?
-- Há oportunidades de pesquisa nas intersecções?
+- Há oportunidades de pesquisa nas interseções?
 - Recomendações específicas
 
 **TOM:**
@@ -459,13 +445,14 @@ Escreva uma interpretação detalhada da rede em 3-4 parágrafos (mínimo 12 lin
 - Cite conceitos específicos da rede (não seja genérico)
 - Tom analítico mas acessível
 - Oriente ações concretas
+- NÃO use frases clichê como "Com certeza" ou similares
 
 **COMECE COM:**
 "{primeiro_nome}, o grafo de coocorrências revela a estrutura conceitual da literatura sobre {tema}..."
 
 **ESCREVA AGORA A INTERPRETAÇÃO COMPLETA:**"""
 
-        print("  🔤 Gerando glossário...")
+        print("  📖 Gerando glossário...")
         glossary = self._safe_generate(
             glossary_prompt,
             f"Glossário técnico dos {len(concepts)} conceitos centrais identificados na rede de coocorrências."
@@ -504,16 +491,22 @@ class CooccurrenceAnalyzer:
         print(f"  🕸️ Grafo: {len(G.nodes())} nós, {len(G.edges())} arestas")
         return G
 
-    def get_top_nodes(self, G: nx.Graph, n: int = 15) -> List[str]:
-        """Nós mais centrais"""
+    def get_top_nodes(self, G: nx.Graph, n: int = 9) -> List[str]:
+        """
+        Nós mais centrais
+        AJUSTE DO PROF. ELISEO: Default de 9 termos (Miller, 7±2)
+        """
         if not G.nodes():
             return []
 
         centrality = nx.degree_centrality(G)
         return [node for node, _ in sorted(centrality.items(), key=lambda x: x[1], reverse=True)[:n]]
 
-    def visualize_graph(self, G: nx.Graph, top_n: int = 15, path: str = 'graph.png') -> str:
-        """Visualização"""
+    def visualize_graph(self, G: nx.Graph, top_n: int = 9, path: str = 'graph.png') -> str:
+        """
+        Visualização
+        AJUSTE DO PROF. ELISEO: Default de 9 termos (Miller, 7±2)
+        """
         top_nodes = self.get_top_nodes(G, top_n)
         if not top_nodes:
             return None
@@ -546,8 +539,8 @@ class CooccurrenceAnalyzer:
         nx.draw_networkx_labels(Gs, pos, font_size=11, font_weight='bold',
                                font_family='sans-serif')
 
-        plt.title("Rede de Coocorrência de Conceitos", fontsize=20,
-                 fontweight='bold', pad=25)
+        plt.title("Rede de Coocorrência de Conceitos (9 termos - Miller, 7±2)", 
+                 fontsize=20, fontweight='bold', pad=25)
         plt.axis('off')
         plt.tight_layout()
 
@@ -570,12 +563,12 @@ class ResearchScopePipeline:
     def process(self, nome: str, tema: str, questao: str, keywords: List[str]) -> Dict:
         """Executa pipeline completo"""
         print("\n" + "="*80)
-        print("🚀 PIPELINE FINAL - VERSÃO DEFINITIVA")
+        print("🚀 PIPELINE DELINÉIA XIV - VERSÃO COM AJUSTES DO PROF. ELISEO")
         print("="*80 + "\n")
 
         primeiro_nome = nome.split()[0] if nome else "estudante"
 
-        # 1. Avaliação com 2 parágrafos
+        # 1. Avaliação com 2 parágrafos (palavras-chave E questão)
         print("📝 Etapa 1/7: Avaliação completa (tema+questão+palavras)...")
         full_report = self.gemini.generate_full_report(nome, tema, questao, keywords)
 
@@ -606,10 +599,10 @@ class ResearchScopePipeline:
         print("🕸️ Etapa 6/7: Construindo grafo...")
         G = self.analyzer.build_graph(concepts_lists, min_cooc=1)
 
-        # 7. Visualizar e interpretar
-        print("🎨 Etapa 7/7: Gerando visualização e glossário...")
-        viz_path = self.analyzer.visualize_graph(G, 15)
-        top_concepts = self.analyzer.get_top_nodes(G, 15)
+        # 7. Visualizar e interpretar (9 termos - AJUSTE DO PROF. ELISEO)
+        print("🎨 Etapa 7/7: Gerando visualização e glossário (9 termos)...")
+        viz_path = self.analyzer.visualize_graph(G, 9)  # Miller, 7±2
+        top_concepts = self.analyzer.get_top_nodes(G, 9)  # Miller, 7±2
 
         glossary, interpretation = self.gemini.create_glossary_and_interpretation(
             top_concepts, tema, primeiro_nome
@@ -633,3 +626,7 @@ class ResearchScopePipeline:
             'concepts_lists': concepts_lists,
             'graph': G
         }
+
+
+# Variável global necessária
+OPENALEX_EMAIL = ""
