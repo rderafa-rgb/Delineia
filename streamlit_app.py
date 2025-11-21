@@ -248,26 +248,20 @@ with tab1:
             st.divider()
             st.subheader("💭 Autoavaliação")
 
-            confianca = st.slider(
+            confianca = st.radio(
                 "F1.5. Qual seu nível de segurança em relação às palavras-chave escolhidas?",
-                min_value=1,
-                max_value=5,
-                value=3,
-                step=1,
-                format="%d",
-                help="Escala de 1 (totalmente inseguro) a 5 (totalmente seguro)"
+                options=[
+                    "Totalmente seguro",
+                    "Seguro",
+                    "Neutro",
+                    "Inseguro",
+                    "Totalmente inseguro"
+                ],
+                index=2,  # Neutro como padrão
+                horizontal=True,
+                help="Selecione seu nível de confiança nas palavras-chave escolhidas"
             )
-            
-            # Mostrar descrição do valor escolhido
-            labels = {
-                1: "1 - Totalmente inseguro",
-                2: "2 - Inseguro",
-                3: "3 - Neutro",
-                4: "4 - Seguro",
-                5: "5 - Totalmente seguro"
-            }
-            st.caption(f"✓ {labels[confianca]}")
-
+       
             st.divider()
 
             submitted = st.form_submit_button(
