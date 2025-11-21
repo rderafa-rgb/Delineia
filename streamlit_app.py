@@ -939,7 +939,7 @@ with tab2:
         with st.expander("📚 Sobre o Delinéia"):
             st.markdown("""
             ### O que é o Delinéia?
-            O Delinéia é um sistema de apoio ao delineamento do escopo de projetos de pesquisa no ensino superior, desenvolvido como parte de uma tese de doutorado. A ferramenta combina Inteligência Artificial (Google Gemini) com análise bibliométrica (OpenAlex) para auxiliar estudantes de graduação e de pós-graduação no planejamento e refinamento temático de seus projetos de pesquisa.
+            O Delinéia é um sistema de apoio ao delineamento do escopo temático de projetos de pesquisa no ensino superior, desenvolvido como parte de uma tese de doutorado. A ferramenta combina Inteligência Artificial (Google Gemini) com análise bibliométrica de coocorrência de palavras (OpenAlex) para auxiliar estudantes de graduação e de pós-graduação no esboço de seus projetos de pesquisa.
         
             ### Desenvolvimento
             **Autor:** Rafael Antunes dos Santos  
@@ -949,27 +949,27 @@ with tab2:
         
             **Formação Anterior:**  
             - Mestre em Comunicação e Informação pela UFRGS (PPGCOM)  
-            - Bibliotecário-Documentalista (Fabico/UFRGS)
+            - Bacharel em Biblioteconomia pela UFRGS (DCI/FABICO) - CRB10/1898
         
             **Currículo Lattes:** [http://lattes.cnpq.br/5228660998907867](http://lattes.cnpq.br/5228660998907867)
         
             ### Abordagem Interdisciplinar
-            Este projeto situa-se na interseção entre Informática na Educação e Ciência da Informação, explorando como tecnologias de IA podem apoiar processos de pesquisa científica no ensino superior.
+            Este projeto situa-se no diálogo entre Informática na Educação e Ciência da Informação, explorando como tecnologias de IA podem apoiar processos de pesquisa científica no ensino superior.
         
             ### Funcionalidades
-            - **Delineascópio:** Feedback personalizado sobre projetos de pesquisa com PDF
-            - **Dashboard:** Análise profunda de dados do OpenAlex:
+            - **Delineascópio:** Feedback personalizado sobre projetos de pesquisa
+            - **Dashboard:** Análise profunda dos dados do OpenAlex:
               - **Artigos:** Contagens de artigos e links de acesso
-              - **Conceitos:** Contagens de conceitos. Lei de Zipf
-              - **Coocorrências:** Contagens de associações entre conceitos. Matriz de calor
+              - **Conceitos:** Contagens de conceitos e Lei de Zipf
+              - **Coocorrências:** Contagens de associações entre conceitos e matriz de calor
               - **Grafo:** Visualização interativa
-              - **Mapa Temático:** Posição do cluster
-              - **Estatísticas:** Resumo básico
+              - **Mapa Temático:** Posição de cluster na literatura recuperada
+              - **Estatísticas:** Resumo breve
               - **Exportação:** Dados em JSON, CSV, GraphML
         
             ### Tecnologias
             - Python / Streamlit
-            - Google Gemini AI 2.0 Flash
+            - Google Gemini AI 2.5 Pro / Anthropic Claude Sonnet 4.5
             - OpenAlex API
             - NetworkX, Plotly, ReportLab
         
@@ -978,6 +978,11 @@ with tab2:
         
             ### Versão
             Delinéia XIV - 2025
+
+            ### Agradecimentos
+            Aos Professores Leandro Krug Wives, Rosa Maria Vicari, Dante Augusto Couto Barone, Patrícia Fernanda da Silva, Sérgio Roberto Kieling Franco, Renato Ventura Bayan Henriques, Milton Antonio Zaro, Fernando Becker, Vanessa Soares Maurente, Elisa Boff, Alessandra Lorandi e Gabriela Trindade Perry
+            Aos colegas do grupo de pesquisa GTech.Edu
+            À CAPES
             """)
     
     # Área principal do dashboard
