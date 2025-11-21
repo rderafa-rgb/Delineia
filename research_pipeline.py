@@ -108,7 +108,7 @@ class GeminiQueryGenerator:
             self.model = genai.GenerativeModel(
                 'gemini-2.5-pro',
                 generation_config={
-                    'temperature': 0.95,
+                    'temperature': 1.2,
                     'top_p': 0.95,
                     'top_k': 40,
                     'max_output_tokens': 8192,
@@ -171,7 +171,7 @@ class GeminiQueryGenerator:
                             keywords: List[str]) -> str:
         """
         Gera avaliação crítica e construtiva do projeto
-        AJUSTE DO PROF. ELISEO: Adiciona comentário explícito sobre questão de pesquisa
+        Prompt EXPLÍCITO sobre questão de pesquisa + orientação ao orientador
         """
         keywords_str = ', '.join(keywords)
         primeiro_nome = nome.split()[0] if nome else "estudante"
@@ -399,7 +399,8 @@ Para CADA um dos {len(concepts)} conceitos acima, crie uma entrada de glossário
 - Relacionar com o tema '{tema}' quando possível
 - Ordem alfabética pelo termo em INGLÊS
 - NÃO pular nenhum conceito
-- NÃO use frases clichê como "Com certeza" ou similares
+- PROIBIDO usar frases clichê como "Com certeza", "Sem dúvida", "É claro que" ou similares
+- Seja direto e técnico
 
 **EXEMPLO DO FORMATO:**
 1. **Anxiety** (Ansiedade) - Estado emocional caracterizado por preocupação excessiva, tensão e sintomas físicos de estresse. No contexto de {tema}, este conceito contribui para compreender as dimensões psicológicas do fenômeno investigado.
@@ -494,7 +495,7 @@ class CooccurrenceAnalyzer:
     def get_top_nodes(self, G: nx.Graph, n: int = 9) -> List[str]:
         """
         Nós mais centrais
-        AJUSTE DO PROF. ELISEO: Default de 9 termos (Miller, 7±2)
+        Default de 9 termos (Miller, 7±2)
         """
         if not G.nodes():
             return []
