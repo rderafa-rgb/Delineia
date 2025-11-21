@@ -91,6 +91,44 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# ==================== CSS CUSTOMIZADO (BOTÕES VERDES) ====================
+st.markdown("""
+<style>
+    /* Botões primários em verde claro */
+    .stButton > button[kind="primary"] {
+        background-color: #10b981 !important;
+        color: white !important;
+        border: none !important;
+    }
+    
+    .stButton > button[kind="primary"]:hover {
+        background-color: #059669 !important;
+        color: white !important;
+    }
+    
+    .stButton > button[kind="primary"]:active {
+        background-color: #047857 !important;
+    }
+    
+    /* Form submit buttons */
+    .stFormSubmitButton > button {
+        background-color: #10b981 !important;
+        color: white !important;
+        border: none !important;
+    }
+    
+    .stFormSubmitButton > button:hover {
+        background-color: #059669 !important;
+    }
+    
+    /* Download buttons com type="primary" */
+    .stDownloadButton > button[kind="primary"] {
+        background-color: #10b981 !important;
+        color: white !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # ==================== ESTADOS DA SESSÃO ====================
 if 'step' not in st.session_state:
     st.session_state.step = 1
@@ -210,18 +248,25 @@ with tab1:
             st.divider()
             st.subheader("💭 Autoavaliação")
 
-            confianca = st.select_slider(
+            confianca = st.slider(
                 "F1.5. Qual seu nível de segurança em relação às palavras-chave escolhidas?",
-                options=[
-                    "Totalmente inseguro",
-                    "Inseguro",
-                    "Neutro",
-                    "Seguro",
-                    "Totalmente seguro"
-                ],
-                value="Neutro",
-                help="Avalie sua confiança nas palavras-chave selecionadas"
+                min_value=1,
+                max_value=5,
+                value=3,
+                step=1,
+                format="%d",
+                help="Escala de 1 (totalmente inseguro) a 5 (totalmente seguro)"
             )
+            
+            # Mostrar descrição do valor escolhido
+            labels = {
+                1: "1 - Totalmente inseguro",
+                2: "2 - Inseguro",
+                3: "3 - Neutro",
+                4: "4 - Seguro",
+                5: "5 - Totalmente seguro"
+            }
+            st.caption(f"✓ {labels[confianca]}")
 
             st.divider()
 
