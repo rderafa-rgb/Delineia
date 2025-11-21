@@ -855,6 +855,86 @@ with tab2:
 
     # Sidebar para configuração
     with st.sidebar:
+        st.header("⚙️ Configurar Busca")
+
+        # Campo de busca
+        query = st.text_input(
+            "String de Busca:",
+            value=st.session_state.get('dashboard_query', "HIV/AIDS AND Brasil"),
+            help="Use operadores: AND, OR, NOT"
+        )
+
+        if 'dashboard_query' in st.session_state and st.session_state.dashboard_query:
+            st.info("📋 String copiada do Delineascópio")
+
+        st.divider()
+        st.subheader("🔧 Filtros")
+
+        # Opção de sincronizar configurações
+        with st.expander("⚙️ Configurações Avançadas"):
+            sync_config = st.checkbox("Usar configuração padrão", value=True)
+
+            if sync_config:
+                st.info("**Configuração Padrão:**\n- Limite: 500 artigos\n- Score mínimo: 0.35\n- Level mínimo: 0")
+                limit = 500
+                min_score = 0.35
+                min_level = 0
+            else:
+                limit = st.slider("Limite de artigos:", 10, 500, 100, 10)
+                min_score = st.slider("Score mínimo:", 0.0, 1.0, 0.35, 0.05)
+                min_level = st.slider("Level mínimo:", 0, 5, 0, 1)
+
+        min_cooc = st.slider("Coocorrência mínima:", 1, 10, 2, 1)
+
+        st.divider()
+
+        # Botão de buscar
+        if st.button("🔍 Buscar", type="primary", use_container_width=True):
+            with st.spinner("🔄 Em processamento, confira no Dashboard"):
+                try:
+                    # Inicializar cliente
+                    client = OpenAlexClient(OPENALEX_EMAIL)
+
+                    # Buscar artigos
+                    articles = client.search_articles(client.normalize_query(query), limit)
+
+                    # Extrair conceitos
+                    concepts_lists = []
+                    for article in articles:
+                        concepts = [
+                            c['name'] for c in article.get('concepts', [])
+                            if c['score'] >= min_score and c['level'] >= min_level
+                        ]
+                        if concepts:
+                            concepts_lists.append(concepts)
+
+                    # Construir grafo
+                    analyzer = CooccurrenceAnalyzer()
+                    G = analyzer.build_graph(concepts_lists, min_cooc)
+
+                    # Salvar dados
+                    st.session_state.dashboard_data = {
+                        'articles': articles,
+                        'concepts_lists': concepts_lists,
+                        'graph': G
+                    }
+
+                    # Mostrar detalhes
+                    with st.expander("📋 Detalhes da Busca"):
+                        st.write(f"**String enviada:** {query}")
+                        st.write(f"**Limite:** {limit}")
+                        st.write(f"**Filtros:** score≥{min_score}, level≥{min_level}")
+                        st.write(f"**Artigos retornados:** {len(articles)}")
+                        st.write(f"**Conceitos extraídos:** {len(concepts_lists)}")
+                        st.write(f"**Nós no grafo:** {len(G.nodes())}")
+
+                    st.success(f"✅ {len(articles)} artigos | {len(G.nodes())} conceitos")
+
+                except Exception as e:
+                    st.error(f"❌ Erro: {str(e)}")
+
+        st.divider()
+
         # ========== SEÇÃO SOBRE ==========
         with st.expander("📚 Sobre o Delinéia"):
             st.markdown("""
@@ -900,86 +980,6 @@ with tab2:
             Delinéia XIV - 2025
             """)
     
-    st.markdown("---")  # Linha separadora
-    # ========== FIM SEÇÃO SOBRE ==========
-    st.header("⚙️ Configurar Busca")
-
-    # Campo de busca
-    query = st.text_input(
-        "String de Busca:",
-        value=st.session_state.get('dashboard_query', "HIV/AIDS AND Brasil"),
-        help="Use operadores: AND, OR, NOT"
-    )
-
-    if 'dashboard_query' in st.session_state and st.session_state.dashboard_query:
-        st.info("📋 String copiada do Delineascópio")
-
-    st.divider()
-    st.subheader("🔧 Filtros")
-
-    # Opção de sincronizar configurações
-    with st.expander("⚙️ Configurações Avançadas"):
-        sync_config = st.checkbox("Usar configuração padrão", value=True)
-
-        if sync_config:
-            st.info("**Configuração Padrão:**\n- Limite: 500 artigos\n- Score mínimo: 0.35\n- Level mínimo: 0")
-            limit = 500
-            min_score = 0.35
-            min_level = 0
-        else:
-            limit = st.slider("Limite de artigos:", 10, 500, 100, 10)
-            min_score = st.slider("Score mínimo:", 0.0, 1.0, 0.35, 0.05)
-            min_level = st.slider("Level mínimo:", 0, 5, 0, 1)
-
-    min_cooc = st.slider("Coocorrência mínima:", 1, 10, 2, 1)
-
-    st.divider()
-
-    # Botão de buscar
-    if st.button("🔍 Buscar", type="primary", use_container_width=True):
-        with st.spinner("🔄 Em processamento, confira no Dashboard"):
-            try:
-                # Inicializar cliente
-                client = OpenAlexClient(OPENALEX_EMAIL)
-
-                # Buscar artigos
-                articles = client.search_articles(client.normalize_query(query), limit)
-
-                # Extrair conceitos
-                concepts_lists = []
-                for article in articles:
-                    concepts = [
-                        c['name'] for c in article.get('concepts', [])
-                        if c['score'] >= min_score and c['level'] >= min_level
-                    ]
-                    if concepts:
-                        concepts_lists.append(concepts)
-
-                # Construir grafo
-                analyzer = CooccurrenceAnalyzer()
-                G = analyzer.build_graph(concepts_lists, min_cooc)
-
-                # Salvar dados
-                st.session_state.dashboard_data = {
-                    'articles': articles,
-                    'concepts_lists': concepts_lists,
-                    'graph': G
-                }
-
-                # Mostrar detalhes
-                with st.expander("📋 Detalhes da Busca"):
-                    st.write(f"**String enviada:** {query}")
-                    st.write(f"**Limite:** {limit}")
-                    st.write(f"**Filtros:** score≥{min_score}, level≥{min_level}")
-                    st.write(f"**Artigos retornados:** {len(articles)}")
-                    st.write(f"**Conceitos extraídos:** {len(concepts_lists)}")
-                    st.write(f"**Nós no grafo:** {len(G.nodes())}")
-
-                st.success(f"✅ {len(articles)} artigos | {len(G.nodes())} conceitos")
-
-            except Exception as e:
-                st.error(f"❌ Erro: {str(e)}")
-
     # Área principal do dashboard
     if st.session_state.dashboard_data is None:
         st.info("👈 Configure os parâmetros na barra lateral e clique em **Buscar** para iniciar a análise")
