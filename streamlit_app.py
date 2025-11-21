@@ -980,21 +980,23 @@ with tab2:
             Delinéia XIV - 2025
 
             ### Agradecimentos
-            Aos Professores 
-                Leandro Krug Wives
-                Rosa Maria Vicari
-                Dante Augusto Couto Barone
-                Patrícia Fernanda da Silva
-                Sérgio Roberto Kieling Franco
-                Renato Ventura Bayan Henriques
-                Milton Antonio Zaro
-                Fernando Becker
-                Vanessa Soares Maurente
-                Elisa Boff
-                Alessandra Lorandi
-                Gabriela Trindade Perry
-            Aos colegas do grupo de pesquisa GTech.Edu
-            À CAPES
+            **Ao orientador** Prof Eliseo
+            **Aos Professores** 
+                - Leandro Krug Wives
+                - Rosa Maria Vicari
+                - Dante Augusto Couto Barone
+                - Patrícia Fernanda da Silva
+                - Sérgio Roberto Kieling Franco
+                - Renato Ventura Bayan Henriques
+                - Milton Antonio Zaro
+                - Fernando Becker
+                - Vanessa Soares Maurente
+                - Elisa Boff
+                - Alessandra Lorandi
+                - Gabriela Trindade Perry
+                - Sônia Elisa Caregnato
+            Aos colegas do grupo de pesquisa **GTech.Edu**
+            **À CAPES** pela bolsa de pesquisa
             """)
     
     # Área principal do dashboard
