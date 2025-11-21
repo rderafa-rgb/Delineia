@@ -855,6 +855,53 @@ with tab2:
 
     # Sidebar para configuração
     with st.sidebar:
+        # ========== SEÇÃO SOBRE ==========
+    with st.expander("📚 Sobre o Delinéia"):
+        st.markdown("""
+        ### O que é o Delinéia?
+        O Delinéia é um sistema de apoio ao delineamento do escopo temático de projetos de pesquisa no ensino superior, desenvolvido como parte de uma tese de doutorado. A ferramenta combina Inteligência Artificial (Google Gemini) com análise bibliométrica de coocorrência de palavras (OpenAlex) para auxiliar estudantes de graduação e de pós-graduação no esboço de seus projetos de pesquisa.
+        
+        ### Desenvolvimento
+        **Autor:** Rafael Antunes dos Santos  
+        **Instituição:** Universidade Federal do Rio Grande do Sul (UFRGS), Centro Interdisciplinar de Novas Tecnologias na Educação (Cinted), Programa de Pós-Graduação em Informática na Educação (PPGIE)  
+        **Nível:** Doutorado (previsão de defesa: ago. 2026) 
+        **Orientador:** Prof. Dr. Eliseo Berni Reategui  
+        
+        **Formação Anterior:**  
+        - Mestre em Comunicação e Informação pela UFRGS (PPGCOM)  
+        - Bacharel em Biblioteconomia pela UFRGS (DCI/FABICO) - CRB10/1898
+        
+        **Currículo Lattes:** [http://lattes.cnpq.br/5228660998907867](http://lattes.cnpq.br/5228660998907867)
+        
+        ### Abordagem Interdisciplinar
+        Este projeto situa-se no diálogo entre Informática na Educação e Ciência da Informação, explorando como tecnologias de IA podem apoiar processos de pesquisa científica no ensino superior.
+        
+        ### Funcionalidades
+        - **Delineascópio:** Feedback personalizado sobre projetos de pesquisa
+        - **Dashboard:** Análise profunda de dados do OpenAlex:
+          - **Artigos:** Contagens de artigos e links de acesso
+          - **Conceitos:** Contagens de conceitos e Lei de Zipf
+          - **Coocorrências:** Contagens de associações entre conceitos e matriz de calor
+          - **Grafo:** Visualização interativa
+          - **Mapa Temático:** Posição do cluster na literatura recuperada
+          - **Estatísticas:** Resumo breve
+          - **Exportação:** Dados em JSON, CSV, GraphML
+        
+        ### Tecnologias
+        - Python / Streamlit
+        - Google Gemini AI 2.5 Pro / Anthropic Claude Sonnet 4.5
+        - OpenAlex API
+        - NetworkX / Plotly / ReportLab
+        
+        ### Contato
+        📧 rafael.antunes@ufrgs.br
+        
+        ### Versão
+        Delinéia XIV - 2025
+        """)
+    
+    st.markdown("---")  # Linha separadora
+    # ========== FIM SEÇÃO SOBRE ==========
         st.header("⚙️ Configurar Busca")
 
         # Campo de busca
