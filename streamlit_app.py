@@ -871,11 +871,69 @@ with tab1:
 
         st.divider()
 
+        # ========== PRÊMIO: VÍDEO MUSICAL ==========
+        st.markdown("### 🎵 Prêmio Especial: Uma palavra no escuro")
+        
+        st.markdown("""
+        Como reconhecimento pela sua dedicação, presenteamos você com uma obra que simboliza 
+        o processo de construção do conhecimento científico: a busca por palavras que iluminam 
+        caminhos no escuro da incerteza. Uma homenagem à Jorge Luis Borges e à Biblioteca de Babel.
+        """)
+
+        # Embedar vídeo do YouTube
+        video_url = "https://www.youtube.com/embed/aoKVEJc-7MU"
+        
+        st.markdown(
+            f"""
+            <div style="display: flex; justify-content: center; margin: 2rem 0;">
+                <iframe width="700" height="394" 
+                        src="{video_url}" 
+                        frameborder="0" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                        allowfullscreen>
+                </iframe>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        # Créditos em expander
+        with st.expander("📜 Créditos e Informações"):
+            st.markdown("""
+            **Título:** A palavra no escuro ou os dialetos do poço
+            
+            **Álbum:** Os olhos de Borges (Versão musical do livro homônimo)
+            
+            **Autoria:** Jaime Vaz Brasil (poeta e médico)
+            
+            **Intérprete(s):** [Hique Gomez]
+            
+            **Letra:** [Jaime Vaz Brasil]
+            
+            **Música:** [Hique Gomez]
+            
+            **Produção:** [FUMPROARTE e Instituto Fernando Pessoa]
+            
+            **Ano:** [1999]
+            
+            ---
+            
+            **Conexão com o Delinéia:**
+            
+            Esta música integra o universo poético-musical que inspira a construção do sistema Delinéia. 
+            A metáfora da "palavra no escuro" ecoa o processo de delineamento do escopo de pesquisa: 
+            buscar, na vastidão da literatura científica, as palavras-chave que iluminam o caminho 
+            do conhecimento.
+            
+            Assim como os "dialetos do poço" sugerem múltiplas vozes emergindo da profundidade, 
+            o Delinéia revela as múltiplas dimensões conceituais que estruturam um campo de pesquisa, 
+            auxiliando estudantes a encontrarem suas próprias vozes acadêmicas.
+            """)
         col1, col2, col3 = st.columns([1, 2, 1])
 
         with col2:
-            if st.button("📜 Baixar Certificado de Conclusão", use_container_width=True):
-                st.info("🚧 Funcionalidade em desenvolvimento")
+            if st.button("📜 Veja seu prêmio", use_container_width=True):
+                st.info("")
 
         st.divider()
 
