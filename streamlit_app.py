@@ -978,37 +978,37 @@ with tab2:
         with st.expander("📚 Sobre o Delinéia"):
             st.markdown("""
             ### O que é o Delinéia?
-            O Delinéia é um sistema de apoio ao delineamento do escopo de projetos de pesquisa no ensino superior, desenvolvido como parte de uma tese de doutorado. A ferramenta combina Inteligência Artificial (Google Gemini) com análise bibliométrica (OpenAlex) para auxiliar estudantes de graduação e de pós-graduação no planejamento e refinamento temático de seus projetos de pesquisa.
+            O Delinéia é um sistema de apoio ao delineamento do escopo temático de projetos de pesquisa no ensino superior, desenvolvido como parte de uma tese de doutorado em Informática na Educação. A ferramenta combina inteligência artificial (Google Gemini) com análise bibliométrica de coocorrência de palavras (OpenAlex) para auxiliar estudantes de graduação e de pós-graduação no esboço de seus projetos de pesquisa.
         
             ### Desenvolvimento
             **Autor:** Rafael Antunes dos Santos  
             **Instituição:** Universidade Federal do Rio Grande do Sul (UFRGS), Centro Interdisciplinar de Novas Tecnologias na Educação (Cinted), Programa de Pós-Graduação em Informática na Educação (PPGIE)  
-            **Nível:** Doutorado  
+            **Nível:** Doutorado (previsão de defesa: 2026)  
             **Orientador:** Prof. Dr. Eliseo Berni Reategui  
         
             **Formação Anterior:**  
             - Mestre em Comunicação e Informação pela UFRGS (PPGCOM)  
-            - Bibliotecário-Documentalista (Fabico/UFRGS)
+            - Bacharel em Biblioteconomia pela UFRGS (DCI/FABICO) - CRB10/1898
         
             **Currículo Lattes:** [http://lattes.cnpq.br/5228660998907867](http://lattes.cnpq.br/5228660998907867)
         
             ### Abordagem Interdisciplinar
-            Este projeto situa-se na interseção entre Informática na Educação e Ciência da Informação, explorando como tecnologias de IA podem apoiar processos de pesquisa científica no ensino superior.
+            Este projeto situa-se no diálogo entre Informática na Educação e Ciência da Informação, explorando como tecnologias de IA podem apoiar processos de pesquisa científica no ensino superior.
         
             ### Funcionalidades
-            - **Delineascópio:** Feedback personalizado sobre projetos de pesquisa com PDF
+            - **Delineascópio:** Feedback personalizado sobre projetos de pesquisa
             - **Dashboard:** Análise profunda de dados do OpenAlex:
               - **Artigos:** Contagens de artigos e links de acesso
-              - **Conceitos:** Contagens de conceitos. Lei de Zipf
-              - **Coocorrências:** Contagens de associações entre conceitos. Matriz de calor
+              - **Conceitos:** Contagens de conceitos e Lei de Zipf
+              - **Coocorrências:** Contagens de associações entre conceitos e matrizes
               - **Grafo:** Visualização interativa
               - **Mapa Temático:** Posição do cluster
-              - **Estatísticas:** Resumo básico
-              - **Exportação:** Dados em JSON, CSV, GraphML
+              - **Estatísticas:** Resumo breve
+              - **Exportação:** Dados em JSON, CSV, GraphML, BibTeX, RIS
         
             ### Tecnologias
             - Python / Streamlit
-            - Google Gemini AI 2.0 Flash
+            - Google Gemini AI 2.5 Pro / Anthropic Claude Sonnet 4.5
             - OpenAlex API
             - NetworkX, Plotly, ReportLab
         
@@ -1016,7 +1016,10 @@ with tab2:
             📧 rafael.antunes@ufrgs.br
         
             ### Versão
-            Delinéia XIV - 2025
+            Delinéia I - 2025
+
+            ### Agradecimentos
+            Ao **Orientador** Eliseo Berni Reategui; Aos **Professores** Alexandra Lorandi, Dante Augusto Couto Barone, Elisa Boff, Fernando Becker, Gabriela Trindade Perry, Leandro Krug Wives, Milton Antonio Zaro, Patrícia Fernanda da Silva, Renato Ventura Bayan Henriques, Rosa Maria Vicari, Sérgio Roberto Kieling Franco, Sonia Elisa Caregnato e Vanessa Soares Maurente. Aos colegas do grupo de pesquisa **GTech.Edu** e à **CAPES**, pela concessão de bolsa de estudos.
             """)
     
     # Área principal do dashboard
