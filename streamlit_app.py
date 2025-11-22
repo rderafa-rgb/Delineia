@@ -1055,7 +1055,7 @@ with tab2:
             "💾 Exportação"
         ])
 
-        # ========== SUB-ABA 1: ARTIGOS (COM DOI/URL) ==========
+        # ========== SUB-ABA 1: ARTIGOS (COM DOI/URL) - VERSÃO CORRIGIDA ==========
         with t1:
             st.header("📚 Artigos Analisados")
             st.metric("Total de Artigos", len(articles))
@@ -1071,67 +1071,67 @@ with tab2:
                 for a in articles
             ])
 
-            # Configurar coluna como link clicável
-            st.dataframe(
-                df_articles,
-                use_container_width=True,
-                height=400,
-                column_config={
-                    "DOI/URL": st.column_config.LinkColumn(
-                        "🔗 DOI/URL",
-                        help="Clique para abrir o artigo",
-                        display_text="Abrir artigo"
-                    )
-                }
+        # Configurar coluna como link clicável
+        st.dataframe(
+            df_articles,
+            use_container_width=True,
+            height=400,
+            column_config={
+                "DOI/URL": st.column_config.LinkColumn(
+                    "🔗 DOI/URL",
+                    help="Clique para abrir o artigo",
+                    display_text="Abrir artigo"
+                )
+            }
+        )
+
+        if len(articles) > 0:
+            st.divider()
+            st.subheader("🔍 Detalhes do Artigo")
+
+            # Seletor de artigo - CORRIGIDO
+            idx = st.selectbox(
+                "Selecione um artigo:",
+                range(len(articles)),
+                format_func=lambda i: f"{i+1}. {(articles[i].get('title') or 'Sem título')[:60]}..."
             )
 
-            if len(articles) > 0:
-                st.divider()
-                st.subheader("🔍 Detalhes do Artigo")
+            selected = articles[idx]
 
-                # Seletor de artigo
-                idx = st.selectbox(
-                    "Selecione um artigo:",
-                    range(len(articles)),
-                    format_func=lambda i: f"{i+1}. {articles[i].get('title', '')[:60]}..."
-                )
+            col1, col2 = st.columns([2, 1])
 
-                selected = articles[idx]
+            with col1:
+                st.write(f"**Título:** {selected.get('title') or 'Sem título'}")
+                st.write(f"**Ano:** {selected.get('year', 'N/A')}")
 
-                col1, col2 = st.columns([2, 1])
-
-                with col1:
-                    st.write(f"**Título:** {selected.get('title', 'N/A')}")
-                    st.write(f"**Ano:** {selected.get('year', 'N/A')}")
-
-                    # ✨ EXIBIR LINK CLICÁVEL ✨
-                    link = selected.get('doi', selected.get('url', ''))
-                    if link:
-                        st.markdown(f"**🔗 Link:** [{link}]({link})")
-                    else:
-                        st.write("**🔗 Link:** N/A")
-
-                with col2:
-                    st.metric("Conceitos", len(selected.get('concepts', [])))
-
-                st.subheader("📋 Conceitos do Artigo")
-
-                concepts_df = pd.DataFrame([
-                    {
-                        'Conceito': c['name'],
-                        'Score': f"{c['score']:.3f}",
-                        'Level': c['level']
-                    }
-                    for c in selected.get('concepts', [])
-                ])
-
-                if not concepts_df.empty:
-                    st.dataframe(concepts_df, use_container_width=True)
+                # ✨ EXIBIR LINK CLICÁVEL ✨
+                link = selected.get('doi', selected.get('url', ''))
+                if link:
+                    st.markdown(f"**🔗 Link:** [{link}]({link})")
                 else:
-                    st.info("Nenhum conceito encontrado")
+                    st.write("**🔗 Link:** N/A")
 
-                with st.expander("🔍 Ver JSON completo"):
-                    st.json(selected)
+            with col2:
+                st.metric("Conceitos", len(selected.get('concepts', [])))
+
+            st.subheader("📋 Conceitos do Artigo")
+
+            concepts_df = pd.DataFrame([
+                {
+                    'Conceito': c['name'],
+                    'Score': f"{c['score']:.3f}",
+                    'Level': c['level']
+                }
+                for c in selected.get('concepts', [])
+            ])
+
+            if not concepts_df.empty:
+                st.dataframe(concepts_df, use_container_width=True)
+            else:
+                st.info("Nenhum conceito encontrado")
+
+            with st.expander("🔍 Ver JSON completo"):
+                st.json(selected)
 
         # ========== SUB-ABA 2: CONCEITOS ==========
         with t2:
