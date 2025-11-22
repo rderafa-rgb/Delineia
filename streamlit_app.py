@@ -1063,7 +1063,7 @@ with tab2:
             # ✨ TABELA COM COLUNA DOI/URL ✨
             df_articles = pd.DataFrame([
                 {
-                    'Título': a.get('title', '')[:80] + '...' if len(a.get('title', '')) > 80 else a.get('title', ''),
+                    'Título': (lambda t: t[:80] + '...' if len(t) > 80 else t)(a.get('title') or 'Sem título'),
                     'Ano': a.get('year', 'N/A'),
                     'Conceitos': len(a.get('concepts', [])),
                     'DOI/URL': a.get('doi', a.get('url', 'N/A'))
