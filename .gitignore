@@ -1,0 +1,23 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Credenciais Google Cloud - NUNCA COMMITAR
+google_credentials.json
+
+# Outros arquivos sensíveis
+*.json
+!requirements.json
+
+# Streamlit
+.streamlit/
+
+# Environment
+.env
+venv/
+env/
+
+# OS
+.DS_Store
+Thumbs.db
