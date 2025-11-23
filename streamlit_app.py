@@ -426,11 +426,13 @@ with tab1:
         st.header("📋 Avaliação do Sistema Delinéia")
         st.caption("Suas respostas são fundamentais para aprimorarmos a ferramenta!")
 
-        st.info("📊 **Termo de Consentimento Livre e Esclarecido** Convidamos você a participar da pesquisa sobre o uso de palavras-chave na pesquisa acadêmica. Sua participação é totalmente voluntária, e você pode desistir a qualquer momento sem nenhum prejuízo.
+        st.info("""
+        📊 **Termo de Consentimento Livre e Esclarecido** Convidamos você a participar da pesquisa sobre o uso de palavras-chave na pesquisa acadêmica. Sua participação é totalmente voluntária, e você pode desistir a qualquer momento sem nenhum prejuízo.
 O objetivo do estudo é investigar como a avaliação automatizada de definições preliminares de um projeto, como tema, questão de pesquisa e palavras-chave, pode apoiar estudantes no delineamento do escopo do estudo e na delimitação mais precisa de suas propostas.
 Ressaltamos que nenhuma informação identificável é utilizada na pesquisa.
 Caso tenha dúvidas ou necessite de mais informações, entre em contato por e-mail com o pesquisador responsável, Rafael Antunes dos Santos (rafael.antunes@ufrgs.br), doutorando do Programa de Pós-Graduação em Informática na Educação, da Universidade Federal do Rio Grande do Sul.
-Ao prosseguir com o preenchimento deste formulário, você declara que entende os objetivos da pesquisa e concorda em participar voluntariamente.")
+Ao prosseguir com o preenchimento deste formulário, você declara que entende os objetivos da pesquisa e concorda em participar voluntariamente.
+""")
 
         with st.form("formulario_avaliacao"):
 
@@ -845,8 +847,8 @@ Ao prosseguir com o preenchimento deste formulário, você declara que entende o
         
         st.markdown("""
         Como reconhecimento pela sua dedicação, presenteamos você com uma obra que simboliza 
-        o processo de construção do conhecimento científico: a busca por palavras que iluminam 
-        caminhos no escuro da incerteza. Uma homenagem à Jorge Luis Borges e à Biblioteca de Babel.
+        o processo de construção do conhecimento: a busca por palavras que iluminam 
+        caminhos no escuro da incerteza. Uma homenagem à Jorge Luis Borges e à sua Biblioteca de Babel.
         """)
 
         # Embedar vídeo do YouTube
@@ -902,7 +904,8 @@ Ao prosseguir com o preenchimento deste formulário, você declara que entende o
 
         with col2:
             if st.button("📜 Leia nosso Prólogo", use_container_width=True):
-                st.info("**O Delineascópio**
+                st.info("""
+                **O Delineascópio**
 
 Esta é uma palavra que respira. *Delineamento*…
 
@@ -947,41 +950,23 @@ Para que todo estudante, segurando seu objeto opaco, possa encontrar a luz para 
 **Notas:**
 
 [^1]: FERREIRA, A.B.H. *Novo dicionário Aurélio da língua portuguesa*. 4.ed. Curitiba: Positivo, 2009.
-
 [^2]: NASCENTES, A. *Dicionário etimológico resumido*. Rio de Janeiro: INL, 1966.
-
 [^3]: ACADEMIA BRASILEIRA DE LETRAS. *Vocabulário ortográfico da língua portuguesa*. 5.ed. São Paulo: Global, 2009.
-
 [^4]: FERREIRA, op. cit., p. 614.
-
 [^5]: Ibid.
-
 [^6]: HOUAISS, A.; VILLAR, M.S. *Dicionário Houaiss da língua portuguesa*. Rio de Janeiro: Objetiva, 2009.
-
 [^7]: Ibid.
-
 [^8]: FERREIRA, op. cit. p. 614.
-
 [^9]: HOUAISS, op. cit., p. 610.
-
 [^10]: DIAS, R.C. Americanos ingênuos e vietnamitas silenciosas: uma abordagem intertextual de O americano tranquilo e O prisioneiro. *Papéis*. Campo Grande, v. 23, n. 46, p. 61-75, 2019.
-
 [^11]: CRESTANI, J.L. O Alienista: análise das variantes do folhetim e do livro. *SOLETRAS*, v. 10, n. 19, p. 156-166, 2010.
-
 [^12]: DANTAS, M.L. O trem azul do destino da poesia de Demétrio Diniz. *Letras In.verso e Re.verso*. 2016.
-
 [^13]: RABAÇA, C.A.; BARBOSA, G.G. *Dicionário de comunicação*. 2.ed. Rio de Janeiro: Campus, 2002.
-
 [^14]: Trechos da tese sobre modelos de comportamento informacional.
-
 [^15]: Exemplo de feedback gerado pelo sistema Delinéia.
-
 [^16]: FERREIRA, op. cit., p. 614.
-
 [^17]: KUHLTHAU, C.C. *Seeking meaning:* a process approach to library and information services. 2.ed. Westport: Libraries Unlimited, 2004.
-
 [^18]: FLOWER, L.; HAYES, J.R. A cognitive process theory of writing. *College Composition and Communication*, v. 32, n. 4, p. 365–387, 1981.
-
 [^19]: WILSON, T.D. On user studies and information needs. *Journal of Documentation*, v. 37, n. 1, p. 3-15, 1981.
 
 **Desnorte**
@@ -1005,7 +990,7 @@ A agulha. O aço. O ponto duro e escasso.
 Que sangre o dedo, mas que estanque o vício.
 
 🔍
-")
+""")
 
         st.divider()
 
