@@ -426,7 +426,11 @@ with tab1:
         st.header("📋 Avaliação do Sistema Delinéia")
         st.caption("Suas respostas são fundamentais para aprimorarmos a ferramenta!")
 
-        st.info("📊 **Novo formulário expandido:** 30 perguntas + NPS + 4 campos abertos")
+        st.info("📊 **Termo de Consentimento Livre e Esclarecido** Convidamos você a participar da pesquisa sobre o uso de palavras-chave na pesquisa acadêmica. Sua participação é totalmente voluntária, e você pode desistir a qualquer momento sem nenhum prejuízo.
+O objetivo do estudo é investigar como a avaliação automatizada de definições preliminares de um projeto, como tema, questão de pesquisa e palavras-chave, pode apoiar estudantes no delineamento do escopo do estudo e na delimitação mais precisa de suas propostas.
+Ressaltamos que nenhuma informação identificável é utilizada na pesquisa.
+Caso tenha dúvidas ou necessite de mais informações, entre em contato por e-mail com o pesquisador responsável, Rafael Antunes dos Santos (rafael.antunes@ufrgs.br), doutorando do Programa de Pós-Graduação em Informática na Educação, da Universidade Federal do Rio Grande do Sul.
+Ao prosseguir com o preenchimento deste formulário, você declara que entende os objetivos da pesquisa e concorda em participar voluntariamente.")
 
         with st.form("formulario_avaliacao"):
 
@@ -434,30 +438,29 @@ with tab1:
             st.subheader("💼 Utilidade Percebida")
 
             q1 = st.radio(
-                "1. Usar o Delinéia melhora minha capacidade de delinear o escopo da pesquisa",
-                ["Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
+                "F2.1. Usar o Delinéia melhora a minha capacidade de escolha de palavras-chave para o escopo da pesquisa",
+                ["Concordo Totalmente", "Concordo", "Neutro", "Discordo", "Discordo Totalmente"],
                 horizontal=True,
                 key="q1"
             )
 
             q2 = st.radio(
-                "2. Usar o Delinéia aumenta minha produtividade na definição do projeto",
-                ["Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
+                "F2.2. Usar o Delinéia aumenta minha produtividade na definição do projeto",
+                ["Concordo Totalmente", "Concordo", "Neutro", "Discordo", "Discordo Totalmente"],
                 horizontal=True,
                 key="q2"
             )
 
             q3 = st.radio(
-                "3. O Delinéia é útil para delimitar meu projeto de pesquisa",
-                ["Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
+                "F2.3. O Delinéia é útil para delimitar meu projeto de pesquisa",
+                ["Concordo Totalmente", "Concordo", "Neutro", "Discordo", "Discordo Totalmente"],
                 horizontal=True,
                 key="q3"
             )
 
-            # ⭐ NOVA PERGUNTA
             q4 = st.radio(
-                "4. O Delinéia me ajuda a identificar lacunas na literatura do meu tema",
-                ["Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
+                "F2.4. O Delinéia me ajuda a posicionar meu projeto na literatura do meu tema",
+                ["Concordo Totalmente", "Concordo", "Neutro", "Discordo", "Discordo Totalmente"],
                 horizontal=True,
                 key="q4"
             )
@@ -468,32 +471,24 @@ with tab1:
             st.subheader("🎯 Facilidade de Uso Percebida")
 
             q5 = st.radio(
-                "5. Aprender a usar o Delinéia é fácil para mim",
-                ["Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
+                "F2.5. O Delinéia é fácil de usar",
+                ["Concordo Totalmente", "Concordo", "Neutro", "Discordo", "Discordo Totalmente"],
                 horizontal=True,
                 key="q5"
             )
 
             q6 = st.radio(
-                "6. A interação com o Delinéia é clara e compreensível",
-                ["Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
+                "F2.6. A interação com o Delinéia é clara e compreensível",
+                ["Concordo Totalmente", "Concordo", "Neutro", "Discordo", "Discordo Totalmente"],
                 horizontal=True,
                 key="q6"
             )
 
             q7 = st.radio(
-                "7. Eu acho o Delinéia fácil de usar",
-                ["Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
+                "F2.7. A navegação entre as diferentes funcionalidades é intuitiva",
+                ["Concordo Totalmente", "Concordo", "Neutro", "Discordo", "Discordo Totalmente"],
                 horizontal=True,
                 key="q7"
-            )
-
-            # ⭐ NOVA PERGUNTA
-            q8 = st.radio(
-                "8. A navegação entre as diferentes funcionalidades é intuitiva",
-                ["Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
-                horizontal=True,
-                key="q8"
             )
 
             st.divider()
@@ -501,201 +496,119 @@ with tab1:
             # ==================== SEÇÃO 3: QUALIDADE DA INFORMAÇÃO ====================
             st.subheader("📊 Qualidade da Informação")
 
+            q8 = st.radio(
+                "F2.8. As análises e sugestões do Delinéia são relevantes para meu projeto",
+                ["Concordo Totalmente", "Concordo", "Neutro", "Discordo", "Discordo Totalmente"],
+                horizontal=True,
+                key="q8"
+            )
+
             q9 = st.radio(
-                "9. As informações fornecidas pelo Delinéia são precisas",
-                ["Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
+                "F2.9. A avaliação gerada pela IA é construtiva para meu projeto",
+                ["Concordo Totalmente", "Concordo", "Neutro", "Discordo", "Discordo Totalmente"],
                 horizontal=True,
                 key="q9"
             )
 
             q10 = st.radio(
-                "10. As análises e sugestões do sistema são relevantes para meu projeto",
-                ["Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
+                "F2.10. A string oferecida é precisa para o meu tema",
+                ["Concordo Totalmente", "Concordo", "Neutro", "Discordo", "Discordo Totalmente"],
                 horizontal=True,
                 key="q10"
             )
 
             q11 = st.radio(
-                "11. O grafo de coocorrências me ajudou a visualizar relações entre conceitos",
-                ["Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
+                "F2.11. O grafo de coocorrências me ajudou a visualizar relações entre conceitos",
+                ["Concordo Totalmente", "Concordo", "Neutro", "Discordo", "Discordo Totalmente"],
                 horizontal=True,
                 key="q11"
             )
 
-            # ⭐ NOVA PERGUNTA
             q12 = st.radio(
-                "12. A avaliação gerada pela IA é construtiva e específica para meu projeto",
-                ["Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
+                "F2.12. O Delinéia me ajudou a formular perguntas de pesquisa mais precisas",
+                ["Concordo Totalmente", "Concordo", "Neutro", "Discordo", "Discordo Totalmente"],
                 horizontal=True,
                 key="q12"
             )
 
-            st.divider()
-
-            # ==================== ⭐ SEÇÃO 4: FUNCIONALIDADES ESPECÍFICAS (NOVA) ====================
-            st.subheader("🗺️ Avaliação de Funcionalidades Específicas")
-
             q13 = st.radio(
-                "13. O Mapa Temático Estratégico me ajudou a posicionar meu tema na literatura",
-                ["Não usei", "Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
-                horizontal=False,
+                "F2.13. O relatório em PDF é adequado para apresentar ao meu orientador",
+                ["Concordo Totalmente", "Concordo", "Neutro", "Discordo", "Discordo Totalmente"],
+                horizontal=True,
                 key="q13"
             )
 
+            st.divider()
+
+            # ==================== SEÇÃO 4: INTENÇÃO DE USO ====================
+            st.subheader("🔮 Intenção de Uso")
+
             q14 = st.radio(
-                "14. A análise de Zipf foi útil para entender a distribuição de conceitos",
-                ["Não usei", "Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
-                horizontal=False,
+                "F2.14. O tempo gasto usando o Delinéia compensa os resultados obtidos",
+                ["Concordo Totalmente", "Concordo", "Neutro", "Discordo", "Discordo Totalmente"],
+                horizontal=True,
                 key="q14"
             )
 
             q15 = st.radio(
-                "15. O Dashboard exploratório permite insights que eu não teria manualmente",
-                ["Não usei", "Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
-                horizontal=False,
+                "F2.15. Eu pretendo usar o Delinéia em projetos futuros",
+                ["Concordo Totalmente", "Concordo", "Neutro", "Discordo", "Discordo Totalmente"],
+                horizontal=True,
                 key="q15"
             )
 
             q16 = st.radio(
-                "16. O relatório em PDF é adequado para apresentar ao meu orientador",
-                ["Não gerei PDF", "Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
-                horizontal=False,
+                "F2.16. Eu usaria o Delinéia em diferentes fases da minha pesquisa (projeto, qualificação, defesa)",
+                ["Concordo Totalmente", "Concordo", "Neutro", "Discordo", "Discordo Totalmente"],
+                horizontal=True,
                 key="q16"
             )
 
             st.divider()
 
-            # ==================== ⭐ SEÇÃO 5: COMPARAÇÃO (NOVA) ====================
-            st.subheader("⚖️ Comparação com Métodos Tradicionais")
+            # ==================== SEÇÃO 5: CONFIANÇA NO SISTEMA ====================
+            st.subheader("🔒 Confiança no Sistema")
 
             q17 = st.radio(
-                "17. O Delinéia é mais eficiente que realizar buscas manuais em bases de dados",
-                ["Nunca fiz busca manual", "Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
-                horizontal=False,
+                "F2.17. Eu confio nas análises geradas pelo Delinéia",
+                ["Concordo Totalmente", "Concordo", "Neutro", "Discordo", "Discordo Totalmente"],
+                horizontal=True,
                 key="q17"
             )
 
             q18 = st.radio(
-                "18. As visualizações do Delinéia são mais informativas que tabelas tradicionais",
-                ["Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
+                "F2.18. Eu me sinto confortável em basear decisões acadêmicas com os resultados do Delinéia",
+                ["Concordo Totalmente", "Concordo", "Neutro", "Discordo", "Discordo Totalmente"],
                 horizontal=True,
                 key="q18"
             )
 
+            st.divider()
+
+            # ==================== SEÇÃO 6: EXPERIÊNCIA DO USUÁRIO ====================
+            st.subheader("✨ Experiência do Usuário")
+
             q19 = st.radio(
-                "19. O tempo gasto usando o Delinéia compensa os resultados obtidos",
-                ["Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
+                "F2.19. O design da interface é agradável",
+                ["Concordo Totalmente", "Concordo", "Neutro", "Discordo", "Discordo Totalmente"],
                 horizontal=True,
                 key="q19"
             )
 
-            st.divider()
-
-            # ==================== SEÇÃO 6: INTENÇÃO DE USO ====================
-            st.subheader("🔮 Intenção de Uso")
-
             q20 = st.radio(
-                "20. Eu pretendo usar o Delinéia em projetos futuros",
-                ["Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
+                "F2.20. O tempo de processamento do relatório foi adequado",
+                ["Concordo Totalmente", "Concordo", "Neutro", "Discordo", "Discordo Totalmente"],
                 horizontal=True,
                 key="q20"
             )
 
-            q21 = st.radio(
-                "21. Eu recomendaria o Delinéia para colegas",
-                ["Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
-                horizontal=True,
-                key="q21"
-            )
-
-            # ⭐ NOVA PERGUNTA
-            q22 = st.radio(
-                "22. Eu usaria o Delinéia em diferentes fases da minha pesquisa (projeto, qualificação, defesa)",
-                ["Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
-                horizontal=True,
-                key="q22"
-            )
-
             st.divider()
 
-            # ==================== SEÇÃO 7: CONFIANÇA NO SISTEMA ====================
-            st.subheader("🔒 Confiança no Sistema")
-
-            q23 = st.radio(
-                "23. Eu confio nas análises geradas pelo Delinéia",
-                ["Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
-                horizontal=True,
-                key="q23"
-            )
-
-            q24 = st.radio(
-                "24. O sistema demonstra conhecimento sobre metodologia de pesquisa",
-                ["Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
-                horizontal=True,
-                key="q24"
-            )
-
-            # ⭐ NOVA PERGUNTA
-            q25 = st.radio(
-                "25. Eu me sinto confortável em basear decisões acadêmicas nos resultados do Delinéia",
-                ["Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
-                horizontal=True,
-                key="q25"
-            )
-
-            st.divider()
-
-            # ==================== SEÇÃO 8: EXPERIÊNCIA DO USUÁRIO ====================
-            st.subheader("✨ Experiência do Usuário")
-
-            q26 = st.radio(
-                "26. O design da interface é agradável",
-                ["Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
-                horizontal=True,
-                key="q26"
-            )
-
-            q27 = st.radio(
-                "27. O tempo de processamento do relatório foi adequado",
-                ["Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
-                horizontal=True,
-                key="q27"
-            )
-
-            st.divider()
-
-            # ==================== SEÇÃO 9: IMPACTO EDUCACIONAL ====================
-            st.subheader("📚 Impacto Educacional")
-
-            q28 = st.radio(
-                "28. O Delinéia me ensinou conceitos novos sobre bibliometria",
-                ["Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
-                horizontal=True,
-                key="q28"
-            )
-
-            q29 = st.radio(
-                "29. Usar o Delinéia melhorou minha alfabetização informacional",
-                ["Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
-                horizontal=True,
-                key="q29"
-            )
-
-            # ⭐ NOVA PERGUNTA
-            q30 = st.radio(
-                "30. O sistema me ajudou a formular perguntas de pesquisa mais precisas",
-                ["Discordo Totalmente", "Discordo", "Neutro", "Concordo", "Concordo Totalmente"],
-                horizontal=True,
-                key="q30"
-            )
-
-            st.divider()
-
-            # ==================== ⭐ SEÇÃO 10: NPS (NOVA) ====================
+            # ==================== SEÇÃO 7: NET PROMOTER SCORE ====================
             st.subheader("⭐ Satisfação Geral (Net Promoter Score)")
 
             nps = st.slider(
-                "Em uma escala de 0 a 10, quanto você recomendaria o Delinéia para um colega?",
+                "F2.21. Em uma escala de 0 a 10, quanto você recomendaria o Delinéia para um colega?",
                 min_value=0,
                 max_value=10,
                 value=5,
@@ -712,73 +625,124 @@ with tab1:
 
             st.divider()
 
-            # ==================== CAMPOS ABERTOS ====================
+            # ==================== SEÇÃO 8: COMENTÁRIOS ADICIONAIS ====================
             st.subheader("💬 Comentários Adicionais")
 
-            positivo = st.text_area(
-                "O que você mais gostou no Delinéia?",
+            q22 = st.text_area(
+                "F2.22. O que você mais gostou no Delinéia?",
                 height=100,
-                key="positive_feedback",
+                key="q22",
                 placeholder="Descreva os aspectos mais positivos da sua experiência..."
             )
 
-            melhorias = st.text_area(
-                "O que poderia ser melhorado?",
+            q23 = st.text_area(
+                "F2.23. O que poderia ser melhorado?",
                 height=100,
-                key="improvements",
+                key="q23",
                 placeholder="Sugestões de melhorias, funcionalidades ausentes, problemas encontrados..."
             )
 
-            futuro = st.text_area(
-                "Funcionalidades que você gostaria de ver no futuro:",
+            q24 = st.text_area(
+                "F2.24. Funcionalidades que você gostaria de ver no futuro:",
                 height=100,
-                key="future_features",
+                key="q24",
                 placeholder="Ideias para próximas versões..."
             )
 
-            # ⭐ NOVA PERGUNTA ABERTA
-            uso = st.text_area(
-                "Como você usou (ou pretende usar) os resultados do Delinéia em sua pesquisa?",
+            q25 = st.text_area(
+                "F2.25. Como você usou (ou pretende usar) os resultados do Delinéia na sua pesquisa?",
                 height=100,
-                key="usage_context",
+                key="q25",
                 placeholder="Ex: projeto de qualificação, artigo, revisão de literatura..."
             )
 
             st.divider()
 
-            # ==================== ⭐ DADOS DEMOGRÁFICOS (NOVO) ====================
+            # ==================== SEÇÃO 9: AUTOAVALIAÇÃO ====================
+            st.subheader("🔄 Autoavaliação")
+
+            st.markdown("""
+            **Reflexão sobre seu processo:**  
+            No formulário inicial (F1.5), você indicou seu nível de segurança em relação às palavras-chave escolhidas.  
+            Agora, após ter lido o relatório e as análises do Delinéia, como você avalia sua escolha inicial?
+            """)
+
+            q26 = st.radio(
+                "F2.26. Considerando as palavras-chave escolhidas inicialmente e a leitura do relatório, qual seu nível de segurança em relação às palavras-chave que você definiu para a pesquisa bibliográfica do seu projeto?",
+                ["Totalmente seguro", "Seguro", "Neutro", "Inseguro", "Totalmente inseguro"],
+                horizontal=True,
+                key="q26"
+            )
+
+            # Mostrar comparação se disponível
+            if 'form_data' in st.session_state and 'confianca' in st.session_state.form_data:
+                confianca_inicial = st.session_state.form_data['confianca']
+                st.info(f"💡 **Sua resposta inicial (F1.5):** {confianca_inicial}")
+
+            st.divider()
+
+            # ==================== SEÇÃO 10: PERFIL DO RESPONDENTE ====================
             st.subheader("👤 Perfil do Respondente (Opcional)")
 
             col1, col2 = st.columns(2)
 
             with col1:
-                nivel = st.selectbox(
-                    "Nível acadêmico:",
+                q27 = st.selectbox(
+                    "F2.27. Nível acadêmico:",
                     ["Prefiro não informar", "Graduação", "Especialização", "Mestrado",
                      "Doutorado", "Pós-Doutorado", "Docente"],
-                    key="nivel_academico"
+                    key="q27"
                 )
 
-                experiencia = st.selectbox(
-                    "Experiência prévia com bibliometria:",
+                q28 = st.selectbox(
+                    "F2.28. Experiência prévia com bibliometria:",
                     ["Nenhuma", "Básica", "Intermediária", "Avançada"],
-                    key="experiencia_biblio"
+                    key="q28"
                 )
 
             with col2:
-                area = st.selectbox(
-                    "Área do conhecimento:",
+                q29 = st.selectbox(
+                    "F2.29. Área do conhecimento:",
                     ["Prefiro não informar", "Ciências Exatas", "Ciências Biológicas", "Ciências da Saúde",
                      "Ciências Agrárias", "Ciências Sociais Aplicadas", "Ciências Humanas",
                      "Linguística/Letras/Artes", "Engenharias", "Multidisciplinar"],
-                    key="area_conhecimento"
+                    key="q29"
                 )
 
-                tempo_uso = st.selectbox(
-                    "Tempo gasto usando o Delinéia hoje:",
+                q30 = st.selectbox(
+                    "F2.30. Tempo gasto usando o Delinéia hoje:",
                     ["< 15 min", "15-30 min", "30-60 min", "> 1 hora"],
-                    key="tempo_uso"
+                    key="q30"
                 )
+
+            st.divider()
+
+            # ==================== SEÇÃO 11: CONVITE À CONTINUIDADE ====================
+            st.subheader("🤝 Convite à Continuidade da Pesquisa")
+
+            st.markdown("""
+            **Queremos continuar contando com você!**
+            
+            Esta pesquisa não termina aqui. Estamos desenvolvendo novas funcionalidades e gostaríamos 
+            de convidá-lo(a) para participar de outras etapas do estudo, como:
+            
+            - 🎥 **Sessões mediadas por videoconferência** para observação de uso
+            - 🎓 **Oficinas e treinamentos** sobre bibliometria e ferramentas de pesquisa
+            - 🧪 **Testes de novas funcionalidades** antes do lançamento público
+            - 📊 **Entrevistas em profundidade** sobre suas estratégias de pesquisa
+            
+            Sua participação é voluntária e você poderá desistir a qualquer momento. 
+            Caso aceite, entraremos em contato por e-mail com mais informações.
+            """)
+
+            aceite_continuidade = st.checkbox(
+                "✅ **Sim, aceito participar de outras fases desta pesquisa e autorizo contato por e-mail**",
+                key="aceite_continuidade",
+                help="Ao marcar esta opção, você demonstra interesse em contribuir com o desenvolvimento do Delinéia"
+            )
+
+            if aceite_continuidade:
+                st.success("🎉 Obrigado por aceitar continuar conosco! Você receberá um e-mail com mais informações em breve.")
 
             st.divider()
 
@@ -800,26 +764,28 @@ with tab1:
 
                 # Armazenar respostas
                 avaliacao_data = {
-                    # Perguntas Likert
+                    # Perguntas Likert (F2.1-F2.20)
                     'q1': q1, 'q2': q2, 'q3': q3, 'q4': q4, 'q5': q5,
                     'q6': q6, 'q7': q7, 'q8': q8, 'q9': q9, 'q10': q10,
                     'q11': q11, 'q12': q12, 'q13': q13, 'q14': q14, 'q15': q15,
                     'q16': q16, 'q17': q17, 'q18': q18, 'q19': q19, 'q20': q20,
-                    'q21': q21, 'q22': q22, 'q23': q23, 'q24': q24, 'q25': q25,
-                    'q26': q26, 'q27': q27, 'q28': q28, 'q29': q29, 'q30': q30,
-                    # NPS
+                    # NPS (F2.21)
                     'nps': nps,
                     'nps_category': nps_category,
-                    # Campos abertos
-                    'positivo': positivo,
-                    'melhorias': melhorias,
-                    'futuro': futuro,
-                    'uso': uso,
-                    # Demográfico
-                    'nivel': nivel,
-                    'experiencia': experiencia,
-                    'area': area,
-                    'tempo_uso': tempo_uso,
+                    # Campos abertos (F2.22-F2.25)
+                    'q22': q22,
+                    'q23': q23,
+                    'q24': q24,
+                    'q25': q25,
+                    # Autoavaliação (F2.26)
+                    'q26': q26,
+                    # Perfil (F2.27-F2.30)
+                    'q27': q27,
+                    'q28': q28,
+                    'q29': q29,
+                    'q30': q30,
+                    # Convite à continuidade
+                    'aceite_continuidade': aceite_continuidade,
                     # Metadados
                     'timestamp': datetime.now().isoformat()
                 }
@@ -829,23 +795,26 @@ with tab1:
                 st.session_state.avaliacao_data = avaliacao_data
 
                 # Badge de conclusão
-                add_badge('🏆 Mestre Avaliador')
+                add_badge('🏆 Avaliador')
 
                 # Feedback visual
                 st.success("✅ Avaliação enviada com sucesso!")
                 st.balloons()
 
                 # Resumo da avaliação
+                continuidade_msg = "Sim ✅" if aceite_continuidade else "Não"
+                
                 st.info(f"""
                 📊 **Resumo da sua avaliação:**
 
                 • **NPS:** {nps}/10 ({nps_category})
-                • **Nível acadêmico:** {nivel}
-                • **Experiência bibliométrica:** {experiencia}
-                • **Área:** {area}
-                • **Tempo de uso:** {tempo_uso}
+                • **Nível acadêmico:** {q27}
+                • **Experiência bibliométrica:** {q28}
+                • **Área:** {q29}
+                • **Tempo de uso:** {q30}
+                • **Aceite para continuidade:** {continuidade_msg}
 
-                🏆 **Badge desbloqueado:** Mestre Avaliador
+                🏆 **Badge desbloqueado:** Avaliador
 
                 Obrigado por dedicar seu tempo para avaliar o Delinéia!
                 Seu feedback é essencial para o desenvolvimento contínuo do sistema.
@@ -854,7 +823,7 @@ with tab1:
                 # Avançar para próxima etapa
                 st.session_state.step = 4
                 st.rerun()
-
+    
     # ========== ETAPA 4: CONCLUSÃO ==========
     elif st.session_state.step == 4:
         st.success("🎉 Parabéns! Você completou todas as etapas!")
@@ -906,21 +875,21 @@ with tab1:
             
             **Autoria:** Jaime Vaz Brasil (poeta e médico)
             
-            **Intérprete(s):** [Hique Gomez]
+            **Intérprete(s):** Hique Gomez
             
-            **Letra:** [Jaime Vaz Brasil]
+            **Letra:** Jaime Vaz Brasil
             
-            **Música:** [Hique Gomez]
+            **Música:** Hique Gomez
             
-            **Produção:** [FUMPROARTE e Instituto Fernando Pessoa]
+            **Produção:** FUMPROARTE/POA e Instituto Fernando Pessoa
             
-            **Ano:** [1999]
+            **Ano:** 1999
             
             ---
             
             **Conexão com o Delinéia:**
             
-            Esta música integra o universo poético-musical que inspira a construção do sistema Delinéia. 
+            Esta música integra o universo poético que inspira a construção do sistema Delinéia. 
             A metáfora da "palavra no escuro" ecoa o processo de delineamento do escopo de pesquisa: 
             buscar, na vastidão da literatura científica, as palavras-chave que iluminam o caminho 
             do conhecimento.
@@ -932,8 +901,111 @@ with tab1:
         col1, col2, col3 = st.columns([1, 2, 1])
 
         with col2:
-            if st.button("📜 Veja seu prêmio", use_container_width=True):
-                st.info("")
+            if st.button("📜 Leia nosso Prólogo", use_container_width=True):
+                st.info("**O Delineascópio**
+
+Esta é uma palavra que respira. *Delineamento*…
+
+Não é uma palavra-ponto, uma palavra-fim. Não é limite, fronteira ou conclusão. Embora o Novo Dicionário Aurélio, em sua precisão cartográfica, nos diga que delinear tenha o significado de "[...] fixar os limites de; estremar, demarcar", a verdadeira alma da palavra reside em sua outra definição: "[...] traçar as linhas gerais de; esboçar, debuxar".[^1] Esta é uma palavra-processo. Uma palavra-verbo que se disfarça de substantivo. No seu coração, pulsa o ato de delinear, do latim *delineare*, "[...] por via erudita".[^2] Em sua família, registrada nas colunas dos léxicos do vocabulário ortográfico da Academia Brasileira de Letras[^3], encontramos o delineador (aquele que traça) e o delineado (aquilo que foi traçado). Mas o delineamento é algo mais. É o "[...] ato de delinear".[^4] Não é o traço, mas o traçar. Não é o mapa, mas o mapear. É "[...] o primeiro esboço ou projeto de qualquer obra; plano geral".[^5] É o gesto inaugural da criação. É o primeiro traço.
+
+O Dicionário Houaiss nos conta um segredo: a palavra já circulava em 1552[^6]. Mil quinhentos e cinquenta e dois. Pensemos nisso. Esta não é uma palavra da Revolução Industrial. Não nasceu fria, metálica, otimizada sob uma linha de montagem, no distanciamento entre idealização e produção. Ela nasceu no auge do Renascimento, numa era de exploração febril, quando o mundo conhecido se expandia e exigia ser desenhado, quando os mapas eram mais suposição do que certeza. Sua primeira definição registrada, "[...] ato ou efeito de delinear(-se); esboço, delineação, traçado [...]", era usada para o "[...] esboço do projeto de reparação a ser feita em qualquer parte de embarcação".[^7]
+
+Que poética inaugural! O delineamento não é sobre construir o navio do zero; é sobre o reparo. É sobre olhar para uma estrutura que já existe (uma ideia, um navio, um campo de estudo) e traçar o plano para sua renovação, sua travessia. O navio da pesquisa do estudante já existe, ancorado no porto da sua intuição, mas com o casco opaco de incertezas. Ele precisa ser delineado para poder navegar.
+
+Frequentemente, quando buscamos uma tradução apressada, a língua inglesa nos oferece, friamente, *design*. Mas *design* é uma palavra que trai a alma do delineamento. *Design* carrega o peso da indústria, do produto final, da ergonomia. O *design* é assertivo, muitas vezes dogmático. Ele se impõe à matéria. O *design* é a cadeira, o *iPhone*, o motor: soluções acabadas, polidas, fechadas em si. Delineamento é o oposto. É uma palavra de escuta. O delineamento é a pergunta ganhando forma.
+
+O verbo delinear, "[...] traçar as linhas gerais de; esboçar, debuxar",[^8] é um ato de humildade. O delineador não inventa o contorno do continente; ele traça o contorno que descobre. O *design* fecha; o delineamento abre. O *design* é a certeza do engenheiro; o delineamento é a hesitação do artista diante da tela em branco. É por isso que o delineamento é a palavra-raiz da cultura das descobertas, sejam elas artísticas, filosóficas, científicas ou mesmo industriais. A descoberta não é um *design*, mas um delineamento. É o ato de tatear no escuro e, aos poucos, "[...] traçar as linhas gerais, o plano de; projetar, planejar".[^9] É a transformação da incerteza em foco.
+
+E aqui, uma busca interessante se revela. A palavra delineamento é, em si, um ato da crítica, da análise e da academia, mas é rara dentro da prosa de ficção ou dos versos de poesia. Parece ser uma palavra que usamos para observar a literatura, e não uma palavra que a literatura usa para observar o mundo. Um romancista provavelmente escreveria "o contorno do seu rosto" ou "o traçado do plano", mas raramente "o delineamento do seu rosto". A palavra pertence ao analista, ao pesquisador. A encontramos em textos de crítica literária, operando do mesmo modo como esta tese propõe: o processo de dar forma, traçar perfis e estruturar a descoberta.
+
+Um ensaio sobre Erico Verissimo e Graham Greene menciona o "[...] delineamento de dois perfis de personagens [...]".[^10] Um estudo sobre Machado de Assis foca no "[...] delineamento do percurso da escrita de 'O alienista' [...]",[^11] analisando como Machado de Assis esboçou e refez sua obra. Um crítico, sobre o poeta Demétrio Vieira Diniz, afirma que seu livro "[...] atesta e faz saber o delineamento de uma singular dicção".[^12] É a palavra que usamos para entender a criação, perfeita para descrever o processo de descoberta que o aluno, no centro desta tese, está colocado a realizar.
+
+Em um canto esquecido da estante, em um Dicionário de Comunicação, encontramos um artefato. Ao buscar uma remissiva da entrada principal do verbete "Episcópio", lemos: "Aparelho baseado na reflexão de luz, que se destina à projeção de imagens de objetos opacos (tais como fotografias, desenhos etc.). Também chamado de delineascópio ou de projetor opaco".[^13] *Delineascópio*: o-que-projeta-o-delineado [sic].
+
+Um aparelho (*scópio*) que torna visível (*projeção*) um esboço ou traçado (*delínea*). Aqui, a poética se completa. O conhecimento começa não com a luz, mas com um objeto opaco. Qual é o "objeto opaco" senão a ideia inicial de um pesquisador? É aqui que a palavra encontra sua casa nesta tese: "*Grandes modelos de linguagem e análise de coocorrência de palavras-chave para o delineamento do escopo de projetos de pesquisa no ensino superior*".
+
+O estudante chega ao ensino superior carregando esse objeto opaco. Ele o segura nas mãos. O projeto o chama, em linguagem técnica, de "necessidade de informação", de uma etapa de "formulação" marcada por "sentimentos iniciais de dúvida e confusão", ou o estado de "pré-foco" onde a "incerteza é um estado cognitivo que comumente causa sintomas afetivos de ansiedade e falta de confiança".[^14] Como encontrar as agulhas certas nos palheiros mais loucos?
+
+Simbolicamente, é uma intuição turva. Um vulto. Um interesse que ainda não tem palavras. É um desenho que não pode ser visto. É um mapa por fazer. Como traçar o que ainda não se vê? É preciso, então, um delineascópio. Um aparelho de luz refletida. Não a luz que cega, mas a que projeta os contornos do que já está lá. Esta tese é uma das engrenagens da engenharia desta máquina. O estudante coloca seu objeto opaco (sua ideia de tema, sua questão de pesquisa inicial, suas primeiras palavras-chave) na máquina. A máquina, então, usa duas fontes de luz para projetar essa ideia na grande teia da literatura científica.
+
+A primeira luz é a análise de coocorrência de palavras. Ela funciona exatamente como um episcópio: ela reflete a luz sobre o objeto opaco do aluno e projeta as conexões que ele não podia ver. O estudante vê seu termo (por exemplo, "*gamification*") e, de repente, projetado na tela, ele o vê ligado a "*motivation*", "*higher education*", "*engagement*", "*learning outcomes*". O grafo de coocorrência é a projeção. O opaco tornou-se visível, relacional, delineável. O estudante pode, agora, pegar seu lápis e traçar as conexões que a luz revelou. A máquina oferece uma visão complementar dos conceitos centrais.
+
+A segunda luz é generativa. São os grandes modelos de linguagem (LLMs). Se a coocorrência é a projeção, o LLM é o *feedback*, a mediação. É a voz que ajuda o estudante a ajustar o foco do delineascópio. Ele não se limita a projetar o que existe; ele conversa com a projeção. Ele oferece o *feedback* textual automatizado. Ele olha para a projeção e sussurra: "As palavras-chave designadas para o projeto se mostram alinhadas... No entanto, algumas expressões ainda podem ser consideradas genéricas... É recomendável que você considere a possibilidade de incorporar termos mais descritivos… Converse com seu orientador…".[^15] Ele sugere novas lentes, novas palavras. O delineamento do escopo deixa de ser uma tarefa burocrática de definição de limites e se torna um ato poético de projeção e descoberta. Deixa de ser um ato de solidão e passa a ser um ato de mediação. E no centro deste ato, o estudante. Este projeto coloca o aluno no centro desse processo. O estudante não é um receptor passivo de *design*. Ele é o delineador[^16].
+
+Esta tese reconhece a luta humana nesse processo. Ela se ancora em modelos teóricos que são, em essência, mapas da alma deste estudante-pesquisador. Ela se fundamenta no modelo de Kuhlthau, que entende a busca como uma passagem dolorosa e necessária da "incerteza" para a confiança.[^17] Ela se baseia no modelo cognitivo de escrita de Flower e Hayes, que entende a escrita não como uma tradução linear, mas como um processo recursivo de "planejamento, geração de ideias, organização e definição de metas"[^18], ou seja, o próprio ato de delinear. E se alicerça no modelo de comportamento informacional de Wilson, que mapeia o "comportamento de busca" e as "barreiras" que tornam a ideia opaca em primeiro lugar.[^19]
+
+O delineamento proposto nesta tese é, portanto, terapêutico. Ele oferece ao estudante, que "enfrenta dificuldades" e "inúmeros desafios", as ferramentas não para resolver seu problema, mas para vê-lo projetado. A ferramenta torna-se uma mediadora do pensamento científico, um andaime para a autonomia investigativa, um fomento ao pensamento crítico.
+
+Em 1552, o delineamento era o esboço para reparar um navio e prepará-lo para a travessia. Hoje, o delineamento é o esboço para reparar a confiança do estudante-pesquisador, dando-lhe o mapa: o delineascópio para sua própria travessia intelectual. A pesquisa, assim como a arte, não é sobre ter respostas prontas, mas sobre a coragem de fazer o traço inicial, de navegar a incerteza e, aos poucos, dar forma ao pensamento. Minha tese é a história da construção desse delineascópio. É um convite para trocar a ansiedade da página em branco pela descoberta mediada do primeiro traço. É uma palavra que acolhe a jornada do estudante, celebrando o esboço tanto quanto a obra final.
+
+Para que todo estudante, segurando seu objeto opaco, possa encontrar a luz para projetá-lo e, enfim, começar a delinear…
+
+… *Delinéia !!!*
+
+---
+
+**Notas:**
+
+[^1]: FERREIRA, A.B.H. *Novo dicionário Aurélio da língua portuguesa*. 4.ed. Curitiba: Positivo, 2009.
+
+[^2]: NASCENTES, A. *Dicionário etimológico resumido*. Rio de Janeiro: INL, 1966.
+
+[^3]: ACADEMIA BRASILEIRA DE LETRAS. *Vocabulário ortográfico da língua portuguesa*. 5.ed. São Paulo: Global, 2009.
+
+[^4]: FERREIRA, op. cit., p. 614.
+
+[^5]: Ibid.
+
+[^6]: HOUAISS, A.; VILLAR, M.S. *Dicionário Houaiss da língua portuguesa*. Rio de Janeiro: Objetiva, 2009.
+
+[^7]: Ibid.
+
+[^8]: FERREIRA, op. cit. p. 614.
+
+[^9]: HOUAISS, op. cit., p. 610.
+
+[^10]: DIAS, R.C. Americanos ingênuos e vietnamitas silenciosas: uma abordagem intertextual de O americano tranquilo e O prisioneiro. *Papéis*. Campo Grande, v. 23, n. 46, p. 61-75, 2019.
+
+[^11]: CRESTANI, J.L. O Alienista: análise das variantes do folhetim e do livro. *SOLETRAS*, v. 10, n. 19, p. 156-166, 2010.
+
+[^12]: DANTAS, M.L. O trem azul do destino da poesia de Demétrio Diniz. *Letras In.verso e Re.verso*. 2016.
+
+[^13]: RABAÇA, C.A.; BARBOSA, G.G. *Dicionário de comunicação*. 2.ed. Rio de Janeiro: Campus, 2002.
+
+[^14]: Trechos da tese sobre modelos de comportamento informacional.
+
+[^15]: Exemplo de feedback gerado pelo sistema Delinéia.
+
+[^16]: FERREIRA, op. cit., p. 614.
+
+[^17]: KUHLTHAU, C.C. *Seeking meaning:* a process approach to library and information services. 2.ed. Westport: Libraries Unlimited, 2004.
+
+[^18]: FLOWER, L.; HAYES, J.R. A cognitive process theory of writing. *College Composition and Communication*, v. 32, n. 4, p. 365–387, 1981.
+
+[^19]: WILSON, T.D. On user studies and information needs. *Journal of Documentation*, v. 37, n. 1, p. 3-15, 1981.
+
+**Desnorte**
+
+O mundo é este monte: palha e pó. 
+Um caos de fibra, um tato quase cego, 
+Onde me perco e nada mais congrego, 
+Mergulhado em um vasto e mudo "só".
+
+Perdi o mapa; a rota é só tormento. 
+A perspectiva é turva, escura névoa; 
+A dúvida é um peso, noite, treva, 
+E o "quê fazer" corrói a cada momento.
+
+A inércia abre a estrada do fracasso; 
+O não saber é um jugo, um precipício, 
+Não há repouso ou fim neste compasso.
+
+Resta encontrar, no caos, o puro indício: 
+A agulha. O aço. O ponto duro e escasso. 
+Que sangre o dedo, mas que estanque o vício.
+
+🔍
+")
 
         st.divider()
 
@@ -1040,11 +1112,14 @@ with tab2:
         
             ### Desenvolvimento
             **Autor:** Rafael Antunes dos Santos  
-            **Instituição:** Universidade Federal do Rio Grande do Sul (UFRGS), Centro Interdisciplinar de Novas Tecnologias na Educação (Cinted), Programa de Pós-Graduação em Informática na Educação (PPGIE)  
-            **Nível:** Doutorado (previsão de defesa: 2026)  
+            **Instituição:** 
+            - Universidade Federal do Rio Grande do Sul (UFRGS) 
+            - Centro Interdisciplinar de Novas Tecnologias na Educação (Cinted)
+            - Programa de Pós-Graduação em Informática na Educação (PPGIE)  
+            **Nível:** Doutorado  
             **Orientador:** Prof. Dr. Eliseo Berni Reategui  
         
-            **Formação Anterior:**  
+            **Formação Anterior:**
             - Mestre em Comunicação e Informação pela UFRGS (PPGCOM)  
             - Bacharel em Biblioteconomia pela UFRGS (DCI/FABICO) - CRB10/1898
         
@@ -1057,7 +1132,7 @@ with tab2:
             - **Delineascópio:** Feedback personalizado sobre projetos de pesquisa
             - **Dashboard:** Análise profunda de dados do OpenAlex:
               - **Artigos:** Contagens de artigos e links de acesso
-              - **Conceitos:** Contagens de conceitos e Lei de Zipf
+              - **Conceitos:** Contagens de conceitos, nuvem de palavras e Lei de Zipf
               - **Coocorrências:** Contagens de associações entre conceitos e matrizes
               - **Grafo:** Visualização interativa
               - **Mapa Temático:** Posição do cluster
@@ -1077,7 +1152,7 @@ with tab2:
             Delinéia I - 2025
 
             ### Agradecimentos
-            Ao **Orientador** Eliseo Berni Reategui; Aos **Professores** Alexandra Lorandi, Dante Augusto Couto Barone, Elisa Boff, Fernando Becker, Gabriela Trindade Perry, Leandro Krug Wives, Milton Antonio Zaro, Patrícia Fernanda da Silva, Renato Ventura Bayan Henriques, Rosa Maria Vicari, Sérgio Roberto Kieling Franco, Sonia Elisa Caregnato e Vanessa Soares Maurente. Aos colegas do grupo de pesquisa **GTech.Edu** e à **CAPES**, pela concessão de bolsa de estudos.
+            Ao **Orientador** Eliseo Berni Reategui; Aos **Professores** Alexandra Lorandi, Alexandre Ribas Semeler, Dante Augusto Couto Barone, Elisa Boff, Fernando Becker, Gabriela Trindade Perry, Leandro Krug Wives, Marcus Vinicius de Azevedo Basso, Maria de Fátima Santos Maia, Milton Antonio Zaro, Patrícia Fernanda da Silva, Rafael Port da Rocha, Renato Ventura Bayan Henriques, Rosa Maria Vicari, Samile Andréa de Souza Vanz, Sérgio Roberto Kieling Franco, Sonia Elisa Caregnato e Vanessa Soares Maurente. Aos colegas do grupo de pesquisa **GTech.Edu** e à **CAPES**, pela concessão de bolsa de estudos.
             """)
     
     # Área principal do dashboard
@@ -1840,7 +1915,7 @@ with tab2:
                                             st.error("💡 Tema emergente ou em declínio. Fronteira de pesquisa.")
 
                             # ---------- Explicação metodológica ----------
-                            with st.expander("ℹ️ Sobre a metodologia (Aria & Cuccurullo, 2017; He, 1999)"):
+                            with st.expander("ℹ️ Sobre a metodologia (Aria; Cuccurullo, 2017; He, 1999)"):
                                 st.markdown("""
                                 Este mapa temático segue a lógica do *Strategic Diagram*:
 
@@ -1851,11 +1926,8 @@ with tab2:
 
                                 Referências:
 
-                                - Aria, M., & Cuccurullo, C. (2017). *bibliometrix: An R-tool for comprehensive science mapping analysis.*
-                                  Journal of Informetrics, 11(4), 959–975.
-
-                                - He, Q. (1999). *Knowledge discovery through co-word analysis.*
-                                  Library Trends, 48(1), 133–159.
+                                - ARIA, M.; CUCCURULLO, C. Bibliometrix: An R-tool for comprehensive science mapping analysis. *Journal of Informetrics*, v.11, n.4, p.959–975, 2017. Doi: http://dx.doi.org/10.1016/j.joi.2017.08.007
+                                - HE, Q. (1999). Knowledge discovery through co-word analysis. *Library Trends*, v.48, n.1, p.133–159, 1999. Disponível em: https://www.proquest.com/scholarly-journals/knowledge-discovery-through-co-word-analysis/docview/220452924/se-2 
                                 """)
 
                     except ImportError:
