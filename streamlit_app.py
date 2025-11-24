@@ -14,6 +14,165 @@ import zipfile
 from io import BytesIO
 import numpy as np
 from scipy import stats
+import gspread
+from google.oauth2.service_account import Credentials
+import uuid
+import time as time_module
+
+# ==================== GOOGLE SHEETS CONFIG ====================
+GOOGLE_SHEETS_URL = "https://docs.google.com/spreadsheets/d/1BE2le2ZVm2ej20w7UF5T7RSjO-V_Ii0RuhZQ2vEQQLY/edit"
+ABA_FORMULARIO_INICIAL = "Formulario_Inicial"
+ABA_RESULTADOS_PIPELINE = "Resultados_Pipeline"
+ABA_FORMULARIO_AVALIACAO = "Formulario_Avaliacao"
+
+@st.cache_resource
+def conectar_google_sheets():
+    """Conecta ao Google Sheets usando credenciais locais"""
+    SCOPES = [
+        'https://www.googleapis.com/auth/spreadsheets',
+        'https://www.googleapis.com/auth/drive'
+    ]
+    
+    try:
+        creds = Credentials.from_service_account_file(
+            'google_credentials.json',
+            scopes=SCOPES
+        )
+        client = gspread.authorize(creds)
+        sheet = client.open_by_url(GOOGLE_SHEETS_URL)
+        return sheet
+    except Exception as e:
+        st.error(f"❌ Erro ao conectar Google Sheets: {e}")
+        return None
+
+def enviar_formulario_inicial(form_data):
+    """Envia dados do formulário inicial para Google Sheets"""
+    try:
+        sheet = conectar_google_sheets()
+        if sheet is None:
+            return None
+        
+        worksheet = sheet.worksheet(ABA_FORMULARIO_INICIAL)
+        
+        # Gerar ID único
+        id_usuario = f"user_{uuid.uuid4().hex[:8]}"
+        
+        # Preparar linha
+        row = [
+            id_usuario,
+            form_data['timestamp'],
+            form_data['nome'],
+            form_data['email'],
+            form_data['tema'],
+            form_data['questao'],
+            form_data['palavras_chave'],
+            form_data.get('google_academico', ''),
+            form_data.get('confianca', '')
+        ]
+        
+        worksheet.append_row(row, value_input_option='RAW')
+        return id_usuario
+        
+    except Exception as e:
+        st.error(f"❌ Erro ao enviar formulário: {e}")
+        return None
+
+def enviar_resultados_pipeline(id_usuario, result, tempo_segundos):
+    """Envia resultados do pipeline para Google Sheets"""
+    try:
+        sheet = conectar_google_sheets()
+        if sheet is None:
+            return False
+        
+        worksheet = sheet.worksheet(ABA_RESULTADOS_PIPELINE)
+        
+        # Preparar linha
+        top_conceitos_str = ",".join(result.get('top_concepts', [])[:9])
+        
+        row = [
+            id_usuario,
+            datetime.now().strftime("%d/%m/%Y às %H:%M"),
+            result.get('search_string', ''),
+            '',  # termos_sugeridos
+            result.get('full_report', '')[:500],
+            result.get('search_objective', ''),
+            result.get('articles_count', 0),
+            top_conceitos_str,
+            result['graph_stats']['nodes'],
+            result['graph_stats']['edges'],
+            result['graph_stats'].get('density', 0),
+            round(tempo_segundos, 2)
+        ]
+        
+        worksheet.append_row(row, value_input_option='RAW')
+        return True
+        
+    except Exception as e:
+        st.error(f"❌ Erro ao enviar resultados: {e}")
+        return False
+
+def enviar_formulario_avaliacao(id_usuario, avaliacao_data):
+    """Envia avaliação do usuário para Google Sheets"""
+    try:
+        sheet = conectar_google_sheets()
+        if sheet is None:
+            return False
+        
+        worksheet = sheet.worksheet(ABA_FORMULARIO_AVALIACAO)
+        
+        # Calcular tempo total
+        tempo_total = 0
+        if 'timestamp_formulario_inicial' in st.session_state:
+            tempo_total = round(time_module.time() - st.session_state.timestamp_formulario_inicial, 2)
+        
+        # Preparar linha
+        row = [
+            id_usuario,
+            datetime.now().strftime("%d/%m/%Y às %H:%M"),
+            avaliacao_data.get('q1', ''),
+            avaliacao_data.get('q2', ''),
+            avaliacao_data.get('q3', ''),
+            avaliacao_data.get('q4', ''),
+            avaliacao_data.get('q5', ''),
+            avaliacao_data.get('q6', ''),
+            avaliacao_data.get('q7', ''),
+            avaliacao_data.get('q8', ''),
+            avaliacao_data.get('q9', ''),
+            avaliacao_data.get('q10', ''),
+            avaliacao_data.get('q11', ''),
+            avaliacao_data.get('q12', ''),
+            avaliacao_data.get('q13', ''),
+            avaliacao_data.get('q14', ''),
+            avaliacao_data.get('q15', ''),
+            avaliacao_data.get('q16', ''),
+            avaliacao_data.get('q17', ''),
+            avaliacao_data.get('q18', ''),
+            avaliacao_data.get('q19', ''),
+            avaliacao_data.get('q20', ''),
+            avaliacao_data.get('nps', 0),
+            avaliacao_data.get('nps_category', ''),
+            avaliacao_data.get('q22', ''),
+            avaliacao_data.get('q23', ''),
+            avaliacao_data.get('q24', ''),
+            avaliacao_data.get('q25', ''),
+            avaliacao_data.get('q26', ''),
+            avaliacao_data.get('q27', ''),
+            avaliacao_data.get('q28', ''),
+            avaliacao_data.get('q29', ''),
+            avaliacao_data.get('q30', ''),
+            'Sim' if avaliacao_data.get('aceite_continuidade', False) else 'Não',
+            ",".join(st.session_state.get('badges', [])),
+            tempo_total,
+            st.session_state.get('play_video', False),
+            st.session_state.get('open_prologo', False)
+        ]
+        
+        worksheet.append_row(row, value_input_option='RAW')
+        return True
+        
+    except Exception as e:
+        st.error(f"❌ Erro ao enviar avaliação: {e}")
+        return False
 
 # ==================== FUNÇÃO DE ANÁLISE DE ZIPF =================
 def analyze_zipf(frequency_data):
@@ -144,6 +303,10 @@ if 'avaliacao_completa' not in st.session_state:
     st.session_state.avaliacao_completa = False
 if 'badges' not in st.session_state:
     st.session_state.badges = []
+if 'play_video' not in st.session_state:
+    st.session_state.play_video = False
+if 'open_prologo' not in st.session_state:
+    st.session_state.open_prologo = False
 
 # ==================== FUNÇÕES AUXILIARES ====================
 def add_badge(badge_name: str) -> bool:
@@ -183,8 +346,8 @@ with tab1:
     with col3:
         if st.session_state.step >= 3:
             st.success("✅ Etapa 3/3: Avaliação")
-            if '🏆 Mestre Delineador' not in st.session_state.badges:
-                add_badge('🏆 Mestre Delineador')
+            if '🏆 Delineador' not in st.session_state.badges:
+                add_badge('🏆 Delineador')
         else:
             st.info("⏳ Etapa 3/3: Avaliação")
 
@@ -286,6 +449,12 @@ with tab1:
                         'timestamp': datetime.now().strftime("%d/%m/%Y às %H:%M")
                     }
 
+                    # Enviar para Google Sheets e salvar ID
+                    id_usuario = enviar_formulario_inicial(st.session_state.form_data)
+                    if id_usuario:
+                        st.session_state.id_usuario = id_usuario
+                        st.session_state.timestamp_formulario_inicial = time_module.time()
+
                     with st.spinner("🔄 Processando... (aguarde 2-3 minutos)"):
                         try:
                             # Inicializar pipeline
@@ -295,11 +464,21 @@ with tab1:
                             kws = [k.strip() for k in palavras_chave.split(',') if k.strip()]
 
                             # Executar pipeline
+                            tempo_inicio = time_module.time()
                             st.session_state.resultado = pipe.process(nome, tema, questao, kws)
+                            tempo_fim = time_module.time()
 
-                            # Avançar para próxima etapa
-                            st.session_state.step = 2
-                            st.rerun()
+                            # Enviar resultados para Google Sheets
+                            if 'id_usuario' in st.session_state:
+                                enviar_resultados_pipeline(
+                                    st.session_state.id_usuario,
+                                    st.session_state.resultado,
+                                    tempo_fim - tempo_inicio
+                                )
+
+# Avançar para próxima etapa
+st.session_state.step = 2
+st.rerun()
 
                         except Exception as e:
                             st.error(f"❌ Erro ao processar: {str(e)}")
@@ -415,7 +594,7 @@ with tab1:
 
         # CTA para avaliação
         st.divider()
-        st.info("💝 Ajude a melhorar o Delinéia! Complete a avaliação e desbloqueie o distintivo **🏆 Mestre Delineador**")
+        st.info("💝 Ajude a melhorar o Delinéia! Complete a avaliação e desbloqueie o distintivo **🏆 Delineador**")
 
         if st.button("➡️ Ir para Avaliação", type="primary", use_container_width=True):
             st.session_state.step = 3
@@ -426,13 +605,25 @@ with tab1:
         st.header("📋 Avaliação do Sistema Delinéia")
         st.caption("Suas respostas são fundamentais para aprimorarmos a ferramenta!")
 
-        st.info("""
-        📊 **Termo de Consentimento Livre e Esclarecido** Convidamos você a participar da pesquisa sobre o uso de palavras-chave na pesquisa acadêmica. Sua participação é totalmente voluntária, e você pode desistir a qualquer momento sem nenhum prejuízo.
-O objetivo do estudo é investigar como a avaliação automatizada de definições preliminares de um projeto, como tema, questão de pesquisa e palavras-chave, pode apoiar estudantes no delineamento do escopo do estudo e na delimitação mais precisa de suas propostas.
-Ressaltamos que nenhuma informação identificável é utilizada na pesquisa.
-Caso tenha dúvidas ou necessite de mais informações, entre em contato por e-mail com o pesquisador responsável, Rafael Antunes dos Santos (rafael.antunes@ufrgs.br), doutorando do Programa de Pós-Graduação em Informática na Educação, da Universidade Federal do Rio Grande do Sul.
-Ao prosseguir com o preenchimento deste formulário, você declara que entende os objetivos da pesquisa e concorda em participar voluntariamente.
-""")
+        st.markdown("""
+        <div style="text-align: justify; line-height: 1.8; 
+                    background-color: #d1ecf1; 
+                    border-left: 4px solid #0c5460; 
+                    padding: 1rem; 
+                    border-radius: 0.25rem;
+                    color: #0c5460;">
+        📊 <strong>Termo de Consentimento Livre e Esclarecido</strong><br><br>
+        Convidamos você a participar da pesquisa sobre o uso de palavras-chave na pesquisa acadêmica. Sua participação é totalmente voluntária, e você pode desistir a qualquer momento sem nenhum prejuízo.
+
+        O objetivo do estudo é investigar como a avaliação automatizada de definições preliminares de um projeto, como tema, questão de pesquisa e palavras-chave, pode apoiar estudantes no delineamento do escopo do estudo e na delimitação mais precisa de suas propostas.
+
+        Ressaltamos que nenhuma informação identificável é utilizada na pesquisa.
+
+        Caso tenha dúvidas ou necessite de mais informações, entre em contato por e-mail com o pesquisador responsável, Rafael Antunes dos Santos (rafael.antunes@ufrgs.br), doutorando do Programa de Pós-Graduação em Informática na Educação, da Universidade Federal do Rio Grande do Sul.
+
+        Ao prosseguir com o preenchimento deste formulário, você declara que entende os objetivos da pesquisa e concorda em participar voluntariamente.
+        </div>
+        """, unsafe_allow_html=True)
 
         with st.form("formulario_avaliacao"):
 
@@ -796,8 +987,15 @@ Ao prosseguir com o preenchimento deste formulário, você declara que entende o
                 st.session_state.avaliacao_completa = True
                 st.session_state.avaliacao_data = avaliacao_data
 
+                # Enviar para Google Sheets
+                if 'id_usuario' in st.session_state:
+                    enviar_formulario_avaliacao(
+                        st.session_state.id_usuario,
+                        avaliacao_data
+                    )
+
                 # Badge de conclusão
-                add_badge('🏆 Avaliador')
+                add_badge('💎 Avaliador')
 
                 # Feedback visual
                 st.success("✅ Avaliação enviada com sucesso!")
@@ -829,7 +1027,7 @@ Ao prosseguir com o preenchimento deste formulário, você declara que entende o
     # ========== ETAPA 4: CONCLUSÃO ==========
     elif st.session_state.step == 4:
         st.success("🎉 Parabéns! Você completou todas as etapas!")
-        st.markdown("### 🏆 Conquista Desbloqueada: Mestre Delineador!")
+        st.markdown("### 🏆 Conquista Desbloqueada: Delineador!")
         st.balloons()
 
         primeiro_nome = st.session_state.form_data['nome'].split()[0]
@@ -846,10 +1044,17 @@ Ao prosseguir com o preenchimento deste formulário, você declara que entende o
         st.markdown("### 🎵 Prêmio Especial: Uma palavra no escuro")
         
         st.markdown("""
+        <div style="text-align: justify; line-height: 1.8; 
+                    background-color: #d1ecf1; 
+                    border-left: 4px solid #0c5460; 
+                    padding: 1rem; 
+                    border-radius: 0.25rem;
+                    color: #0c5460;">
         Como reconhecimento pela sua dedicação, presenteamos você com uma obra que simboliza 
         o processo de construção do conhecimento: a busca por palavras que iluminam 
         caminhos no escuro da incerteza. Uma homenagem à Jorge Luis Borges e à sua Biblioteca de Babel.
-        """)
+        <div>
+        """, unsafe_allow_html=True)
 
         # Embedar vídeo do YouTube
         video_url = "https://www.youtube.com/embed/aoKVEJc-7MU"
@@ -868,23 +1073,28 @@ Ao prosseguir com o preenchimento deste formulário, você declara que entende o
             unsafe_allow_html=True
         )
 
+        # Botão para rastrear se assistiu ao vídeo
+        if st.button("✅ Assisti ao vídeo", use_container_width=True):
+            st.session_state.play_video = True
+            st.success("Obrigado por assistir! 🎵")
+
         # Créditos em expander
         with st.expander("📜 Créditos e Informações"):
             st.markdown("""
+            <div style="text-align: justify; line-height: 1.8; 
+                        background-color: #d1ecf1; 
+                        border-left: 4px solid #0c5460; 
+                        padding: 1rem; 
+                        border-radius: 0.25rem;
+                        color: #0c5460;">
             **Título:** A palavra no escuro ou os dialetos do poço
-            
             **Álbum:** Os olhos de Borges (Versão musical do livro homônimo)
-            
-            **Autoria:** Jaime Vaz Brasil (poeta e médico)
-            
-            **Intérprete(s):** Hique Gomez
-            
-            **Letra:** Jaime Vaz Brasil
-            
-            **Música:** Hique Gomez
-            
-            **Produção:** FUMPROARTE/POA e Instituto Fernando Pessoa
-            
+            **Livro:** BRASIL, J.V. *Os olhos de Borges*. Porto Alegre: WS Editor, 1997.
+            **Autoria:** Jaime Vaz Brasil
+            **Intérprete(s):** Hique Gomez            
+            **Letra:** Jaime Vaz Brasil            
+            **Música:** Hique Gomez            
+            **Produção:** FUMPROARTE/POA e Instituto Fernando Pessoa            
             **Ano:** 1999
             
             ---
@@ -899,11 +1109,13 @@ Ao prosseguir com o preenchimento deste formulário, você declara que entende o
             Assim como os "dialetos do poço" sugerem múltiplas vozes emergindo da profundidade, 
             o Delinéia revela as múltiplas dimensões conceituais que estruturam um campo de pesquisa, 
             auxiliando estudantes a encontrarem suas próprias vozes acadêmicas.
-            """)
+            <div>
+            """, unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 2, 1])
 
         with col2:
-            if st.button("📜 Leia nosso Prólogo", use_container_width=True):
+            if st.button("📜 Leia o prólogo da tese", use_container_width=True):
+                st.session_state.open_prologo = True
                 st.info("""
                 **O Delineascópio**
 
@@ -971,25 +1183,40 @@ Para que todo estudante, segurando seu objeto opaco, possa encontrar a luz para 
 
 **Desnorte**
 
-O mundo é este monte: palha e pó. 
-Um caos de fibra, um tato quase cego, 
-Onde me perco e nada mais congrego, 
+O mundo é este monte: palha e pó.
+ 
+Um caos de fibra, um tato quase cego,
+ 
+Onde me perco e nada mais congrego,
+ 
 Mergulhado em um vasto e mudo "só".
 
-Perdi o mapa; a rota é só tormento. 
-A perspectiva é turva, escura névoa; 
-A dúvida é um peso, noite, treva, 
+                        
+Perdi o mapa; a rota é só tormento.
+ 
+A perspectiva é turva, escura névoa;
+ 
+A dúvida é um peso, noite, treva,
+ 
 E o "quê fazer" corrói a cada momento.
 
-A inércia abre a estrada do fracasso; 
-O não saber é um jugo, um precipício, 
-Não há repouso ou fim neste compasso.
 
-Resta encontrar, no caos, o puro indício: 
-A agulha. O aço. O ponto duro e escasso. 
+A inércia abre a estrada do fracasso;
+ 
+O não saber é um jugo, um precipício,
+ 
+Não há repouso ou fim neste compasso.
+                        
+
+Resta encontrar, no caos, o puro indício:
+ 
+A agulha. O aço. O ponto duro e escasso.
+ 
 Que sangre o dedo, mas que estanque o vício.
 
+
 🔍
+                        
 """)
 
         st.divider()
