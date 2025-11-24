@@ -109,13 +109,11 @@ class GeminiQueryGenerator:
     """
 
     def __init__(self):
-
-        # Configurar API Key do Gemini
-        api_key = os.getenv('GOOGLE_API_KEY')
-        if api_key:
-            genai.configure(api_key=api_key)
-        
         try:
+            import streamlit as st
+            api_key = st.secrets.get("GEMINI-API-KEY", "")
+            genai.configure(api_key=api_key)
+
             self.model = genai.GenerativeModel(
                 'gemini-2.5-pro',
                 generation_config={
@@ -641,4 +639,5 @@ class ResearchScopePipeline:
 
 
 # Variável global necessária
-OPENALEX_EMAIL = ""
+import streamlit as st
+OPENALEX_EMAIL = st.secrets.get("OPENALEX_EMAIL", "")
