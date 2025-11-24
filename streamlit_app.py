@@ -42,7 +42,6 @@ def conectar_google_sheets():
         sheet = client.open_by_url(GOOGLE_SHEETS_URL)
         return sheet
     except Exception as e:
-        st.error(f"❌ Erro ao conectar Google Sheets: {e}")
         return None
 
 def enviar_formulario_inicial(form_data):
@@ -51,7 +50,6 @@ def enviar_formulario_inicial(form_data):
         sheet = conectar_google_sheets()
         
         if not sheet:
-            st.error("❌ DEBUG: Falha ao conectar!")
             return None
         
         worksheet = sheet.worksheet(ABA_FORMULARIO_INICIAL)
@@ -1114,7 +1112,7 @@ Ao prosseguir com o preenchimento deste formulário, você declara que entende o
             Assim como os "dialetos do poço" sugerem múltiplas vozes emergindo da profundidade, 
             o Delinéia revela as múltiplas dimensões conceituais que estruturam um campo de pesquisa, 
             auxiliando estudantes a encontrarem suas próprias vozes acadêmicas.
-            <div>
+            </div>
             """, unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 2, 1])
 
