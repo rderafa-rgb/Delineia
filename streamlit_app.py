@@ -27,21 +27,30 @@ ABA_FORMULARIO_AVALIACAO = "formulario_avaliacao"
 
 @st.cache_resource
 def conectar_google_sheets():
-    """Conecta ao Google Sheets usando credenciais locais"""
+    """Conecta ao Google Sheets usando credenciais do Streamlit Secrets"""
     SCOPES = [
         'https://www.googleapis.com/auth/spreadsheets',
         'https://www.googleapis.com/auth/drive'
     ]
     
     try:
-        creds = Credentials.from_service_account_file(
-            'google_credentials.json',
+        # Ler credenciais DOS SECRETS (não do arquivo!)
+        google_creds = st.secrets["google_credentials"]
+        
+        # Converter para dict
+        creds_dict = dict(google_creds)
+        
+        # Criar credenciais a partir do dict
+        creds = Credentials.from_service_account_info(
+            creds_dict,
             scopes=SCOPES
         )
+        
         client = gspread.authorize(creds)
         sheet = client.open_by_url(GOOGLE_SHEETS_URL)
         return sheet
     except Exception as e:
+        st.error(f"❌ Erro ao conectar Google Sheets: {e}")
         return None
 
 def enviar_formulario_inicial(form_data):
