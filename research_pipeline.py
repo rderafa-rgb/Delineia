@@ -7,6 +7,11 @@ import requests
 import google.generativeai as genai
 import networkx as nx
 import matplotlib.pyplot as plt
+import os
+from dotenv import load_dotenv
+
+# Carregar variáveis de ambiente
+load_dotenv()
 
 # ==================== CLIENTE OPENALEX ====================
 class OpenAlexClient:
@@ -104,6 +109,12 @@ class GeminiQueryGenerator:
     """
 
     def __init__(self):
+
+        # Configurar API Key do Gemini
+        api_key = os.getenv('GOOGLE_API_KEY')
+        if api_key:
+            genai.configure(api_key=api_key)
+        
         try:
             self.model = genai.GenerativeModel(
                 'gemini-2.5-pro',
