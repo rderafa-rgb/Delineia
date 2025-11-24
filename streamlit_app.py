@@ -21,9 +21,9 @@ import time as time_module
 
 # ==================== GOOGLE SHEETS CONFIG ====================
 GOOGLE_SHEETS_URL = "https://docs.google.com/spreadsheets/d/1BE2le2ZVm2ej20w7UF5T7RSjO-V_Ii0RuhZQ2vEQQLY/edit"
-ABA_FORMULARIO_INICIAL = "Formulario_Inicial"
-ABA_RESULTADOS_PIPELINE = "Resultados_Pipeline"
-ABA_FORMULARIO_AVALIACAO = "Formulario_Avaliacao"
+ABA_FORMULARIO_INICIAL = "formulario_inicial"
+ABA_RESULTADOS_PIPELINE = "resultados_pipeline"
+ABA_FORMULARIO_AVALIACAO = "formulario_avaliacao"
 
 @st.cache_resource
 def conectar_google_sheets():
@@ -49,11 +49,13 @@ def enviar_formulario_inicial(form_data):
     """Envia dados do formulário inicial para Google Sheets"""
     try:
         sheet = conectar_google_sheets()
-        if sheet is None:
+        
+        if not sheet:
+            st.error("❌ DEBUG: Falha ao conectar!")
             return None
         
         worksheet = sheet.worksheet(ABA_FORMULARIO_INICIAL)
-        
+                
         # Gerar ID único
         id_usuario = f"user_{uuid.uuid4().hex[:8]}"
         
@@ -396,7 +398,7 @@ with tab1:
             )
 
             palavras_chave = st.text_input(
-                "F1.3. Palavras-chave*",
+                "F1.3. Palavras-chave* (separadas entre vírgulas)",
                 placeholder="Ex: HIV/AIDS, Pesquisa, Brasil",
                 help="Separe as palavras-chave por vírgula"
             )
@@ -476,9 +478,9 @@ with tab1:
                                     tempo_fim - tempo_inicio
                                 )
 
-# Avançar para próxima etapa
-st.session_state.step = 2
-st.rerun()
+                            # Avançar para próxima etapa
+                            st.session_state.step = 2
+                            st.rerun()
 
                         except Exception as e:
                             st.error(f"❌ Erro ao processar: {str(e)}")
@@ -605,25 +607,19 @@ st.rerun()
         st.header("📋 Avaliação do Sistema Delinéia")
         st.caption("Suas respostas são fundamentais para aprimorarmos a ferramenta!")
 
-        st.markdown("""
-        <div style="text-align: justify; line-height: 1.8; 
-                    background-color: #d1ecf1; 
-                    border-left: 4px solid #0c5460; 
-                    padding: 1rem; 
-                    border-radius: 0.25rem;
-                    color: #0c5460;">
-        📊 <strong>Termo de Consentimento Livre e Esclarecido</strong><br><br>
-        Convidamos você a participar da pesquisa sobre o uso de palavras-chave na pesquisa acadêmica. Sua participação é totalmente voluntária, e você pode desistir a qualquer momento sem nenhum prejuízo.
+        st.info("""
+📊 **Termo de Consentimento Livre e Esclarecido**
+ 
+Convidamos você a participar da pesquisa sobre o uso de palavras-chave na pesquisa acadêmica. Sua participação é totalmente voluntária, e você pode desistir a qualquer momento sem nenhum prejuízo.
 
-        O objetivo do estudo é investigar como a avaliação automatizada de definições preliminares de um projeto, como tema, questão de pesquisa e palavras-chave, pode apoiar estudantes no delineamento do escopo do estudo e na delimitação mais precisa de suas propostas.
+O objetivo do estudo é investigar como a avaliação automatizada de definições preliminares de um projeto, como tema, questão de pesquisa e palavras-chave, pode apoiar estudantes no delineamento do escopo do estudo e na delimitação mais precisa de suas propostas.
 
-        Ressaltamos que nenhuma informação identificável é utilizada na pesquisa.
+Ressaltamos que nenhuma informação identificável é utilizada na pesquisa.
 
-        Caso tenha dúvidas ou necessite de mais informações, entre em contato por e-mail com o pesquisador responsável, Rafael Antunes dos Santos (rafael.antunes@ufrgs.br), doutorando do Programa de Pós-Graduação em Informática na Educação, da Universidade Federal do Rio Grande do Sul.
-
-        Ao prosseguir com o preenchimento deste formulário, você declara que entende os objetivos da pesquisa e concorda em participar voluntariamente.
-        </div>
-        """, unsafe_allow_html=True)
+Caso tenha dúvidas ou necessite de mais informações, entre em contato por e-mail com o pesquisador responsável, Rafael Antunes dos Santos (rafael.antunes@ufrgs.br), doutorando do Programa de Pós-Graduação em Informática na Educação, da Universidade Federal do Rio Grande do Sul.
+                
+Ao prosseguir com o preenchimento deste formulário, você declara que entende os objetivos da pesquisa e concorda em participar voluntariamente.
+""")
 
         with st.form("formulario_avaliacao"):
 
@@ -814,7 +810,7 @@ st.rerun()
             elif nps >= 7:
                 st.info("😐 **Neutro** - O que podemos melhorar?")
             else:
-                st.warning("😞 **Detrator** - Queremos ouvir suas sugestões!")
+                st.warning("😞 **Desanimado** - Queremos ouvir suas sugestões!")
 
             st.divider()
 
@@ -1044,12 +1040,12 @@ st.rerun()
         st.markdown("### 🎵 Prêmio Especial: Uma palavra no escuro")
         
         st.markdown("""
-        <div style="text-align: justify; line-height: 1.8; 
-                    background-color: #d1ecf1; 
-                    border-left: 4px solid #0c5460; 
+        <div style="text-align: justify; 
+                    background-color: #ffffff; 
+                    border-left: 4px solid #333333; 
                     padding: 1rem; 
                     border-radius: 0.25rem;
-                    color: #0c5460;">
+                    color: #000000;">
         Como reconhecimento pela sua dedicação, presenteamos você com uma obra que simboliza 
         o processo de construção do conhecimento: a busca por palavras que iluminam 
         caminhos no escuro da incerteza. Uma homenagem à Jorge Luis Borges e à sua Biblioteca de Babel.
@@ -1081,20 +1077,29 @@ st.rerun()
         # Créditos em expander
         with st.expander("📜 Créditos e Informações"):
             st.markdown("""
-            <div style="text-align: justify; line-height: 1.8; 
-                        background-color: #d1ecf1; 
-                        border-left: 4px solid #0c5460; 
+            <div style="text-align: center; 
+                        background-color: #ffffff; 
+                        border-left: 4px solid #333333; 
                         padding: 1rem; 
                         border-radius: 0.25rem;
-                        color: #0c5460;">
+                        color: #000000;">
+            
             **Título:** A palavra no escuro ou os dialetos do poço
+                        
             **Álbum:** Os olhos de Borges (Versão musical do livro homônimo)
+                        
             **Livro:** BRASIL, J.V. *Os olhos de Borges*. Porto Alegre: WS Editor, 1997.
+                        
             **Autoria:** Jaime Vaz Brasil
-            **Intérprete(s):** Hique Gomez            
-            **Letra:** Jaime Vaz Brasil            
-            **Música:** Hique Gomez            
-            **Produção:** FUMPROARTE/POA e Instituto Fernando Pessoa            
+                        
+            **Intérprete(s):** Hique Gomez
+
+            **Letra:** Jaime Vaz Brasil
+                                    
+            **Música:** Hique Gomez 
+                                   
+            **Produção:** FUMPROARTE/POA e Instituto Fernando Pessoa
+                                    
             **Ano:** 1999
             
             ---
@@ -1216,6 +1221,7 @@ Que sangre o dedo, mas que estanque o vício.
 
 
 🔍
+
                         
 """)
 
@@ -1324,10 +1330,12 @@ with tab2:
         
             ### Desenvolvimento
             **Autor:** Rafael Antunes dos Santos  
-            **Instituição:** 
+            
+            **Instituição:**             
             - Universidade Federal do Rio Grande do Sul (UFRGS) 
             - Centro Interdisciplinar de Novas Tecnologias na Educação (Cinted)
-            - Programa de Pós-Graduação em Informática na Educação (PPGIE)  
+            - Programa de Pós-Graduação em Informática na Educação (PPGIE)
+              
             **Nível:** Doutorado  
             **Orientador:** Prof. Dr. Eliseo Berni Reategui  
         
@@ -1927,10 +1935,10 @@ with tab2:
             O **Mapa Temático** organiza os conceitos em clusters e os classifica em quatro quadrantes
             a partir de centralidade (importância no campo) e densidade (coesão interna):
 
-            - 🎯 **Motor Themes**: Centrais e bem desenvolvidos (PRIORIZE)
-            - 🔷 **Niche Themes**: Especializados e coesos
-            - 🔶 **Basic Themes**: Transversais, mas em desenvolvimento
-            - 🔴 **Emerging/Declining**: Fronteiras de pesquisa
+            - 🎯 **Temas Motores**: Centrais e bem desenvolvidos (PRIORIZE)
+            - 🔷 **Temas Nicho**: Especializados e coesos
+            - 🔶 **Temas Básicos**: Transversais, mas em desenvolvimento
+            - 🔴 **Temas Emergentes / Declinantes**: Fronteiras de pesquisa
             """)
 
             if len(G.nodes()) < 5:
@@ -2092,10 +2100,10 @@ with tab2:
                                 st.markdown("### 📋 Detalhamento dos Clusters")
 
                                 tipo_icons = {
-                                    "Motor Theme": "🎯",
-                                    "Niche Theme": "🔷",
-                                    "Emerging/Declining Theme": "🔴",
-                                    "Basic Theme": "🔶",
+                                    "Tema Motor": "🎯",
+                                    "Tema Nicho": "🔷",
+                                    "Tema Emergente / Declinante": "🔴",
+                                    "Tema Básico": "🔶",
                                 }
 
                                 for cluster in thematic_data:
@@ -2117,19 +2125,19 @@ with tab2:
                                             st.metric("Tamanho", cluster["tamanho"])
 
                                         # Interpretação sintética
-                                        if cluster["tipo"] == "Motor Theme":
+                                        if cluster["tipo"] == "Tema Motor":
                                             st.success("💡 Tema central e maduro. **PRIORIZE** na revisão de literatura.")
-                                        elif cluster["tipo"] == "Niche Theme":
+                                        elif cluster["tipo"] == "Tema Nicho":
                                             st.info(f"💡 Tema especializado. Útil para nichos relacionados a '{cluster['conceito_principal']}'.")
-                                        elif cluster["tipo"] == "Basic Theme":
+                                        elif cluster["tipo"] == "Tema Básico":
                                             st.warning("💡 Tema transversal. Oportunidade para pesquisas integradoras.")
                                         else:
                                             st.error("💡 Tema emergente ou em declínio. Fronteira de pesquisa.")
 
                             # ---------- Explicação metodológica ----------
-                            with st.expander("ℹ️ Sobre a metodologia (Aria; Cuccurullo, 2017; He, 1999)"):
+                            with st.expander("ℹ️ Sobre a metodologia"):
                                 st.markdown("""
-                                Este mapa temático segue a lógica do *Strategic Diagram*:
+                                Este mapa temático segue a lógica do *Diagrama Estratégico*:
 
                                 - **Densidade**: média dos pesos das arestas internas do cluster (coesão interna).
                                 - **Centralidade**: soma dos pesos das arestas que ligam o cluster a outros clusters (relevância global).

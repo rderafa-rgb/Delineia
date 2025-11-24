@@ -13,3 +13,5 @@ gspread==6.1.4
 google-auth==2.36.0
 google-auth-oauthlib==1.2.1
 google-auth-httplib2==0.2.0
+pyarrow==19.0.0
+python-dotenv==1.0.1
