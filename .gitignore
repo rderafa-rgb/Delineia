@@ -1,6 +1,9 @@
 # Credenciais Google
 google_credentials.json
 
+# Variáveis de ambiente
+.env
+
 # Python
 __pycache__/
 *.py[cod]
