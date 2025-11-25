@@ -1,4 +1,14 @@
 # -*- coding: utf-8 -*-
+"""
+RESEARCH PIPELINE - VERSÃO CORRIGIDA
+=====================================
+Correções aplicadas:
+1. Logging detalhado para diagnóstico
+2. Tratamento de erros melhorado no Gemini
+3. Prompts otimizados (mais concisos)
+4. Verificação de bloqueio de segurança
+5. Fallbacks mais informativos
+"""
 
 import time
 import re
@@ -101,134 +111,158 @@ class OpenAlexClient:
         return concepts_lists
 
 
-# ==================== GERADOR GEMINI ====================
+# ==================== GERADOR GEMINI - VERSÃO CORRIGIDA ====================
 class GeminiQueryGenerator:
     """
     Gerador de análises usando Gemini AI.
-    VERSÃO CORRIGIDA COM AJUSTES DO PROF. ELISEO REATEGUI
+    VERSÃO CORRIGIDA COM LOGGING E TRATAMENTO DE ERROS MELHORADO
     """
 
     def __init__(self):
         try:
             import streamlit as st
             api_key = st.secrets.get("GEMINI_API_KEY", "")
+            
+            # LOG: Verificar se a chave foi encontrada
+            if api_key:
+                print(f"  ✅ GEMINI_API_KEY encontrada (tamanho: {len(api_key)} chars)")
+            else:
+                print("  ❌ GEMINI_API_KEY NÃO encontrada nos secrets!")
+                
             genai.configure(api_key=api_key)
 
             self.model = genai.GenerativeModel(
-                'gemini-2.5-pro',
+                'gemini-2.0-flash',  # Modelo mais rápido e estável
                 generation_config={
-                    'temperature': 1.2,
+                    'temperature': 0.9,  # Reduzido para mais consistência
                     'top_p': 0.95,
                     'top_k': 40,
-                    'max_output_tokens': 8192,
+                    'max_output_tokens': 4096,  # Reduzido para evitar truncamento
                 }
             )
-            print(f"  ✅ Modelo Gemini inicializado: {self.model.model_name} (modo criativo)")
+            print(f"  ✅ Modelo Gemini inicializado: {self.model.model_name}")
         except Exception as e:
-            print(f"  ⚠️ Erro ao inicializar Gemini: {e}")
+            print(f"  ❌ Erro ao inicializar Gemini: {e}")
             self.model = None
 
     def _safe_generate(self, prompt: str, fallback: str = "", max_retries: int = 3) -> str:
-        """Geração segura com retry e validação flexível"""
+        """
+        Geração segura com retry, logging detalhado e tratamento de bloqueios
+        """
         if not self.model:
-            print("  ⚠️ Modelo não disponível, usando fallback")
+            print("  ❌ Modelo não disponível, usando fallback")
             return fallback
 
         for attempt in range(max_retries):
             try:
+                print(f"  🔄 Tentativa {attempt + 1}/{max_retries}...")
+                print(f"     Tamanho do prompt: {len(prompt)} chars")
+                
                 response = self.model.generate_content(prompt)
+                
+                # LOG: Verificar resposta
+                print(f"     Resposta recebida: {type(response)}")
+                
+                # Verificar bloqueio de segurança
+                if hasattr(response, 'prompt_feedback'):
+                    feedback = response.prompt_feedback
+                    print(f"     Prompt feedback: {feedback}")
+                    if hasattr(feedback, 'block_reason') and feedback.block_reason:
+                        print(f"  ⚠️ Prompt BLOQUEADO: {feedback.block_reason}")
+                        continue
 
                 extracted_text = None
 
+                # Método 1: Acesso direto via .text
                 if hasattr(response, 'text'):
                     try:
                         extracted_text = response.text
-                    except:
-                        pass
+                        print(f"     Método .text: {len(extracted_text) if extracted_text else 0} chars")
+                    except ValueError as ve:
+                        print(f"     Método .text falhou: {ve}")
 
-                if not extracted_text and hasattr(response, 'candidates'):
+                # Método 2: Via candidates
+                if not extracted_text and hasattr(response, 'candidates') and response.candidates:
                     try:
                         candidate = response.candidates[0]
-                        if hasattr(candidate, 'content'):
+                        
+                        # Verificar finish_reason
+                        if hasattr(candidate, 'finish_reason'):
+                            print(f"     Finish reason: {candidate.finish_reason}")
+                        
+                        # Verificar safety_ratings
+                        if hasattr(candidate, 'safety_ratings'):
+                            for rating in candidate.safety_ratings:
+                                if hasattr(rating, 'probability') and str(rating.probability) in ['HIGH', 'MEDIUM']:
+                                    print(f"     ⚠️ Safety rating: {rating.category} = {rating.probability}")
+                        
+                        if hasattr(candidate, 'content') and candidate.content:
                             parts = candidate.content.parts
                             if parts and len(parts) > 0:
                                 extracted_text = parts[0].text
-                    except:
-                        pass
+                                print(f"     Método candidates: {len(extracted_text) if extracted_text else 0} chars")
+                    except Exception as ce:
+                        print(f"     Método candidates falhou: {ce}")
 
+                # Método 3: Conversão string (último recurso)
                 if not extracted_text:
                     extracted_text = str(response)
+                    print(f"     Método str(): {len(extracted_text)} chars")
 
+                # Validação final
                 if extracted_text:
                     extracted_text = extracted_text.strip()
-                    if len(extracted_text) >= 30 and extracted_text != "None":
+                    
+                    # Remover possíveis artefatos
+                    if extracted_text.startswith("response:"):
+                        extracted_text = ""
+                    
+                    if len(extracted_text) >= 50:  # Aumentado de 30 para 50
+                        print(f"  ✅ Texto válido extraído: {len(extracted_text)} chars")
+                        print(f"     Preview: {extracted_text[:100]}...")
                         return extracted_text
+                    else:
+                        print(f"  ⚠️ Texto muito curto: {len(extracted_text)} chars")
+                        print(f"     Conteúdo: {extracted_text[:200]}")
 
                 if attempt < max_retries - 1:
-                    print(f"  ⏳ Tentativa {attempt + 2}/{max_retries}...")
-                    time.sleep(2)
+                    print(f"  ⏳ Aguardando 3s antes de retry...")
+                    time.sleep(3)
 
             except Exception as e:
-                print(f"  ⚠️ Tentativa {attempt + 1} falhou: {str(e)[:50]}")
+                print(f"  ❌ Exceção na tentativa {attempt + 1}: {type(e).__name__}: {str(e)[:100]}")
                 if attempt < max_retries - 1:
                     time.sleep(3)
 
-        print(f"  ⚠️ Usando fallback após {max_retries} tentativas")
+        print(f"  ⚠️ USANDO FALLBACK após {max_retries} tentativas")
         return fallback
 
     def generate_full_report(self, nome: str, tema: str, questao: str,
                             keywords: List[str]) -> str:
         """
         Gera avaliação crítica e construtiva do projeto
-        Prompt EXPLÍCITO sobre questão de pesquisa + orientação ao orientador
+        PROMPT OTIMIZADO - mais conciso
         """
         keywords_str = ', '.join(keywords)
         primeiro_nome = nome.split()[0] if nome else "estudante"
 
-        prompt = f"""Você é um professor universitário experiente orientando um aluno de pesquisa.
+        # PROMPT MAIS CONCISO
+        prompt = f"""Você é um professor orientando {primeiro_nome} em seu projeto de pesquisa.
 
-**CONTEXTO DO PROJETO:**
+PROJETO:
+- Tema: {tema}
+- Questão: {questao}
+- Palavras-chave: {keywords_str}
 
-Aluno: {nome} (você vai chamá-lo de {primeiro_nome})
-Tema proposto: {tema}
-Questão de pesquisa: {questao}
-Palavras-chave escolhidas: {keywords_str}
+TAREFA: Escreva 2 parágrafos de feedback.
 
----
+PARÁGRAFO 1: Comece com "{primeiro_nome}, as palavras-chave que você designou para o projeto..." 
+Analise especificamente as palavras-chave. Seja honesto sobre pontos fortes e fracos.
 
-**SUA TAREFA:**
+PARÁGRAFO 2: Comente sobre a questão de pesquisa. Analise clareza e viabilidade.
+Termine com: "Recomendo que você converse com seu orientador sobre esses pontos e observe atentamente o grafo de coocorrências apresentado adiante, pois ele pode revelar relações importantes entre conceitos que ajudarão a refinar suas palavras-chave e a delimitar melhor o escopo da sua pesquisa."
 
-Escreva DOIS parágrafos conversando com {primeiro_nome}:
-
-**PARÁGRAFO 1 - Sobre as palavras-chave:**
-• Comece com: "{primeiro_nome}, as palavras-chave que você designou para o projeto..."
-• Comente especificamente sobre as palavras-chave escolhidas
-• Seja autêntico: se estão boas, diga o que está bom; se há problemas, aponte com clareza mas cuidado
-• Se palavras forem muito amplas, diga quais e por quê
-• Se houver redundância, mostre
-• Se faltar algo importante, sugira especificamente
-
-**PARÁGRAFO 2 - Sobre a questão de pesquisa:**
-• Comente explicitamente sobre a questão de pesquisa apresentada
-• Analise se está clara, viável e bem delimitada
-• Sugira refinamentos se necessário
-• Relacione com as palavras-chave escolhidas
-• Encerre com: "Recomendo que você converse com seu orientador sobre esses pontos e observe atentamente o grafo de coocorrências apresentado adiante, pois ele pode revelar relações importantes entre conceitos que ajudarão a refinar suas palavras-chave e a delimitar melhor o escopo da sua pesquisa."
-
-**DIRETRIZES:**
-• Tom de conversa: use "você" e o primeiro nome
-• Honesto mas respeitoso
-• Como um professor que realmente se importa com o aluno
-• NÃO use linguagem de parecer formal
-• Seja específico sobre ESTAS palavras-chave e ESTA questão
-• NÃO use frases genéricas que servem para qualquer projeto
-• Projetos absurdos ou inviáveis merecem feedback honesto
-
-**IMPORTANTE:** NÃO use frases como "Com certeza..." ou expressões clichê. Seja direto e genuíno.
-
----
-
-Escreva agora os dois parágrafos para {primeiro_nome}:"""
+Use tom conversacional. Seja específico. Evite frases genéricas."""
 
         fallback = f"""{primeiro_nome}, as palavras-chave que você designou para o projeto ({keywords_str}) cobrem alguns aspectos do tema '{tema}'. No entanto, seria importante avaliar se esses termos capturam as nuances específicas da sua questão de pesquisa e se há necessidade de termos mais específicos ou complementares.
 
@@ -241,29 +275,13 @@ Sobre sua questão de pesquisa, '{questao}', é fundamental verificar se está s
         """Sugere palavras-chave complementares em inglês técnico"""
         keywords_str = ', '.join(keywords)
 
-        prompt = f"""Você é um bibliotecário especializado em buscas científicas.
+        prompt = f"""Sugira 4-6 termos técnicos EM INGLÊS complementares para esta pesquisa:
 
-**PROJETO:**
 Tema: {tema}
-Questão: {questao}
-Palavras atuais do aluno: {keywords_str}
+Palavras atuais: {keywords_str}
 
-**TAREFA:**
-Liste 4-6 termos técnicos EM INGLÊS que sejam:
-- Complementares (NÃO repetir os que o aluno já tem)
-- Específicos da área de pesquisa
-- Reconhecidos na literatura científica internacional
-- Úteis para ampliar a busca mantendo relevância
-
-**INSTRUÇÕES:**
-- Retorne APENAS os termos separados por vírgula
-- Sem numeração, sem aspas, sem explicações
-- Apenas: termo1, termo2, termo3, termo4
-
-**EXEMPLO do formato correto:**
-cognitive load, metacognition, learning strategies, self-regulation
-
-Gere agora os termos complementares:"""
+Retorne APENAS os termos separados por vírgula, sem explicações.
+Exemplo: cognitive load, metacognition, learning strategies"""
 
         fallback = "research methods, empirical studies, theoretical framework, scientific literature"
 
@@ -272,41 +290,18 @@ Gere agora os termos complementares:"""
         return result
 
     def translate_keywords_to_english(self, keywords: List[str]) -> List[str]:
-        """
-        Traduz palavras-chave do português para inglês.
-        Método necessário para compatibilidade com pipeline.
-        """
+        """Traduz palavras-chave do português para inglês."""
         keywords_str = ', '.join(keywords)
 
-        prompt = f"""Você é um tradutor especializado em terminologia científica.
+        prompt = f"""Traduza para inglês acadêmico: {keywords_str}
 
-**TAREFA:**
-Traduza os seguintes termos do PORTUGUÊS para INGLÊS acadêmico/técnico.
-
-**TERMOS:**
-{keywords_str}
-
-**INSTRUÇÕES:**
-- Retorne APENAS os termos traduzidos
-- Mesma ordem do original
-- Separados por vírgula
-- Use terminologia padrão em publicações científicas
-- Sem numeração, sem explicações
-
-**EXEMPLO:**
-Entrada: Psicologia, Escola, Professores, Burnout
-Saída: Psychology, School, Teachers, Burnout
-
-**TRADUZA AGORA:**"""
+Retorne APENAS os termos traduzidos, separados por vírgula, na mesma ordem."""
 
         result = self._safe_generate(prompt, ', '.join(keywords))
-
-        # Limpar e separar
         result = result.replace('\n', ', ')
         result = re.sub(r'[0-9]+\.\s*', '', result)
         translated = [t.strip().strip('"').strip("'") for t in result.split(',') if t.strip()]
 
-        # Se não conseguiu traduzir ou número diferente, retornar original
         if len(translated) != len(keywords):
             print(f"  ⚠️ Tradução inconsistente, usando termos originais")
             return keywords
@@ -320,35 +315,17 @@ Saída: Psychology, School, Teachers, Burnout
         suggested_list = [s.strip() for s in suggested_keywords.split(',') if s.strip()]
         all_keywords = original_keywords + suggested_list
 
-        prompt = f"""Você é especialista em recuperação de informação científica.
+        prompt = f"""Crie uma string de busca científica para o tema: {tema}
 
-**CONTEXTO:**
-Tema da pesquisa: {tema}
 Termos disponíveis: {', '.join(all_keywords)}
 
-**TAREFA:**
-Crie uma string de busca em INGLÊS para bases científicas que:
+FORMATO DA RESPOSTA:
+STRING: (sua string com AND, OR, aspas para termos compostos)
+OBJETIVO: (2-3 linhas explicando o objetivo da busca)
 
-1. **Selecione os melhores termos** (escolha 4-7 termos mais relevantes da lista)
-2. **Use operadores booleanos:**
-   - AND para termos obrigatórios
-   - OR para sinônimos/alternativas (dentro de parênteses)
-3. **Use aspas** para termos compostos (ex: "mental health")
-4. **Agrupe** termos relacionados com parênteses
-5. **Limite:** máximo 200 caracteres
-
-**DEPOIS:**
-Explique em 2-3 linhas o objetivo desta busca.
-
-**FORMATO EXATO DA SAÍDA:**
-STRING: (sua string aqui)
-OBJETIVO: (explicação de 2-3 linhas)
-
-**EXEMPLO:**
-STRING: "teacher burnout" AND ("mental health" OR "psychological wellbeing") AND (school OR education)
-OBJETIVO: Identificar estudos sobre esgotamento docente relacionados à saúde mental no contexto escolar, combinando descritores específicos do fenômeno com termos do ambiente educacional.
-
-**AGORA CRIE PARA O TEMA '{tema}':**"""
+Exemplo:
+STRING: "teacher burnout" AND ("mental health" OR wellbeing) AND school
+OBJETIVO: Identificar estudos sobre esgotamento docente no contexto escolar."""
 
         response = self._safe_generate(prompt, "")
 
@@ -359,122 +336,85 @@ OBJETIVO: Identificar estudos sobre esgotamento docente relacionados à saúde m
             search_str = string_match.group(1).strip()
             search_str = search_str.replace('```', '').replace('\n', ' ')
             search_str = re.sub(r'\s+', ' ', search_str).strip()
-
             objective = obj_match.group(1).strip()
         else:
             main_terms = ' AND '.join([f'"{k}"' for k in original_keywords[:3]])
             sugg_terms = ' OR '.join([f'"{s}"' for s in suggested_list[:3]])
-
-            if sugg_terms:
-                search_str = f"{main_terms} AND ({sugg_terms})"
-            else:
-                search_str = main_terms
-
+            search_str = f"{main_terms} AND ({sugg_terms})" if sugg_terms else main_terms
             objective = f"Identificar estudos que investigam {tema}, combinando descritores específicos do fenômeno com termos técnicos do contexto."
 
         return search_str, objective
 
     def create_glossary_and_interpretation(self, concepts: List[str],
                                           tema: str, primeiro_nome: str) -> Tuple[str, str]:
-        """Cria glossário técnico e interpretação detalhada do grafo"""
+        """
+        Cria glossário técnico e interpretação detalhada do grafo
+        PROMPTS OTIMIZADOS - mais curtos e diretos
+        """
         if not concepts or len(concepts) < 3:
             return ("Poucos conceitos identificados para análise detalhada.",
                     "Dados insuficientes para interpretação da rede conceitual.")
 
-        concepts = concepts[:9]  # 9 termos (Miller, 7±2)
-        concepts_list = '\n'.join([f"{i+1}. {c}" for i, c in enumerate(concepts)])
+        concepts = concepts[:9]
+        concepts_str = ', '.join(concepts)
 
-        glossary_prompt = f"""Você é um especialista criando um glossário técnico.
+        # ========== GLOSSÁRIO - PROMPT SIMPLIFICADO ==========
+        glossary_prompt = f"""Crie um glossário técnico para estes conceitos do tema "{tema}":
 
-**CONCEITOS IDENTIFICADOS NA REDE BIBLIOMÉTRICA:**
-{concepts_list}
+{concepts_str}
 
-**TEMA DO PROJETO:** {tema}
+Para CADA conceito, use este formato:
+[Número]. **[Termo em Inglês]** (Tradução) - Definição técnica de 2-3 linhas relacionada ao tema.
 
----
+Exemplo:
+1. **Psychology** (Psicologia) - Ciência que estuda o comportamento e processos mentais. No contexto de {tema}, permite compreender aspectos cognitivos e emocionais envolvidos.
 
-**TAREFA:**
-Para CADA um dos {len(concepts)} conceitos acima, crie uma entrada de glossário. Siga do título da seção direto ao primeiro conceito do grafo, sem uso de frase intermediária.
+Crie entradas para TODOS os {len(concepts)} conceitos listados."""
 
-**FORMATO OBRIGATÓRIO PARA CADA ENTRADA:**
+        # ========== INTERPRETAÇÃO - PROMPT SIMPLIFICADO ==========
+        interpretation_prompt = f"""{primeiro_nome}, analise esta rede de conceitos sobre "{tema}".
 
-[Número]. **[Termo em Inglês]** (Tradução em Português) - [Definição técnica de 2-3 linhas]
+Conceitos centrais: {concepts_str}
 
-**REGRAS:**
-- Termo em inglês em **negrito**
-- Tradução em português entre (parênteses) SEM negrito
-- Traço " - " após os parênteses
-- Definição clara, técnica e específica
-- Relacionar com o tema '{tema}' quando possível
-- Ordem alfabética pelo termo em INGLÊS
-- NÃO pular nenhum conceito
-- PROIBIDO usar frases clichê como "Com certeza", "Sem dúvida", "É claro que" ou similares
-- Seja direto e técnico
+Escreva 3 parágrafos:
 
-**EXEMPLO DO FORMATO:**
-1. **Anxiety** (Ansiedade) - Estado emocional caracterizado por preocupação excessiva, tensão e sintomas físicos de estresse. No contexto de {tema}, este conceito contribui para compreender as dimensões psicológicas do fenômeno investigado.
+1. ESTRUTURA: Quais são os 3-4 conceitos mais centrais? O que isso revela sobre o campo?
 
-2. **Educational Psychology** (Psicologia Educacional) - Ramo da psicologia que investiga processos de ensino-aprendizagem, desenvolvimento cognitivo e fatores que influenciam o desempenho acadêmico. Permite análise multifacetada das questões relacionadas a {tema}.
+2. RELAÇÕES: Como os conceitos se agrupam? Que conexões são interessantes?
 
-**AGORA CRIE O GLOSSÁRIO COMPLETO PARA TODOS OS {len(concepts)} CONCEITOS:**"""
+3. RECOMENDAÇÕES: Como essa estrutura pode orientar o delineamento do projeto de {primeiro_nome}? Que lacunas podem ser exploradas?
 
-        interpretation_prompt = f"""Você é um cientometrista analisando uma rede conceitual.
-
-**CONTEXTO:**
-Tema da pesquisa: {tema}
-Aluno: {primeiro_nome}
-
-**9 CONCEITOS MAIS CENTRAIS NA REDE (Miller, 7±2):**
-{concepts_list}
-
----
-
-**TAREFA:**
-Escreva uma interpretação detalhada da rede em 3-4 parágrafos (mínimo 12 linhas).
-
-**ESTRUTURA:**
-
-**Parágrafo 1 - Estrutura Geral (3-4 linhas):**
-- Quais são os 3-4 conceitos MAIS centrais?
-- O que essa centralidade revela sobre o campo?
-- Como o conhecimento está organizado?
-
-**Parágrafo 2 - Clusters e Relações (3-4 linhas):**
-- Como os conceitos se agrupam?
-- Há subdimensões claras no tema?
-- Que conexões são mais interessantes?
-
-**Parágrafo 3 - Implicações para {primeiro_nome} (4-6 linhas):**
-- Como essa estrutura pode orientar o delineamento do escopo?
-- Há lacunas que poderiam ser exploradas?
-- Há oportunidades de pesquisa nas interseções?
-- Recomendações específicas
-
-**TOM:**
-- Use "você" e "{primeiro_nome}"
-- Cite conceitos específicos da rede (não seja genérico)
-- Tom analítico mas acessível
-- Oriente ações concretas
-- NÃO use frases clichê como "Com certeza" ou similares
-
-**COMECE COM:**
-"{primeiro_nome}, o grafo de coocorrências revela a estrutura conceitual da literatura sobre {tema}..."
-
-**ESCREVA AGORA A INTERPRETAÇÃO COMPLETA:**"""
+Use tom conversacional e cite conceitos específicos da lista."""
 
         print("  📖 Gerando glossário...")
         glossary = self._safe_generate(
             glossary_prompt,
-            f"Glossário técnico dos {len(concepts)} conceitos centrais identificados na rede de coocorrências."
+            self._generate_fallback_glossary(concepts, tema)
         )
 
-        print("  📊 Gerando interpretação da rede...")
+        print("  📊 Gerando interpretação...")
         interpretation = self._safe_generate(
             interpretation_prompt,
-            f"{primeiro_nome}, o grafo de coocorrências revela a estrutura conceitual da literatura sobre {tema}, destacando {', '.join([c for c in concepts[:4]])} como conceitos centrais. A análise desta rede pode orientar o delineamento do escopo da sua pesquisa, identificando áreas consolidadas e possíveis lacunas para investigação."
+            self._generate_fallback_interpretation(concepts, tema, primeiro_nome)
         )
 
         return glossary, interpretation
+
+    def _generate_fallback_glossary(self, concepts: List[str], tema: str) -> str:
+        """Gera um glossário fallback mais informativo"""
+        entries = []
+        for i, concept in enumerate(concepts, 1):
+            entries.append(f"{i}. **{concept}** - Conceito identificado na rede de coocorrências relacionado ao tema {tema}. Este termo aparece frequentemente na literatura científica sobre o assunto.")
+        return "\n\n".join(entries)
+
+    def _generate_fallback_interpretation(self, concepts: List[str], tema: str, primeiro_nome: str) -> str:
+        """Gera uma interpretação fallback mais informativa"""
+        top_concepts = ', '.join(concepts[:4])
+        return f"""{primeiro_nome}, o grafo de coocorrências revela a estrutura conceitual da literatura sobre {tema}, destacando {top_concepts} como conceitos centrais.
+
+A presença desses termos indica que o campo de pesquisa está organizado em torno de dimensões teóricas e práticas bem estabelecidas. As conexões entre os conceitos sugerem interdisciplinaridade e múltiplas perspectivas de análise.
+
+A análise desta rede pode orientar o delineamento do escopo da sua pesquisa, identificando áreas consolidadas onde há bastante literatura disponível, bem como possíveis lacunas nas interseções entre conceitos que podem representar oportunidades de investigação original."""
 
 
 # ==================== ANALISADOR DE COOCORRÊNCIAS ====================
@@ -502,10 +442,7 @@ class CooccurrenceAnalyzer:
         return G
 
     def get_top_nodes(self, G: nx.Graph, n: int = 9) -> List[str]:
-        """
-        Nós mais centrais
-        Default de 9 termos (Miller, 7±2)
-        """
+        """Nós mais centrais - Default de 9 termos (Miller, 7±2)"""
         if not G.nodes():
             return []
 
@@ -513,10 +450,7 @@ class CooccurrenceAnalyzer:
         return [node for node, _ in sorted(centrality.items(), key=lambda x: x[1], reverse=True)[:n]]
 
     def visualize_graph(self, G: nx.Graph, top_n: int = 9, path: str = 'graph.png') -> str:
-        """
-        Visualização
-        AJUSTE DO PROF. ELISEO: Default de 9 termos (Miller, 7±2)
-        """
+        """Visualização - Default de 9 termos (Miller, 7±2)"""
         top_nodes = self.get_top_nodes(G, top_n)
         if not top_nodes:
             return None
@@ -573,26 +507,26 @@ class ResearchScopePipeline:
     def process(self, nome: str, tema: str, questao: str, keywords: List[str]) -> Dict:
         """Executa pipeline completo"""
         print("\n" + "="*80)
-        print("🚀 PIPELINE DELINÉIA XIV - VERSÃO COM AJUSTES DO PROF. ELISEO")
+        print("🚀 PIPELINE DELINÉIA - VERSÃO CORRIGIDA COM LOGGING")
         print("="*80 + "\n")
 
         primeiro_nome = nome.split()[0] if nome else "estudante"
 
-        # 1. Avaliação com 2 parágrafos (palavras-chave E questão)
-        print("📝 Etapa 1/7: Avaliação completa (tema+questão+palavras)...")
+        # 1. Avaliação
+        print("📝 Etapa 1/7: Avaliação completa...")
         full_report = self.gemini.generate_full_report(nome, tema, questao, keywords)
 
         # 2. Termos complementares
-        print("💡 Etapa 2/7: Gerando termos complementares...")
+        print("\n💡 Etapa 2/7: Gerando termos complementares...")
         suggested = self.gemini.generate_suggested_keywords(nome, tema, questao, keywords)
         print(f"     → Sugeridos: {suggested[:60]}...")
 
-        # 3. String 100% inglês
-        print("🔎 Etapa 3/7: Criando string 100% em inglês...")
+        # 3. String de busca
+        print("\n🔎 Etapa 3/7: Criando string de busca...")
         search_str, objetivo = self.gemini.create_search_string_with_objective(tema, keywords, suggested)
 
         # 4. Buscar artigos
-        print("📚 Etapa 4/7: Buscando artigos no OpenAlex...")
+        print("\n📚 Etapa 4/7: Buscando artigos no OpenAlex...")
         articles = self.openalex.search_articles(search_str, 500)
 
         if len(articles) == 0:
@@ -602,17 +536,18 @@ class ResearchScopePipeline:
             articles = self.openalex.search_articles(alt_search, 500)
 
         # 5. Extrair conceitos
-        print("🔬 Etapa 5/7: Extraindo conceitos...")
+        print("\n🔬 Etapa 5/7: Extraindo conceitos...")
         concepts_lists = self.openalex.extract_concepts_for_cooccurrence(articles)
 
         # 6. Construir grafo
-        print("🕸️ Etapa 6/7: Construindo grafo...")
+        print("\n🕸️ Etapa 6/7: Construindo grafo...")
         G = self.analyzer.build_graph(concepts_lists, min_cooc=1)
 
-        # 7. Visualizar e interpretar (9 termos - AJUSTE DO PROF. ELISEO)
-        print("🎨 Etapa 7/7: Gerando visualização e glossário (9 termos)...")
-        viz_path = self.analyzer.visualize_graph(G, 9)  # Miller, 7±2
-        top_concepts = self.analyzer.get_top_nodes(G, 9)  # Miller, 7±2
+        # 7. Visualizar e interpretar
+        print("\n🎨 Etapa 7/7: Gerando visualização e análise...")
+        viz_path = self.analyzer.visualize_graph(G, 9)
+        top_concepts = self.analyzer.get_top_nodes(G, 9)
+        print(f"     Top conceitos: {top_concepts}")
 
         glossary, interpretation = self.gemini.create_glossary_and_interpretation(
             top_concepts, tema, primeiro_nome
