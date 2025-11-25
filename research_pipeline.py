@@ -132,12 +132,12 @@ class GeminiQueryGenerator:
             genai.configure(api_key=api_key)
 
             self.model = genai.GenerativeModel(
-                'gemini-2.0-flash',  # Modelo mais rápido e estável
+                'gemini-2.5-pro',  
                 generation_config={
-                    'temperature': 0.9,  # Reduzido para mais consistência
+                    'temperature': 1.2, 
                     'top_p': 0.95,
                     'top_k': 40,
-                    'max_output_tokens': 4096,  # Reduzido para evitar truncamento
+                    'max_output_tokens': 8192, 
                 }
             )
             print(f"  ✅ Modelo Gemini inicializado: {self.model.model_name}")
@@ -483,7 +483,7 @@ class CooccurrenceAnalyzer:
         nx.draw_networkx_labels(Gs, pos, font_size=11, font_weight='bold',
                                font_family='sans-serif')
 
-        plt.title("Rede de Coocorrência de Conceitos (9 termos - Miller, 7±2)", 
+        plt.title("9 conceitos - (Miller, 7±2)", 
                  fontsize=20, fontweight='bold', pad=25)
         plt.axis('off')
         plt.tight_layout()
