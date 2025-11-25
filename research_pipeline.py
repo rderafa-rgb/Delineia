@@ -111,7 +111,7 @@ class GeminiQueryGenerator:
     def __init__(self):
         try:
             import streamlit as st
-            api_key = st.secrets.get("GEMINI-API-KEY", "")
+            api_key = st.secrets.get("GEMINI_API_KEY", "")
             genai.configure(api_key=api_key)
 
             self.model = genai.GenerativeModel(
@@ -381,7 +381,7 @@ OBJETIVO: Identificar estudos sobre esgotamento docente relacionados à saúde m
             return ("Poucos conceitos identificados para análise detalhada.",
                     "Dados insuficientes para interpretação da rede conceitual.")
 
-        concepts = concepts[:9]  # AJUSTE DO PROF. ELISEO: 9 termos (Miller, 7±2)
+        concepts = concepts[:9]  # 9 termos (Miller, 7±2)
         concepts_list = '\n'.join([f"{i+1}. {c}" for i, c in enumerate(concepts)])
 
         glossary_prompt = f"""Você é um especialista criando um glossário técnico.
@@ -394,7 +394,7 @@ OBJETIVO: Identificar estudos sobre esgotamento docente relacionados à saúde m
 ---
 
 **TAREFA:**
-Para CADA um dos {len(concepts)} conceitos acima, crie uma entrada de glossário.
+Para CADA um dos {len(concepts)} conceitos acima, crie uma entrada de glossário. Siga do título da seção direto ao primeiro conceito do grafo, sem uso de frase intermediária.
 
 **FORMATO OBRIGATÓRIO PARA CADA ENTRADA:**
 

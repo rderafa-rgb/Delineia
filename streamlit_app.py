@@ -27,18 +27,29 @@ ABA_FORMULARIO_AVALIACAO = "formulario_avaliacao"
 
 @st.cache_resource
 def conectar_google_sheets():
-    """Conecta ao Google Sheets usando credenciais do Streamlit Secrets"""
+    """
+    Conecta ao Google Sheets usando credenciais do Streamlit Secrets
+    CORREÇÃO APLICADA: Tratamento da private_key para converter 
+    \\n literal em quebras de linha reais.
+    """
     SCOPES = [
         'https://www.googleapis.com/auth/spreadsheets',
         'https://www.googleapis.com/auth/drive'
     ]
     
     try:
-        # Ler credenciais DOS SECRETS (não do arquivo!)
+        # Ler credenciais DOS SECRETS
         google_creds = st.secrets["google_credentials"]
         
         # Converter para dict
         creds_dict = dict(google_creds)
+        
+        if "private_key" in creds_dict:
+            # Primeiro tenta substituir \\n (escaped)
+            pk = creds_dict["private_key"]
+            if "\\n" in pk:
+                pk = pk.replace("\\n", "\n")
+            creds_dict["private_key"] = pk
         
         # Criar credenciais a partir do dict
         creds = Credentials.from_service_account_info(
@@ -46,11 +57,17 @@ def conectar_google_sheets():
             scopes=SCOPES
         )
         
+        # Autorizar e abrir planilha
         client = gspread.authorize(creds)
         sheet = client.open_by_url(GOOGLE_SHEETS_URL)
+        
+        print("✅ Conexão com Google Sheets estabelecida!")
         return sheet
+        
     except Exception as e:
         st.error(f"❌ Erro ao conectar Google Sheets: {e}")
+        import traceback
+        print(f"Detalhes do erro: {traceback.format_exc()}")
         return None
 
 def enviar_formulario_inicial(form_data):
