@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import streamlit as st
-from datetime import datetime
+from datetime import datetime, timezone, timedelta 
 from research_pipeline import ResearchScopePipeline, OpenAlexClient, CooccurrenceAnalyzer, OPENALEX_EMAIL
 from pdf_generator import generate_pdf_report
 import pandas as pd
@@ -510,7 +510,7 @@ with tab1:
                         'palavras_chave': palavras_chave,
                         'confianca': confianca,
                         'google_academico': google_academico,
-                        'timestamp': datetime.now().strftime("%d/%m/%Y às %H:%M")
+                        'timestamp': datetime.now(timezone(timedelta(hours=-3))).strftime("%d/%m/%Y às %H:%M")
                     }
 
                     # Enviar para Google Sheets e salvar ID
@@ -519,7 +519,7 @@ with tab1:
                         st.session_state.id_usuario = id_usuario
                         st.session_state.timestamp_formulario_inicial = time_module.time()
 
-                    with st.spinner("🔄 Processando... (aguarde 2-3 minutos)"):
+                    with st.spinner("🔄 Processando... (aguarde 4-5 minutos)"):
                         try:
                             # Inicializar pipeline
                             pipe = ResearchScopePipeline(OPENALEX_EMAIL)
@@ -673,7 +673,7 @@ with tab1:
             with col2:
                 if num_selected >= 1:
                     if st.button("Gerar Relatório de Delineamento ▶️", type="primary", use_container_width=True):
-                        with st.spinner("🔄 Gerando relatório... (aguarde 1-2 minutos)"):
+                        with st.spinner("🔄 Gerando relatório... (aguarde 2-3 minutos)"):
                             # Gerar conteúdo personalizado
                             from research_pipeline import GeminiQueryGenerator
                             gemini = GeminiQueryGenerator()
@@ -693,9 +693,12 @@ with tab1:
                                 tema, primeiro_nome, selected, original_kws
                             )
 
-                            # Gerar strings de busca
+                            # Gerar chaves de busca (agora passando os termos ricos!)
                             st.session_state.suggested_strings = gemini.generate_search_strings(
-                                tema, selected, original_kws
+                                tema, 
+                                selected, 
+                                original_kws,
+                                st.session_state.suggested_keywords  # <-- NOVO PARÂMETRO
                             )
 
                             st.session_state.interpretation_generated = True
@@ -780,9 +783,9 @@ with tab1:
             else:
                 st.info("Sugestões de palavras-chave não disponíveis")
 
-            # ========== SEÇÃO 6: STRINGS DE BUSCA SUGERIDAS ==========
-            st.subheader("🔎 Strings de Busca Sugeridas")
-            st.caption("Copie as strings abaixo para usar no Painel ou em bases de dados")
+            # ========== SEÇÃO 6: CHAVES DE BUSCA SUGERIDAS ==========
+            st.subheader("🔎 Chaves de Busca Sugeridas")
+            st.caption("Copie as chaves de busca abaixo para usar no Painel ou em bases de dados")
 
             suggested_strings = st.session_state.get('suggested_strings', {})
 
@@ -800,21 +803,54 @@ with tab1:
                         with col_btn:
                             if st.button("📋 Copiar", key=f"copy_{key}", use_container_width=True):
                                 st.session_state.dashboard_query = data.get('string', '')
-                                st.toast(f"✅ String copiada para o Painel!")
+                                st.toast(f"✅ Chave de busca copiada para o Painel!")
             else:
-                # Fallback: mostrar string original
+                # Fallback: mostrar chave de busca original
                 search_string = r.get('search_string', 'N/A')
                 with st.container(border=True):
-                    st.markdown("**🔎 String de Busca Original**")
+                    st.markdown("**🔎 Chave de Busca Original**")
                     col_str, col_btn = st.columns([4, 1])
                     with col_str:
                         st.code(search_string, language='text')
                     with col_btn:
                         if st.button("📋 Copiar", key="copy_original", use_container_width=True):
                             st.session_state.dashboard_query = search_string
-                            st.toast("✅ String copiada para o Painel!")
+                            st.toast("✅ Chave de busca copiada para o Painel!")
 
-            # ========== SEÇÃO 7: AÇÕES FINAIS ==========
+            # ========== SEÇÃO 7: CHAVE DE TRANSPARÊNCIA (ORIGINAL OPENALEX) ==========
+            st.subheader("🔬 Transparência: Chave de Busca Usada")
+            st.caption("Esta é a chave de busca exata que foi usada para recuperar artigos do OpenAlex")
+            
+            with st.container(border=True):
+                # Mostrar objetivo da busca
+                search_objective = r.get('search_objective', '')
+                if search_objective:
+                    st.markdown(f"**Objetivo:** {search_objective}")
+                    st.divider()
+                
+                # Mostrar chave original
+                search_string = r.get('search_string', 'N/A')
+                st.markdown("**Chave de busca executada:**")
+                
+                col_str, col_btn = st.columns([4, 1])
+                
+                with col_str:
+                    st.code(search_string, language='text')
+                
+                with col_btn:
+                    if st.button("📋 Copiar", key="copy_transparency", use_container_width=True):
+                        st.session_state.dashboard_query = search_string
+                        st.toast("✅ Chave de busca copiada para o Painel!")
+                
+                # Estatísticas
+                articles_count = r.get('articles_count', 0)
+                graph_stats = r.get('graph_stats', {})
+                
+                st.caption(f"📊 Resultados: {articles_count} artigos encontrados | "
+                          f"{graph_stats.get('nodes', 0)} conceitos | "
+                          f"{graph_stats.get('edges', 0)} coocorrências")
+            
+            # ========== SEÇÃO 8: AÇÕES FINAIS ==========
             st.divider()
 
             col1, col2, col3 = st.columns(3)
@@ -843,7 +879,7 @@ with tab1:
 
             with col2:
                 if st.button("📊 Ir ao Painel", use_container_width=True):
-                    st.info("💡 Use as strings sugeridas no Painel para explorar mais a literatura!")
+                    st.info("💡 Use as chaves de busca sugeridas para explorar mais a literatura no Painel!")
 
             with col3:
                 if st.button("📝 Avaliar Sistema", type="primary", use_container_width=True):
@@ -974,7 +1010,7 @@ Ao prosseguir com o preenchimento deste formulário, você declara que entende o
             )
 
             q10 = st.radio(
-                "F2.10. A string oferecida é precisa para o meu tema",
+                "F2.10. As chaves de busca que foram oferecidas são precisas para o meu tema",
                 ["Concordo Totalmente", "Concordo", "Neutro", "Discordo", "Discordo Totalmente"],
                 horizontal=True,
                 key="q10"
@@ -1515,13 +1551,13 @@ with tab2:
 
         # Campo de busca
         query = st.text_input(
-            "String de Busca:",
+            "Chave de Busca:",
             value=st.session_state.get('dashboard_query', "HIV/AIDS AND Brasil"),
             help="Use operadores: AND, OR, NOT"
         )
 
         if 'dashboard_query' in st.session_state and st.session_state.dashboard_query:
-            st.info("📋 String copiada do Delineascópio")
+            st.info("📋 Chave de busca copiada do Delineascópio")
 
         st.divider()
         st.subheader("🔧 Filtros")
@@ -1581,7 +1617,7 @@ with tab2:
 
                     # Mostrar detalhes
                     with st.expander("📋 Detalhes da Busca"):
-                        st.write(f"**String enviada:** {query}")
+                        st.write(f"**Chave de busca enviada:** {query}")
                         st.write(f"**Limite:** {limit}")
                         st.write(f"**Coocorrência mínima:** {min_cooc}")
                         st.write(f"**Filtros:** score≥{min_score}, level≥{min_level}")
@@ -1659,13 +1695,13 @@ with tab2:
             st.markdown("""
             **Como usar o Painel:**
 
-            1. **Digite uma string de busca** (ex: "machine learning AND education")
+            1. **Digite uma chave de busca** (ex: "machine learning AND education")
             2. **Ajuste os filtros** conforme necessário
             3. **Clique em Buscar** para processar
             4. **Explore as abas** com diferentes análises
             5. **Exporte os dados** quando necessário
 
-            **Dica:** Você pode copiar a string de busca do Delineascópio!
+            **Dica:** Você pode copiar as chaves de busca do Delineascópio!
             """)
 
     else:
