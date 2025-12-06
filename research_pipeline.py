@@ -2,7 +2,7 @@
 """
 RESEARCH PIPELINE - VERSÃO DIAGNÓSTICO
 ======================================
-Esta versão mostra VISUALMENTE no Streamlit o que está acontecendo
+Esta versão mostra VISUALMENTE no Terminal o que está acontecendo
 para identificar EXATAMENTE onde o Gemini está falhando.
 """
 
@@ -17,15 +17,8 @@ import streamlit as st
 
 # ==================== FUNÇÕES DE DIAGNÓSTICO ====================
 def log_diagnostico(mensagem: str, tipo: str = "info"):
-    """Mostra mensagem de diagnóstico no Streamlit"""
-    if tipo == "success":
-        st.success(f"✅ {mensagem}")
-    elif tipo == "error":
-        st.error(f"❌ {mensagem}")
-    elif tipo == "warning":
-        st.warning(f"⚠️ {mensagem}")
-    else:
-        st.info(f"ℹ️ {mensagem}")
+    """Mostra mensagem de diagnóstico apenas no console (debug)"""
+    # Desativado para produção - apenas print no console
     print(f"[{tipo.upper()}] {mensagem}")
 
 
@@ -535,6 +528,248 @@ Escreva uma interpretação detalhada da rede em 3-4 parágrafos (mínimo 12 lin
 
         return glossary, interpretation
 
+    # ==================== NOVOS MÉTODOS PARA TRILHA ATIVA ====================
+    def generate_contextualized_interpretation(self, 
+                                               tema: str, 
+                                               primeiro_nome: str,
+                                               selected_concepts: List[str],
+                                               all_concepts: List[str]) -> str:
+        """
+        Gera interpretação do grafo contextualizada aos conceitos selecionados pelo aluno.
+        """
+        selected_str = ', '.join(selected_concepts)
+        all_concepts_str = ', '.join(all_concepts)
+        num_selected = len(selected_concepts)
+
+        prompt = f"""Você é um cientometrista experiente analisando a seleção de conceitos de um estudante.
+
+**RESTRIÇÕES DE ESTILO (OBRIGATÓRIO):**
+- NÃO use superlativos: extremamente, absolutamente, fundamentalmente, profundamente, excepcionalmente, notavelmente, indubitavelmente
+- NÃO use linguagem acadêmica rebuscada ou pomposa
+- NÃO use advérbios de intensidade excessivos
+- Escreva de forma direta, clara e objetiva
+- Prefira frases curtas a períodos longos com múltiplas subordinadas
+- Tom: informativo e acessível, como um tutor explicando para um aluno
+- Seja específico e prático, não genérico e vago
+
+**CONTEXTO:**
+- Tema da pesquisa: {tema}
+- Aluno: {primeiro_nome}
+- Conceitos disponíveis no grafo (9 mais centrais): {all_concepts_str}
+- Conceitos SELECIONADOS pelo aluno ({num_selected}): {selected_str}
+
+---
+
+**TAREFA:**
+Escreva uma interpretação personalizada em 3-4 parágrafos (mínimo 10 linhas) que:
+
+1. **Valide a seleção** (2-3 linhas):
+   - Reconheça a escolha do aluno
+   - Explique por que esses conceitos formam um conjunto coerente
+   - Relacione a seleção com o tema "{tema}"
+
+2. **Analise o posicionamento** (3-4 linhas):
+   - Onde a seleção posiciona o projeto no campo de pesquisa?
+   - Há um foco mais teórico, metodológico ou aplicado?
+   - Quais subdimensões do tema a seleção privilegia?
+
+3. **Identifique oportunidades e lacunas** (3-4 linhas):
+   - O que a seleção deixa de fora que poderia ser relevante?
+   - Quais interseções entre os conceitos selecionados podem ser exploradas?
+
+4. **Recomende próximos passos** (2-3 linhas):
+   - Como usar esses conceitos nas buscas bibliográficas?
+   - Sugestões práticas para o delineamento do escopo
+
+**TOM:**
+- Use "você" e "{primeiro_nome}" diretamente
+- Seja específico, citando os conceitos selecionados por nome
+- Tom analítico mas acessível
+- PROIBIDO frases clichê como "Com certeza", "Sem dúvida", "É claro que"
+
+**COMECE COM:**
+"{primeiro_nome}, sua seleção de {selected_str} revela..."
+
+**ESCREVA A INTERPRETAÇÃO PERSONALIZADA:**"""
+
+        fallback = f"""{primeiro_nome}, sua seleção de {selected_str} revela um posicionamento estratégico dentro do campo de pesquisa sobre {tema}.
+
+Esses conceitos formam um núcleo temático que pode orientar o desenvolvimento do seu projeto de pesquisa. A combinação desses termos sugere uma abordagem integradora entre diferentes perspectivas teóricas presentes na literatura.
+
+A rede de coocorrências indica que há espaço para investigações que conectem esses conceitos com dimensões menos exploradas. Considere explorar as lacunas nas interseções entre os termos selecionados.
+
+Recomendamos que você utilize os conceitos selecionados como base para suas buscas bibliográficas, combinando-os de diferentes formas para capturar a diversidade da literatura disponível sobre {tema}."""
+
+        return self._safe_generate(prompt, fallback)
+
+
+    def generate_keyword_suggestions(self,
+                                     tema: str,
+                                     primeiro_nome: str,
+                                     selected_concepts: List[str],
+                                     original_keywords: List[str]) -> List[Dict]:
+        """
+        Gera sugestões de palavras-chave baseadas nos conceitos selecionados.
+        Retorna lista de dicionários com term_en, term_pt, description.
+        """
+        selected_str = ', '.join(selected_concepts)
+        original_str = ', '.join(original_keywords) if original_keywords else 'não informadas'
+
+        prompt = f"""Você é um especialista em bibliometria sugerindo palavras-chave para buscas acadêmicas.
+
+**CONTEXTO:**
+- Tema: {tema}
+- Aluno: {primeiro_nome}
+- Palavras-chave originais do aluno: {original_str}
+- Conceitos selecionados do grafo: {selected_str}
+
+**TAREFA:**
+Sugira exatamente 5 palavras-chave complementares que:
+- NÃO repitam as palavras-chave originais do aluno
+- Sejam derivadas ou relacionadas aos conceitos selecionados
+- Ajudem a ampliar ou refinar as buscas bibliográficas
+
+**FORMATO OBRIGATÓRIO (uma por linha):**
+1. **Term in English** (Termo em Português) - Descrição de 1 linha
+2. **Term in English** (Termo em Português) - Descrição de 1 linha
+3. **Term in English** (Termo em Português) - Descrição de 1 linha
+4. **Term in English** (Termo em Português) - Descrição de 1 linha
+5. **Term in English** (Termo em Português) - Descrição de 1 linha
+
+**GERE AS 5 SUGESTÕES:**"""
+
+        result = self._safe_generate(prompt, "")
+
+        # Parse do resultado
+        suggestions = []
+
+        if result:
+            lines = result.strip().split('\n')
+            for line in lines:
+                line = line.strip()
+                if line and (line[0].isdigit() or line.startswith('**')):
+                    try:
+                        # Remover numeração
+                        if line[0].isdigit():
+                            line = line.split('.', 1)[1].strip() if '.' in line else line
+
+                        # Extrair termo em inglês (entre **)
+                        if '**' in line:
+                            parts = line.split('**')
+                            if len(parts) >= 3:
+                                term_en = parts[1].strip()
+                                rest = parts[2].strip()
+
+                                # Extrair termo em português (entre parênteses)
+                                if '(' in rest and ')' in rest:
+                                    term_pt = rest[rest.find('(')+1:rest.find(')')]
+                                    description = rest[rest.find(')')+1:].strip()
+                                    if description.startswith('-'):
+                                        description = description[1:].strip()
+
+                                    suggestions.append({
+                                        'term_en': term_en,
+                                        'term_pt': term_pt,
+                                        'description': description
+                                    })
+                    except:
+                        continue
+
+        # Fallback se parsing falhar
+        if len(suggestions) < 3:
+            suggestions = [
+                {
+                    'term_en': selected_concepts[0] if selected_concepts else 'Research Methodology',
+                    'term_pt': 'Metodologia de Pesquisa',
+                    'description': f'Conceito central para investigações sobre {tema}'
+                },
+                {
+                    'term_en': 'Systematic Review',
+                    'term_pt': 'Revisão Sistemática',
+                    'description': 'Metodologia recomendada para mapeamento abrangente do campo'
+                },
+                {
+                    'term_en': 'Literature Mapping',
+                    'term_pt': 'Mapeamento da Literatura',
+                    'description': 'Técnica complementar para identificação de lacunas de pesquisa'
+                }
+            ]
+
+        return suggestions[:5]
+
+
+    def _translate_to_english(self, text: str) -> str:
+        """Traduz texto para inglês acadêmico"""
+        prompt = f"Traduza para inglês acadêmico. Responda APENAS com a tradução, sem explicações:\n{text}"
+        result = self._safe_generate(prompt, text)
+        # Limpar possíveis aspas ou formatação extra
+        return result.strip().strip('"').strip("'")
+
+    def generate_search_strings(self,
+                                tema: str,
+                                selected_concepts: List[str],
+                                original_keywords: List[str]) -> Dict[str, Dict]:
+        """
+        Gera 3 strings de busca usando conceitos já em inglês.
+        """
+        # Traduzir palavras-chave para inglês
+        keywords_en = []
+        for kw in original_keywords[:3]:
+            kw_en = self._translate_to_english(kw)
+            if kw_en and kw_en.lower() != kw.lower():  # Só adiciona se realmente traduziu
+                keywords_en.append(kw_en)
+        
+        # Se não conseguiu traduzir, usar conceitos selecionados
+        if not keywords_en:
+            keywords_en = selected_concepts[:3] if selected_concepts else []
+        
+        # Inicializar estrutura de retorno
+        strings = {
+            'ampla': {
+                'titulo': 'String Ampla (Tema Geral)',
+                'descricao': 'Busca abrangente focada no tema principal e palavras-chave originais',
+                'string': ''
+            },
+            'focada': {
+                'titulo': 'String Focada (Conceitos Selecionados)',
+                'descricao': 'Busca direcionada aos conceitos que você identificou como relevantes',
+                'string': ''
+            },
+            'interseccional': {
+                'titulo': 'String Interseccional (Combinação)',
+                'descricao': 'Busca que combina seu tema com os conceitos selecionados',
+                'string': ''
+            }
+        }
+        
+        # String AMPLA: keywords traduzidas + primeiro conceito
+        if len(keywords_en) >= 2:
+            strings['ampla']['string'] = f'("{keywords_en[0]}" OR "{keywords_en[1]}") AND ("{selected_concepts[0] if selected_concepts else keywords_en[0]}")'
+        elif keywords_en:
+            strings['ampla']['string'] = f'"{keywords_en[0]}" AND "{selected_concepts[0] if selected_concepts else ""}"'
+        elif selected_concepts:
+            strings['ampla']['string'] = f'"{selected_concepts[0]}"'
+        
+        # String FOCADA: apenas conceitos selecionados (já em inglês)
+        if len(selected_concepts) >= 3:
+            strings['focada']['string'] = f'"{selected_concepts[0]}" AND "{selected_concepts[1]}" AND "{selected_concepts[2]}"'
+        elif len(selected_concepts) >= 2:
+            strings['focada']['string'] = f'"{selected_concepts[0]}" AND "{selected_concepts[1]}"'
+        elif selected_concepts:
+            strings['focada']['string'] = f'"{selected_concepts[0]}"'
+        
+        # String INTERSECCIONAL: cruza keywords com conceitos
+        if keywords_en and len(selected_concepts) >= 2:
+            strings['interseccional']['string'] = f'("{keywords_en[0]}") AND ("{selected_concepts[0]}" OR "{selected_concepts[1]}")'
+        elif len(selected_concepts) >= 3:
+            strings['interseccional']['string'] = f'("{selected_concepts[0]}" OR "{selected_concepts[1]}") AND "{selected_concepts[2]}"'
+        elif keywords_en and selected_concepts:
+            strings['interseccional']['string'] = f'"{keywords_en[0]}" AND "{selected_concepts[0]}"'
+        elif len(selected_concepts) >= 2:
+            strings['interseccional']['string'] = f'"{selected_concepts[0]}" AND "{selected_concepts[1]}"'
+        
+        return strings
+
     def _generate_fallback_glossary(self, concepts: List[str], tema: str) -> str:
         """Gera glossário fallback"""
         entries = []
@@ -627,7 +862,7 @@ class CooccurrenceAnalyzer:
 
 # ==================== PIPELINE PRINCIPAL ====================
 class ResearchScopePipeline:
-    """Pipeline completo com diagnóstico"""
+    """Pipeline completo"""
 
     def __init__(self, email: str):
         self.openalex = OpenAlexClient(email)
@@ -635,10 +870,7 @@ class ResearchScopePipeline:
         self.analyzer = CooccurrenceAnalyzer()
 
     def process(self, nome: str, tema: str, questao: str, keywords: List[str]) -> Dict:
-        """Executa pipeline com DIAGNÓSTICO VISUAL"""
-        
-        st.markdown("---")
-        st.markdown("### 🔍 DIAGNÓSTICO DO PIPELINE")
+        """Executa pipeline"""
         
         primeiro_nome = nome.split()[0] if nome else "estudante"
 
@@ -684,9 +916,6 @@ class ResearchScopePipeline:
         glossary, interpretation = self.gemini.create_glossary_and_interpretation(
             top_concepts, tema, primeiro_nome
         )
-
-        log_diagnostico("PIPELINE CONCLUÍDO!", "success")
-        st.markdown("---")
 
         return {
             'full_report': full_report,

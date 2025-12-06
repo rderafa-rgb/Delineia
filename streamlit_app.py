@@ -18,6 +18,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 import uuid
 import time as time_module
+import matplotlib.pyplot as plt
 
 # ==================== GOOGLE SHEETS CONFIG ====================
 GOOGLE_SHEETS_URL = "https://docs.google.com/spreadsheets/d/1BE2le2ZVm2ej20w7UF5T7RSjO-V_Ii0RuhZQ2vEQQLY/edit"
@@ -25,7 +26,7 @@ ABA_FORMULARIO_INICIAL = "formulario_inicial"
 ABA_RESULTADOS_PIPELINE = "resultados_pipeline"
 ABA_FORMULARIO_AVALIACAO = "formulario_avaliacao"
 
-@st.cache_resource
+@st.cache_resource(show_spinner=False)
 def conectar_google_sheets():
     """
     Conecta ao Google Sheets usando credenciais do Streamlit Secrets
@@ -333,6 +334,18 @@ if 'play_video' not in st.session_state:
     st.session_state.play_video = False
 if 'open_prologo' not in st.session_state:
     st.session_state.open_prologo = False
+if 'selected_concepts' not in st.session_state:
+    st.session_state.selected_concepts = []
+if 'interpretation_generated' not in st.session_state:
+    st.session_state.interpretation_generated = False
+if 'personalized_interpretation' not in st.session_state:
+    st.session_state.personalized_interpretation = None
+if 'suggested_keywords' not in st.session_state:
+    st.session_state.suggested_keywords = []
+if 'suggested_strings' not in st.session_state:
+    st.session_state.suggested_strings = {}
+if 'sub_step' not in st.session_state:
+    st.session_state.sub_step = 'a'  # 'a', 'b', 'c'
 
 # ==================== FUNÇÕES AUXILIARES ====================
 def add_badge(badge_name: str) -> bool:
@@ -343,39 +356,64 @@ def add_badge(badge_name: str) -> bool:
     return False
 
 # ==================== ABAS PRINCIPAIS ====================
-tab1, tab2 = st.tabs(["📚 Delineascópio", "📊 Dashboard"])
+tab1, tab2 = st.tabs(["📚 Delineascópio", "📊 Painel"])
 
 # ==================== ABA 1: DELINEASCÓPIO ====================
 with tab1:
-    st.title("📚 Delinéia - Sistema de Delineamento de Escopo Temático")
-    st.caption("Ferramenta de apoio ao delineamento de projetos de pesquisa com IA e bibliometria")
+    st.title("📚 Delinéia - Delineamento de Escopo Temático")
+    st.caption("Sistema de apoio ao delineamento de projetos de pesquisa com IA e Bibliometria")
 
-    # Barra de progresso gamificada
-    col1, col2, col3 = st.columns(3)
+    # Barra de progresso gamificada (5 etapas)
+    sub_step = st.session_state.get('sub_step', 'a')
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
         if st.session_state.step >= 1:
-            st.success("✅ Etapa 1/3: Formulário")
+            st.success("✅ 1. Formulário inicial")
             if '🎯 Explorador' not in st.session_state.badges:
                 add_badge('🎯 Explorador')
         else:
-            st.info("⏳ Etapa 1/3: Formulário inicial")
+            st.info("⏳ 1. Formulário inicial")
 
     with col2:
         if st.session_state.step >= 2:
-            st.success("✅ Etapa 2/3: Relatório")
+            st.success("✅ 2. Grafo de conceitos")
             if '🔬 Pesquisador' not in st.session_state.badges:
                 add_badge('🔬 Pesquisador')
         else:
-            st.info("⏳ Etapa 2/3: Aguardando dados")
+            st.info("⏳ 2. Grafo de conceitos")
 
     with col3:
-        if st.session_state.step >= 3:
-            st.success("✅ Etapa 3/3: Avaliação")
+        if st.session_state.step >= 2 and sub_step in ['b', 'c']:
+            st.success("✅ 3. Seleção de conceitos")
+            if '🧩 Seletor' not in st.session_state.badges:
+                add_badge('🧩 Seletor')
+        elif st.session_state.step == 2 and sub_step == 'a':
+            st.info("⏳ 3. Seleção de conceitos")
+        else:
+            st.info("⏳ 3. Seleção de conceitos")
+
+    with col4:
+        if st.session_state.step >= 2 and sub_step == 'c':
+            st.success("✅ 4. Relatório")
+            if '🏆 Delineador' not in st.session_state.badges:
+                add_badge('🏆 Delineador')
+        elif st.session_state.step > 2:
+            st.success("✅ 4. Relatório")
             if '🏆 Delineador' not in st.session_state.badges:
                 add_badge('🏆 Delineador')
         else:
-            st.info("⏳ Etapa 3/3: Avaliação")
+            st.info("⏳ 4. Relatório")
+
+    with col5:
+        if st.session_state.get('avaliacao_completa', False):
+            st.success("✅ 5. Avaliação")
+            if '💎 Avaliador' not in st.session_state.badges:
+                add_badge('💎 Avaliador')
+        elif st.session_state.step >= 3:
+            st.warning("🔄 5. Avaliação")
+        else:
+            st.info("⏳ 5. Avaliação")
 
     # Mostrar badges conquistados
     if st.session_state.badges:
@@ -385,7 +423,7 @@ with tab1:
 
     # ========== ETAPA 1: FORMULÁRIO INICIAL ==========
     if st.session_state.step == 1:
-        st.header("📝 Formulário Inicial")
+        st.header("📝 1. Formulário Inicial")
 
         with st.form("formulario_inicial"):
             st.subheader("👤 Identificação")
@@ -410,26 +448,26 @@ with tab1:
 
             tema = st.text_input(
                 "F1.1. Tema da Pesquisa*",
-                placeholder="Ex: Pesquisa brasileira em HIV/AIDS",
+                placeholder="Ex: Jogos como estratégia de ensino e aprendizagem na escola",
                 help="Tema principal do seu projeto"
             )
 
             questao = st.text_area(
                 "F1.2. Questão de Pesquisa*",
-                placeholder="Ex: Como os tópicos de pesquisa em HIV/AIDS evoluíram no Brasil?",
+                placeholder="Ex: Qual a percepção dos professores sobre a eficácia dos jogos como estratégia de ensino e aprendizagem na escola?",
                 height=100,
                 help="Pergunta principal que você quer responder"
             )
 
             palavras_chave = st.text_input(
                 "F1.3. Palavras-chave* (separadas entre vírgulas)",
-                placeholder="Ex: HIV/AIDS, Pesquisa, Brasil",
+                placeholder="Ex: Jogos, Ensino, Aprendizagem, Percepção dos professores",
                 help="Separe as palavras-chave por vírgula"
             )
 
             google_academico = st.text_area(
                 "F1.4. Se você fosse pesquisar referências para seu projeto no Google Acadêmico, o que você colocaria no campo de busca?*",
-                placeholder="Ex: Pesquisas sobre HIV/AIDS no Brasil",
+                placeholder="Ex: Uso de jogos na escola",
                 help="Campo livre para indicar palavras, frases, etc. que você quer pesquisar",
                 height=100
             )
@@ -510,126 +548,338 @@ with tab1:
                             st.error(f"❌ Erro ao processar: {str(e)}")
                             st.exception(e)
 
-    # ========== ETAPA 2: RELATÓRIO ==========
+    # ========== ETAPA 2: TRILHA DE APRENDIZAGEM ATIVA ==========
     elif st.session_state.step == 2:
         d = st.session_state.form_data
         r = st.session_state.resultado
+        sub_step = st.session_state.get('sub_step', 'a')
 
-        st.header("📊 Relatório de Delineamento")
-        st.caption("[ Relatório produzido por Inteligência Artificial ]")
+        # ========== SUB-ETAPA 2a: VISUALIZAÇÃO DO GRAFO ==========
+        if sub_step == 'a':
+            st.header("🕸️ 2. Grafo de conceitos")
+            st.caption("Etapa 2: Explore o grafo e o glossário antes de selecionar os conceitos")
 
-        # Botões de ação
-        col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
-
-        with col1:
+            # Botão voltar
             if st.button("⬅️ Voltar ao Formulário"):
                 st.session_state.step = 1
                 st.rerun()
 
-        with col2:
-            try:
-                pdf_bytes = generate_pdf_report(d, r)
-                st.download_button(
-                    "📥 Baixar PDF",
-                    pdf_bytes,
-                    f"delineamento_{d['nome'].replace(' ', '_')}.pdf",
-                    "application/pdf",
-                    use_container_width=True
-                )
-            except Exception as e:
-                st.error(f"Erro ao gerar PDF: {str(e)}")
+            st.divider()
 
-        with col3:
-            if st.button("📝 Avaliar Sistema", type="primary", use_container_width=True):
-                st.session_state.step = 3
+            # Informações do projeto (resumido)
+            with st.expander("📋 Dados do Projeto", expanded=False):
+                st.write(f"**Tema:** {d['tema']}")
+                st.write(f"**Questão:** {d['questao']}")
+                st.write(f"**Palavras-chave:** {d['palavras_chave']}")
+
+            # Métricas
+            col1, col2, col3 = st.columns(3)
+            col1.metric("📚 Artigos Analisados", r.get('articles_count', 0))
+            col2.metric("🧩 Conceitos no Grafo", r['graph_stats']['nodes'])
+            col3.metric("🔗 Conexões", r['graph_stats']['edges'])
+
+            # Layout: Grafo e Glossário lado a lado
+            col_grafo, col_glossario = st.columns([1, 1])
+
+            with col_grafo:
+                st.subheader("🕸️ Grafo de Coocorrências")
+                if r.get('visualization_path'):
+                    st.image(r['visualization_path'], use_container_width=True)
+                else:
+                    st.warning("⚠️ Visualização não disponível")
+
+            with col_glossario:
+                st.subheader("📖 Glossário de Conceitos")
+                with st.container(height=400):
+                    st.markdown(r.get('glossary', '⚠️ Glossário não disponível'))
+
+            # Instrução para próxima etapa
+            st.divider()
+            st.info("""
+            💡 **Próximo passo:** Observe atentamente o grafo e o glossário acima. 
+            Na próxima etapa, você selecionará os conceitos mais relevantes para sua pesquisa.
+            Essa seleção será usada para gerar uma interpretação personalizada do grafo.
+            """)
+
+            # Botão avançar
+            if st.button("Continuar para Seleção de Conceitos ▶️", type="primary", use_container_width=True):
+                st.session_state.sub_step = 'b'
                 st.rerun()
 
-        with col4:
-            if st.button("🔄 Novo Projeto"):
+        # ========== SUB-ETAPA 2b: SELEÇÃO DE CONCEITOS ==========
+        elif sub_step == 'b':
+            top_concepts = r.get('top_concepts', [])[:9]
+
+            st.header("🎯 3. Seleção de Conceitos")
+            st.caption("Etapa 3: Escolha os conceitos mais relevantes para sua pesquisa")
+
+            # Navegação
+            if st.button("⬅️ Voltar ao Grafo"):
+                st.session_state.sub_step = 'a'
+                st.rerun()
+
+            st.divider()
+
+            # Contexto
+            primeiro_nome = d['nome'].split()[0]
+            st.markdown(f"""
+            ### {primeiro_nome}, quais conceitos do grafo são mais relevantes para seu projeto?
+
+            Considerando seu tema **"{d['tema']}"**, selecione os conceitos que você considera 
+            mais importantes para o delineamento do escopo da sua pesquisa.
+
+            *Selecione pelo menos 1 conceito para continuar.*
+            """)
+
+            # Mostrar grafo como referência (menor)
+            with st.expander("🕸️ Ver grafo novamente", expanded=False):
+                if r.get('visualization_path'):
+                    st.image(r['visualization_path'], use_container_width=True)
+
+            st.divider()
+
+            # Seleção de conceitos com checkboxes
+            st.subheader("📋 Conceitos Identificados na Rede")
+
+            # Criar 3 colunas para os checkboxes
+            cols = st.columns(3)
+            selected = []
+
+            for i, concept in enumerate(top_concepts):
+                col_idx = i % 3
+                with cols[col_idx]:
+                    # Verificar se já estava selecionado antes
+                    default_value = concept in st.session_state.get('selected_concepts', [])
+                    if st.checkbox(concept, value=default_value, key=f"concept_{i}"):
+                        selected.append(concept)
+
+            # Atualizar session_state
+            st.session_state.selected_concepts = selected
+
+            # Contador
+            st.divider()
+            num_selected = len(selected)
+
+            if num_selected == 0:
+                st.warning("⚠️ Selecione pelo menos 1 conceito para continuar")
+            else:
+                st.success(f"✅ **{num_selected} conceito(s) selecionado(s):** {', '.join(selected)}")
+
+            # Botão avançar (só habilitado se tiver seleção)
+            st.divider()
+
+            col1, col2 = st.columns(2)
+
+            with col2:
+                if num_selected >= 1:
+                    if st.button("Gerar Relatório de Delineamento ▶️", type="primary", use_container_width=True):
+                        with st.spinner("🔄 Gerando relatório... (aguarde 1-2 minutos)"):
+                            # Gerar conteúdo personalizado
+                            from research_pipeline import GeminiQueryGenerator
+                            gemini = GeminiQueryGenerator()
+
+                            primeiro_nome = d['nome'].split()[0]
+                            tema = d['tema']
+                            original_kws = [k.strip() for k in d.get('palavras_chave', '').split(',') if k.strip()]
+                            all_concepts = r.get('top_concepts', [])[:9]
+
+                            # Gerar interpretação contextualizada
+                            st.session_state.personalized_interpretation = gemini.generate_contextualized_interpretation(
+                                tema, primeiro_nome, selected, all_concepts
+                            )
+
+                            # Gerar sugestões de palavras-chave
+                            st.session_state.suggested_keywords = gemini.generate_keyword_suggestions(
+                                tema, primeiro_nome, selected, original_kws
+                            )
+
+                            # Gerar strings de busca
+                            st.session_state.suggested_strings = gemini.generate_search_strings(
+                                tema, selected, original_kws
+                            )
+
+                            st.session_state.interpretation_generated = True
+
+                        st.session_state.sub_step = 'c'
+                        st.rerun()
+                else:
+                    st.button("Gerar Interpretação Personalizada ▶️", disabled=True, use_container_width=True)
+
+        # ========== SUB-ETAPA 2c: INTERPRETAÇÃO PERSONALIZADA ==========
+        elif sub_step == 'c':
+            selected = st.session_state.get('selected_concepts', [])
+
+            st.header("📋 4. Relatório")
+            st.caption("Etapa 4: Interpretação baseada nos conceitos que você selecionou")
+
+            # Navegação
+            col_nav1, col_nav2 = st.columns([1, 3])
+            with col_nav1:
+                if st.button("⬅️ Voltar à Seleção"):
+                    st.session_state.sub_step = 'b'
+                    st.rerun()
+
+            st.divider()
+
+            # Resumo da seleção
+            st.success(f"✅ **Conceitos selecionados:** {', '.join(selected)}")
+
+            # Informações do projeto
+            with st.container(border=True):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write(f"**👤 Aluno:** {d['nome']}")
+                    st.write(f"**📧 E-mail:** {d['email']}")
+                with col2:
+                    st.write(f"**📅 Data:** {d['timestamp']}")
+                    st.write(f"**💭 Confiança:** {d['confianca']}")
+
+            with st.container(border=True):
+                st.write(f"**🎯 Tema:** {d['tema']}")
+                st.write(f"**❓ Questão:** {d['questao']}")
+                st.write(f"**🔑 Palavras-chave:** {d['palavras_chave']}")
+
+            # ========== SEÇÃO 1: AVALIAÇÃO INICIAL DO PROJETO ==========
+            st.subheader("📋 Avaliação do Projeto")
+            with st.container(border=True):
+                st.markdown(r.get('full_report', '⚠️ Avaliação não disponível'))
+
+            # ========== SEÇÃO 2: INTERPRETAÇÃO PERSONALIZADA ==========
+            st.subheader("💡 Interpretação Personalizada do Grafo")
+            with st.container(border=True):
+                interpretation = st.session_state.get('personalized_interpretation', '')
+                if interpretation:
+                    st.markdown(interpretation)
+                else:
+                    st.markdown(r.get('graph_interpretation', '⚠️ Interpretação não disponível'))
+
+            # ========== SEÇÃO 3: GRAFO ==========
+            st.subheader("🕸️ Grafo de Coocorrências")
+            if r.get('visualization_path'):
+                st.image(r['visualization_path'], use_container_width=True)
+
+            # ========== SEÇÃO 4: GLOSSÁRIO ==========
+            st.subheader("📖 Glossário de Conceitos")
+            with st.expander("Ver glossário completo", expanded=False):
+                st.markdown(r.get('glossary', '⚠️ Glossário não disponível'))
+
+            # ========== SEÇÃO 5: SUGESTÕES DE PALAVRAS-CHAVE ==========
+            st.subheader("🔑 Sugestões de Palavras-chave")
+
+            suggested_kws = st.session_state.get('suggested_keywords', [])
+
+            if suggested_kws:
+                for kw in suggested_kws:
+                    with st.container(border=True):
+                        col1, col2 = st.columns([1, 3])
+                        with col1:
+                            st.markdown(f"**{kw.get('term_en', 'N/A')}**")
+                            st.caption(f"({kw.get('term_pt', 'N/A')})")
+                        with col2:
+                            st.write(kw.get('description', ''))
+            else:
+                st.info("Sugestões de palavras-chave não disponíveis")
+
+            # ========== SEÇÃO 6: STRINGS DE BUSCA SUGERIDAS ==========
+            st.subheader("🔎 Strings de Busca Sugeridas")
+            st.caption("Copie as strings abaixo para usar no Painel ou em bases de dados")
+
+            suggested_strings = st.session_state.get('suggested_strings', {})
+
+            if suggested_strings:
+                for key, data in suggested_strings.items():
+                    with st.container(border=True):
+                        st.markdown(f"**{data.get('titulo', key)}**")
+                        st.caption(data.get('descricao', ''))
+
+                        col_str, col_btn = st.columns([4, 1])
+
+                        with col_str:
+                            st.code(data.get('string', ''), language='text')
+
+                        with col_btn:
+                            if st.button("📋 Copiar", key=f"copy_{key}", use_container_width=True):
+                                st.session_state.dashboard_query = data.get('string', '')
+                                st.toast(f"✅ String copiada para o Painel!")
+            else:
+                # Fallback: mostrar string original
+                search_string = r.get('search_string', 'N/A')
+                with st.container(border=True):
+                    st.markdown("**🔎 String de Busca Original**")
+                    col_str, col_btn = st.columns([4, 1])
+                    with col_str:
+                        st.code(search_string, language='text')
+                    with col_btn:
+                        if st.button("📋 Copiar", key="copy_original", use_container_width=True):
+                            st.session_state.dashboard_query = search_string
+                            st.toast("✅ String copiada para o Painel!")
+
+            # ========== SEÇÃO 7: AÇÕES FINAIS ==========
+            st.divider()
+
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+                # PDF disponível após completar a trilha
+                try:
+                    # Adicionar dados da seleção ao resultado para o PDF
+                    r_completo = r.copy()
+                    r_completo['selected_concepts'] = selected
+                    r_completo['personalized_interpretation'] = st.session_state.get('personalized_interpretation', '')
+                    r_completo['suggested_keywords'] = st.session_state.get('suggested_keywords', [])
+                    r_completo['suggested_strings'] = st.session_state.get('suggested_strings', {})
+
+                    pdf_bytes = generate_pdf_report(d, r_completo)
+                    st.download_button(
+                        "📥 Baixar PDF Completo",
+                        pdf_bytes,
+                        f"delineamento_{d['nome'].replace(' ', '_')}.pdf",
+                        "application/pdf",
+                        use_container_width=True,
+                        type="primary"
+                    )
+                except Exception as e:
+                    st.error(f"Erro ao gerar PDF: {str(e)}")
+
+            with col2:
+                if st.button("📊 Ir ao Painel", use_container_width=True):
+                    st.info("💡 Use as strings sugeridas no Painel para explorar mais a literatura!")
+
+            with col3:
+                if st.button("📝 Avaliar Sistema", type="primary", use_container_width=True):
+                    st.session_state.step = 3
+                    st.rerun()
+
+            # Dica final
+            st.divider()
+            st.info("""
+            🎉 **Parabéns!** Você completou a trilha de delineamento!
+
+            Agora você pode:
+            - 📥 **Baixar o PDF** com o relatório completo
+            - 📊 **Usar o Painel** para explorar mais a literatura
+            - 📝 **Avaliar o sistema** e nos ajudar a melhorar
+            """)
+
+            # Botão novo projeto
+            if st.button("🔄 Iniciar Novo Projeto", use_container_width=True):
                 st.session_state.step = 1
                 st.session_state.resultado = None
                 st.session_state.form_data = {}
                 st.session_state.avaliacao_completa = False
                 st.session_state.badges = []
+                st.session_state.sub_step = 'a'
+                st.session_state.selected_concepts = []
+                st.session_state.interpretation_generated = False
+                st.session_state.personalized_interpretation = None
+                st.session_state.suggested_keywords = []
+                st.session_state.suggested_strings = {}
                 st.rerun()
-
-        st.divider()
-
-        # Informações do projeto
-        with st.container(border=True):
-            col1, col2 = st.columns(2)
-            with col1:
-                st.write(f"**👤 Aluno:** {d['nome']}")
-                st.write(f"**📧 E-mail:** {d['email']}")
-            with col2:
-                st.write(f"**📅 Data:** {d['timestamp']}")
-                st.write(f"**💭 Confiança:** {d['confianca']}")
-
-        with st.container(border=True):
-            st.write(f"**🎯 Tema:** {d['tema']}")
-            st.write(f"**❓ Questão:** {d['questao']}")
-            st.write(f"**🔑 Palavras-chave:** {d['palavras_chave']}")
-
-        # Avaliação do projeto
-        st.subheader("📋 Avaliação do Projeto")
-        st.markdown(r.get('full_report', '⚠️ Avaliação não disponível'))
-
-        st.markdown("Com base nas palavras-chave fornecidas, desenvolvemos uma string de busca:")
-
-        # String de busca
-        st.subheader("🔎 String de Busca")
-
-        search_string = r.get('search_string', 'N/A')
-
-        col_a, col_b = st.columns([3, 1])
-
-        with col_a:
-            with st.expander("📄 Ver string completa", expanded=True):
-                st.code(search_string, language='text')
-
-        with col_b:
-            if st.button("📋 Copiar para Dashboard", use_container_width=True):
-                st.session_state.dashboard_query = search_string
-                st.success("✅ Copiado!")
-
-        st.write(f"**Objetivo:** {r.get('search_objective', '')}")
-
-        st.markdown("Elaborou-se um modelo de visualização das coocorrências entre conceitos:")
-
-        # Métricas
-        col1, col2, col3 = st.columns(3)
-        col1.metric("📚 Artigos Analisados", r.get('articles_count', 0))
-        col2.metric("🧩 Conceitos Identificados", r['graph_stats']['nodes'])
-        col3.metric("🔗 Conexões no Grafo", r['graph_stats']['edges'])
-
-        # Grafo de coocorrência
-        st.subheader("🕸️ Grafo de Coocorrência de Conceitos")
-
-        if r.get('visualization_path'):
-            st.image(r['visualization_path'], use_container_width=True)
-        else:
-            st.warning("⚠️ Visualização não disponível")
-
-        # Glossário
-        st.subheader("📖 Glossário de Conceitos")
-        st.markdown(r.get('glossary', '⚠️ Glossário não disponível'))
-
-        # Interpretação
-        st.subheader("💡 Interpretação do Grafo")
-        st.write(r.get('graph_interpretation', '⚠️ Interpretação não disponível'))
-
-        # CTA para avaliação
-        st.divider()
-        st.info("💝 Ajude a melhorar o Delinéia! Complete a avaliação e desbloqueie o distintivo **🏆 Delineador**")
-
-        if st.button("➡️ Ir para Avaliação", type="primary", use_container_width=True):
-            st.session_state.step = 3
-            st.rerun()
 
 # ========== ETAPA 3: AVALIAÇÃO EXPANDIDA ==========
     elif st.session_state.step == 3:
-        st.header("📋 Avaliação do Sistema Delinéia")
-        st.caption("Suas respostas são fundamentais para aprimorarmos a ferramenta!")
+        st.header("⭐ 5. Avaliação")
+        st.caption("Suas respostas são fundamentais para aprimorarmos o sistema!")
 
         st.info("""
 📊 **Termo de Consentimento Livre e Esclarecido**
@@ -1015,7 +1265,8 @@ Ao prosseguir com o preenchimento deste formulário, você declara que entende o
                     )
 
                 # Badge de conclusão
-                add_badge('💎 Avaliador')
+                if '💎 Avaliador' not in st.session_state.badges:
+                    add_badge('💎 Avaliador')
 
                 # Feedback visual
                 st.success("✅ Avaliação enviada com sucesso!")
@@ -1066,7 +1317,7 @@ Ao prosseguir com o preenchimento deste formulário, você declara que entende o
         st.markdown("""
         <div style="text-align: justify; 
                     background-color: #ffffff; 
-                    border-left: 4px solid #333333; 
+                    border-left: 4px solid #28a745; 
                     padding: 1rem; 
                     border-radius: 0.25rem;
                     color: #000000;">
@@ -1093,19 +1344,13 @@ Ao prosseguir com o preenchimento deste formulário, você declara que entende o
             unsafe_allow_html=True
         )
 
-        # Botão para rastrear se assistiu ao vídeo
-        if st.button("✅ Assisti ao vídeo", use_container_width=True):
-            st.session_state.play_video = True
-            st.success("Obrigado por assistir! 🎵")
-
         # Créditos em expander
         with st.expander("📜 Créditos e Informações"):
             st.markdown("""
             <div style="text-align: center; 
-                        background-color: #ffffff; 
-                        border-left: 4px solid #333333; 
-                        padding: 1rem; 
-                        border-radius: 0.25rem;
+                        background-color: #f8f9fa; 
+                        padding: 1.5rem; 
+                        border-radius: 0.5rem;
                         color: #000000;">
             
             **Título:** A palavra no escuro ou os dialetos do poço
@@ -1259,9 +1504,9 @@ Que sangre o dedo, mas que estanque o vício.
             st.session_state.badges = []
             st.rerun()
 
-# ==================== ABA 2: DASHBOARD DE ANÁLISE ====================
+# ==================== ABA 2: PAINEL DE ANÁLISE ====================
 with tab2:
-    st.title("📊 Dashboard de Exploração de Dados")
+    st.title("📊 Painel de Exploração de Dados")
     st.caption("Análise profunda dos dados do OpenAlex")
 
     # Sidebar para configuração
@@ -1291,17 +1536,21 @@ with tab2:
                 min_score = 0.35
                 min_level = 0
             else:
-                limit = st.slider("Limite de artigos:", 10, 500, 100, 10)
-                min_score = st.slider("Score mínimo:", 0.0, 1.0, 0.35, 0.05)
-                min_level = st.slider("Level mínimo:", 0, 5, 0, 1)
+                limit = st.slider("Limite de artigos:", 10, 500, 100, 10,
+                    help="Número máximo de artigos a buscar na API OpenAlex")
+                min_score = st.slider("Score mínimo:", 0.0, 1.0, 0.35, 0.05,
+                    help="Relevância mínima do conceito (0-1). Valores maiores = conceitos mais relevantes")
+                min_level = st.slider("Level mínimo:", 0, 5, 0, 1,
+                    help="Nível hierárquico do conceito (0-5). 0 = geral, 5 = muito específico")
 
-        min_cooc = st.slider("Coocorrência mínima:", 1, 10, 2, 1)
+        min_cooc = st.slider("Coocorrência mínima:", 1, 10, 2, 1,
+            help="Frequência mínima de coocorrência para formar aresta no grafo")
 
         st.divider()
 
         # Botão de buscar
         if st.button("🔍 Buscar", type="primary", use_container_width=True):
-            with st.spinner("🔄 Em processamento, confira no Dashboard"):
+            with st.spinner("🔄 Em processamento, confira no Painel"):
                 try:
                     # Inicializar cliente
                     client = OpenAlexClient(OPENALEX_EMAIL)
@@ -1334,6 +1583,7 @@ with tab2:
                     with st.expander("📋 Detalhes da Busca"):
                         st.write(f"**String enviada:** {query}")
                         st.write(f"**Limite:** {limit}")
+                        st.write(f"**Coocorrência mínima:** {min_cooc}")
                         st.write(f"**Filtros:** score≥{min_score}, level≥{min_level}")
                         st.write(f"**Artigos retornados:** {len(articles)}")
                         st.write(f"**Conceitos extraídos:** {len(concepts_lists)}")
@@ -1347,10 +1597,10 @@ with tab2:
         st.divider()
 
         # ========== SEÇÃO SOBRE ==========
-        with st.expander("📚 Sobre o Delinéia"):
+        with st.expander("📋 Sobre o Delinéia"):
             st.markdown("""
             ### O que é o Delinéia?
-            O Delinéia é um sistema de apoio ao delineamento do escopo temático de projetos de pesquisa no ensino superior, desenvolvido como parte de uma tese de doutorado em Informática na Educação. A ferramenta combina inteligência artificial (Google Gemini) com análise bibliométrica de coocorrência de palavras (OpenAlex) para auxiliar estudantes de graduação e de pós-graduação no esboço de seus projetos de pesquisa.
+            O Delinéia é um sistema de apoio ao delineamento do escopo temático de projetos de pesquisa no ensino superior e foi desenvolvido como parte de uma tese de doutorado em Informática na Educação. O sistema combina inteligência artificial generativa (Google Gemini) com análise bibliométrica de coocorrência de palavras (OpenAlex) para auxiliar estudantes de graduação e de pós-graduação no esboço de seus projetos de pesquisa.
         
             ### Desenvolvimento
             **Autor:** Rafael Antunes dos Santos  
@@ -1374,7 +1624,7 @@ with tab2:
         
             ### Funcionalidades
             - **Delineascópio:** Feedback personalizado sobre projetos de pesquisa
-            - **Dashboard:** Análise profunda de dados do OpenAlex:
+            - **Painel:** Análise profunda de dados do OpenAlex:
               - **Artigos:** Contagens de artigos e links de acesso
               - **Conceitos:** Contagens de conceitos, nuvem de palavras e Lei de Zipf
               - **Coocorrências:** Contagens de associações entre conceitos e matrizes
@@ -1385,28 +1635,29 @@ with tab2:
         
             ### Tecnologias
             - Python / Streamlit
-            - Google Gemini AI 2.5 Pro / Anthropic Claude Sonnet 4.5
+            - Google Gemini AI 2.5 Pro / Anthropic Claude Opus 4.5
             - OpenAlex API
             - NetworkX, Plotly, ReportLab
         
             ### Contato
             📧 rafael.antunes@ufrgs.br
+            📧 rderafa@gmail.com           
         
             ### Versão
             Delinéia I - 2025
 
             ### Agradecimentos
-            Ao **Orientador** Eliseo Berni Reategui; Aos **Professores** Alexandra Lorandi, Alexandre Ribas Semeler, Dante Augusto Couto Barone, Elisa Boff, Fernando Becker, Gabriela Trindade Perry, Leandro Krug Wives, Marcus Vinicius de Azevedo Basso, Maria de Fátima Santos Maia, Milton Antonio Zaro, Patrícia Fernanda da Silva, Rafael Port da Rocha, Renato Ventura Bayan Henriques, Rosa Maria Vicari, Samile Andréa de Souza Vanz, Sérgio Roberto Kieling Franco, Sonia Elisa Caregnato e Vanessa Soares Maurente. Aos colegas do grupo de pesquisa **GTech.Edu** e à **CAPES**, pela concessão de bolsa de estudos.
+            Ao **Orientador** Eliseo Berni Reategui; Aos **Professores** Alexandra Lorandi, Alexandre Ribas Semeler, Dante Augusto Couto Barone, Elisa Boff, Fernando Becker, Gabriela Trindade Perry, Ida Regina Chitto Stumpf, Leandro Krug Wives, Marcus Vinicius de Azevedo Basso, Maria de Fátima Santos Maia, Milton Antonio Zaro, Patrícia Fernanda da Silva, Rafael Port da Rocha, Regina Helena Van der Laan, Renato Ventura Bayan Henriques, Rosa Maria Vicari, Samile Andréa de Souza Vanz, Sérgio Roberto Kieling Franco, Sonia Elisa Caregnato e Vanessa Soares Maurente. Aos colegas do grupo de pesquisa **GTech.Edu** e à **CAPES**, pela concessão de bolsa de estudos.
             """)
     
-    # Área principal do dashboard
+    # Área principal do painel
     if st.session_state.dashboard_data is None:
         st.info("👈 Configure os parâmetros na barra lateral e clique em **Buscar** para iniciar a análise")
 
         # Mostrar exemplo
         with st.expander("💡 Exemplo de uso"):
             st.markdown("""
-            **Como usar o Dashboard:**
+            **Como usar o Painel:**
 
             1. **Digite uma string de busca** (ex: "machine learning AND education")
             2. **Ajuste os filtros** conforme necessário
@@ -1526,6 +1777,69 @@ with tab2:
             col2.metric("Conceitos Únicos", len(freq))
             col3.metric("Total de Ocorrências", len(all_concepts))
 
+            st.divider()
+
+            # ===== NUVEM DE PALAVRAS (com Plotly) =====
+            st.subheader("☁️ Nuvem de Conceitos")
+            
+            # Criar dicionário de frequências
+            freq_dict = dict(freq.most_common(50))
+            
+            if freq_dict:
+                import random
+                random.seed(42)
+                
+                # Preparar dados
+                words = list(freq_dict.keys())
+                frequencies = list(freq_dict.values())
+                max_freq = max(frequencies)
+                min_freq = min(frequencies)
+                
+                # Normalizar tamanhos (entre 12 e 80)
+                sizes = [12 + (f - min_freq) / (max_freq - min_freq) * 68 if max_freq > min_freq else 40 for f in frequencies]
+                
+                # Posições em espiral/orgânica
+                n = len(words)
+                x_positions = []
+                y_positions = []
+                for i in range(n):
+                    angle = i * 2.4  # Ângulo áureo
+                    radius = 10 + i * 1.5
+                    x_positions.append(50 + radius * np.cos(angle) * 0.8)
+                    y_positions.append(50 + radius * np.sin(angle) * 0.5)
+                
+                # Paleta de cores mais harmônica
+                color_palette = ['#e63946', '#f4a261', '#2a9d8f', '#264653', '#e9c46a', 
+                                '#023e8a', '#0077b6', '#8338ec', '#ff006e', '#06d6a0']
+                colors = [color_palette[i % len(color_palette)] for i in range(n)]
+                
+                # Criar figura
+                fig_cloud = go.Figure()
+                
+                for i, word in enumerate(words):
+                    fig_cloud.add_trace(go.Scatter(
+                        x=[x_positions[i]],
+                        y=[y_positions[i]],
+                        mode='text',
+                        text=[word],
+                        textfont=dict(size=sizes[i], color=colors[i], family='Arial Black'),
+                        hoverinfo='text',
+                        hovertext=f'{word}: {frequencies[i]} ocorrências',
+                        showlegend=False
+                    ))
+                
+                fig_cloud.update_layout(
+                    xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[0, 100]),
+                    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[0, 100]),
+                    height=450,
+                    margin=dict(l=0, r=0, t=10, b=10),
+                    plot_bgcolor='white'
+                )
+                
+                st.plotly_chart(fig_cloud, use_container_width=True)
+            else:
+                st.info("Sem dados suficientes para gerar nuvem de palavras")
+            
             st.divider()
 
             # Top conceitos
@@ -2124,10 +2438,10 @@ with tab2:
                                 st.markdown("### 📋 Detalhamento dos Clusters")
 
                                 tipo_icons = {
-                                    "Tema Motor": "🎯",
-                                    "Tema Nicho": "🔷",
-                                    "Tema Emergente / Declinante": "🔴",
-                                    "Tema Básico": "🔶",
+                                    "Motor Theme": "🎯",
+                                    "Basic Theme": "🔶",
+                                    "Niche Theme": "💎",
+                                    "Emerging/Declining Theme": "🔴",
                                 }
 
                                 for cluster in thematic_data:
@@ -2149,14 +2463,14 @@ with tab2:
                                             st.metric("Tamanho", cluster["tamanho"])
 
                                         # Interpretação sintética
-                                        if cluster["tipo"] == "Tema Motor":
-                                            st.success("💡 Tema central e maduro. **PRIORIZE** na revisão de literatura.")
-                                        elif cluster["tipo"] == "Tema Nicho":
-                                            st.info(f"💡 Tema especializado. Útil para nichos relacionados a '{cluster['conceito_principal']}'.")
-                                        elif cluster["tipo"] == "Tema Básico":
-                                            st.warning("💡 Tema transversal. Oportunidade para pesquisas integradoras.")
+                                        if "Motor" in cluster["tipo"]:
+                                            st.success("🎯 Tema central e maduro. **PRIORIZE** na revisão de literatura.")
+                                        elif "Niche" in cluster["tipo"]:
+                                            st.info(f"💎 Tema especializado. Útil para nichos relacionados a '{cluster['conceito_principal']}'.")
+                                        elif "Basic" in cluster["tipo"]:
+                                            st.warning("🔶 Tema transversal. Oportunidade para pesquisas integradoras.")
                                         else:
-                                            st.error("💡 Tema emergente ou em declínio. Fronteira de pesquisa.")
+                                            st.error("🔴 Tema emergente ou em declínio. Fronteira de pesquisa.")
 
                             # ---------- Explicação metodológica ----------
                             with st.expander("ℹ️ Sobre a metodologia"):
@@ -2405,9 +2719,9 @@ Query: {query}
                         zf.writestr('README.txt', readme)
 
                     st.download_button(
-                        "📥 Baixar dashboard_completo.zip",
+                        "📥 Baixar painel_completo.zip",
                         zip_buffer.getvalue(),
-                        "dashboard_completo.zip",
+                        "painel_completo.zip",
                         "application/zip",
                         use_container_width=True
                     )
