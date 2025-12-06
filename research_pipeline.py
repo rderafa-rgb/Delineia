@@ -221,6 +221,9 @@ class GeminiQueryGenerator:
                     if len(extracted_text) >= 30 and extracted_text != "None":
                         log_diagnostico(f"SUCESSO! Texto válido: {len(extracted_text)} chars", "success")
                         log_diagnostico(f"Preview: {extracted_text[:150]}...", "info")
+                        # Delay para respeitar rate limit (2 RPM = aguardar 35s)
+                        log_diagnostico("Aguardando 35s para respeitar rate limit...", "info")
+                        time.sleep(35)
                         return extracted_text
                     else:
                         log_diagnostico(f"Texto muito curto/inválido: {len(extracted_text)} chars", "warning")
@@ -708,26 +711,51 @@ Sugira exatamente 5 palavras-chave complementares que:
     def generate_search_strings(self,
                                 tema: str,
                                 selected_concepts: List[str],
-                                original_keywords: List[str]) -> Dict[str, Dict]:
+                                original_keywords: List[str],
+                                suggested_terms: List[Dict] = None) -> Dict[str, Dict]:
         """
-        Gera 3 strings de busca usando conceitos já em inglês.
+        Gera 3 strings de busca usando:
+        1. Conceitos selecionados (já em inglês do OpenAlex)
+        2. Termos ricos sugeridos pelo Gemini (suggested_terms)
+        3. Keywords originais traduzidas (fallback)
+        
+        Args:
+            tema: Tema da pesquisa
+            selected_concepts: Conceitos selecionados do grafo (já em inglês)
+            original_keywords: Palavras-chave originais do aluno
+            suggested_terms: Lista de dicts com 'term_en', 'term_pt', 'description'
         """
-        # Traduzir palavras-chave para inglês
-        keywords_en = []
-        for kw in original_keywords[:3]:
-            kw_en = self._translate_to_english(kw)
-            if kw_en and kw_en.lower() != kw.lower():  # Só adiciona se realmente traduziu
-                keywords_en.append(kw_en)
         
-        # Se não conseguiu traduzir, usar conceitos selecionados
-        if not keywords_en:
-            keywords_en = selected_concepts[:3] if selected_concepts else []
+        # ========== COLETAR TERMOS RICOS EM INGLÊS ==========
+        rich_terms_en = []
         
-        # Inicializar estrutura de retorno
+        # 1. Extrair termos em inglês das sugestões do Gemini (PRIORIDADE)
+        if suggested_terms:
+            for term in suggested_terms:
+                term_en = term.get('term_en', '').strip()
+                if term_en and term_en not in rich_terms_en:
+                    rich_terms_en.append(term_en)
+        
+        # 2. Adicionar conceitos selecionados (já em inglês)
+        for concept in selected_concepts:
+            if concept and concept not in rich_terms_en:
+                rich_terms_en.append(concept)
+        
+        # 3. Fallback: traduzir keywords originais se necessário
+        if len(rich_terms_en) < 3:
+            for kw in original_keywords[:3]:
+                kw_en = self._translate_to_english(kw)
+                if kw_en and kw_en not in rich_terms_en:
+                    rich_terms_en.append(kw_en)
+        
+        # Log para debug
+        log_diagnostico(f"Termos ricos coletados: {rich_terms_en[:8]}", "info")
+        
+        # ========== ESTRUTURA DE RETORNO ==========
         strings = {
             'ampla': {
                 'titulo': 'String Ampla (Tema Geral)',
-                'descricao': 'Busca abrangente focada no tema principal e palavras-chave originais',
+                'descricao': 'Busca abrangente combinando palavras-chave sugeridas e conceitos centrais',
                 'string': ''
             },
             'focada': {
@@ -737,36 +765,53 @@ Sugira exatamente 5 palavras-chave complementares que:
             },
             'interseccional': {
                 'titulo': 'String Interseccional (Combinação)',
-                'descricao': 'Busca que combina seu tema com os conceitos selecionados',
+                'descricao': 'Busca que cruza diferentes dimensões do seu tema',
                 'string': ''
             }
         }
         
-        # String AMPLA: keywords traduzidas + primeiro conceito
-        if len(keywords_en) >= 2:
-            strings['ampla']['string'] = f'("{keywords_en[0]}" OR "{keywords_en[1]}") AND ("{selected_concepts[0] if selected_concepts else keywords_en[0]}")'
-        elif keywords_en:
-            strings['ampla']['string'] = f'"{keywords_en[0]}" AND "{selected_concepts[0] if selected_concepts else ""}"'
-        elif selected_concepts:
-            strings['ampla']['string'] = f'"{selected_concepts[0]}"'
+        # ========== CONSTRUIR STRINGS ==========
         
-        # String FOCADA: apenas conceitos selecionados (já em inglês)
-        if len(selected_concepts) >= 3:
-            strings['focada']['string'] = f'"{selected_concepts[0]}" AND "{selected_concepts[1]}" AND "{selected_concepts[2]}"'
-        elif len(selected_concepts) >= 2:
-            strings['focada']['string'] = f'"{selected_concepts[0]}" AND "{selected_concepts[1]}"'
-        elif selected_concepts:
-            strings['focada']['string'] = f'"{selected_concepts[0]}"'
+        # Separar termos por tipo para combinações mais ricas
+        suggested_en = [t.get('term_en', '') for t in (suggested_terms or []) if t.get('term_en')][:4]
+        concepts_en = selected_concepts[:4] if selected_concepts else []
         
-        # String INTERSECCIONAL: cruza keywords com conceitos
-        if keywords_en and len(selected_concepts) >= 2:
-            strings['interseccional']['string'] = f'("{keywords_en[0]}") AND ("{selected_concepts[0]}" OR "{selected_concepts[1]}")'
-        elif len(selected_concepts) >= 3:
-            strings['interseccional']['string'] = f'("{selected_concepts[0]}" OR "{selected_concepts[1]}") AND "{selected_concepts[2]}"'
-        elif keywords_en and selected_concepts:
-            strings['interseccional']['string'] = f'"{keywords_en[0]}" AND "{selected_concepts[0]}"'
-        elif len(selected_concepts) >= 2:
-            strings['interseccional']['string'] = f'"{selected_concepts[0]}" AND "{selected_concepts[1]}"'
+        # STRING AMPLA: Usa termos sugeridos (ricos) + conceito central
+        # Formato: ("termo1" OR "termo2") AND ("conceito1" OR "conceito2")
+        if len(suggested_en) >= 2 and concepts_en:
+            part1 = f'("{suggested_en[0]}" OR "{suggested_en[1]}")'
+            part2 = f'("{concepts_en[0]}")'
+            if len(concepts_en) >= 2:
+                part2 = f'("{concepts_en[0]}" OR "{concepts_en[1]}")'
+            strings['ampla']['string'] = f'{part1} AND {part2}'
+        elif suggested_en and concepts_en:
+            strings['ampla']['string'] = f'"{suggested_en[0]}" AND "{concepts_en[0]}"'
+        elif len(concepts_en) >= 2:
+            strings['ampla']['string'] = f'("{concepts_en[0]}" OR "{concepts_en[1]}")'
+        elif concepts_en:
+            strings['ampla']['string'] = f'"{concepts_en[0]}"'
+        
+        # STRING FOCADA: Usa conceitos selecionados (mais específica)
+        # Formato: "conceito1" AND "conceito2" AND "conceito3"
+        if len(concepts_en) >= 3:
+            strings['focada']['string'] = f'"{concepts_en[0]}" AND "{concepts_en[1]}" AND "{concepts_en[2]}"'
+        elif len(concepts_en) >= 2:
+            strings['focada']['string'] = f'"{concepts_en[0]}" AND "{concepts_en[1]}"'
+        elif concepts_en:
+            strings['focada']['string'] = f'"{concepts_en[0]}"'
+        
+        # STRING INTERSECCIONAL: Cruza termos sugeridos com conceitos
+        # Formato: ("sugerido1" OR "sugerido2") AND ("conceito1") AND ("conceito2")
+        if len(suggested_en) >= 2 and len(concepts_en) >= 2:
+            strings['interseccional']['string'] = f'("{suggested_en[0]}" OR "{suggested_en[1]}") AND "{concepts_en[0]}" AND "{concepts_en[1]}"'
+        elif suggested_en and len(concepts_en) >= 2:
+            strings['interseccional']['string'] = f'"{suggested_en[0]}" AND ("{concepts_en[0]}" OR "{concepts_en[1]}")'
+        elif len(suggested_en) >= 2 and concepts_en:
+            strings['interseccional']['string'] = f'("{suggested_en[0]}" OR "{suggested_en[1]}") AND "{concepts_en[0]}"'
+        elif len(concepts_en) >= 3:
+            strings['interseccional']['string'] = f'("{concepts_en[0]}" OR "{concepts_en[1]}") AND "{concepts_en[2]}"'
+        elif len(concepts_en) >= 2:
+            strings['interseccional']['string'] = f'"{concepts_en[0]}" AND "{concepts_en[1]}"'
         
         return strings
 
