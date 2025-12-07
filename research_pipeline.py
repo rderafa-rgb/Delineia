@@ -446,18 +446,25 @@ OBJETIVO: Identificar estudos sobre esgotamento docente relacionados à saúde m
                                           genero: str = "Neutro") -> Tuple[str, str]:
         """Cria glossário técnico e interpretação detalhada do grafo"""
         
-        # ... (código existente de verificação de conceitos) ...
+        # 1. Validação básica
+        if not concepts or len(concepts) < 3:
+            return ("Poucos conceitos identificados para análise detalhada.",
+                    "Dados insuficientes para interpretação da rede conceitual.")
 
-        gender_instruction = self._get_gender_instruction(genero)
+        # 2. Limitar a 9 conceitos
+        concepts = concepts[:9]
         
-        # ... (prompt do glossário continua igual) ...
+        # === AQUI ESTAVA O ERRO: ESTA LINHA ESTAVA FALTANDO ===
+        # Ela cria a lista formatada (1. Conceito A, 2. Conceito B...)
+        concepts_list = '\n'.join([f"{i+1}. {c}" for i, c in enumerate(concepts)])
+        # ======================================================
 
-        interpretation_prompt = f"""Você é um cientometrista analisando uma rede conceitual.
+        # 3. Instrução de gênero
+        gender_instruction = self._get_gender_instruction(genero)
+
+        # 4. Prompt do Glossário
+        glossary_prompt = f"""Você é um especialista criando um glossário técnico.
 {gender_instruction}
-
-**CONTEXTO:**
-Tema da pesquisa: {tema}
-Aluno: {primeiro_nome}
 
 **CONCEITOS IDENTIFICADOS NA REDE BIBLIOMÉTRICA:**
 {concepts_list}
@@ -491,7 +498,9 @@ Para CADA um dos {len(concepts)} conceitos acima, crie uma entrada de glossário
 
 **AGORA CRIE O GLOSSÁRIO COMPLETO PARA TODOS OS {len(concepts)} CONCEITOS:**"""
 
+        # 5. Prompt da Interpretação
         interpretation_prompt = f"""Você é um cientometrista analisando uma rede conceitual.
+{gender_instruction}
 
 **CONTEXTO:**
 Tema da pesquisa: {tema}
@@ -559,7 +568,12 @@ Escreva uma interpretação detalhada da rede em 3-4 parágrafos (mínimo 12 lin
         """
         Gera interpretação do grafo contextualizada aos conceitos selecionados pelo aluno.
         """
-        # ... (código existente das variáveis) ...
+        
+        # === RESTAURANDO AS VARIÁVEIS QUE FALTAVAM ===
+        selected_str = ', '.join(selected_concepts)
+        all_concepts_str = ', '.join(all_concepts)
+        num_selected = len(selected_concepts)
+        # =============================================
         
         gender_instruction = self._get_gender_instruction(genero)
 
