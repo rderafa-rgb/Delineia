@@ -20,6 +20,29 @@ import uuid
 import time as time_module
 import matplotlib.pyplot as plt
 
+# ==================== BIBLIOTECA DE GÊNERO ====================
+
+def genero_texto(masc: str, fem: str, neutro: str = None) -> str:
+    """
+    Retorna texto adequado ao gênero selecionado pelo usuário.
+    
+    Uso: genero_texto("Explorador", "Exploradora", "Explorador(a)")
+    """
+    genero = st.session_state.get('genero', 'Neutro')
+    
+    if genero == 'Feminino':
+        return fem
+    elif genero == 'Masculino':
+        return masc
+    else:
+        # Neutro: usa versão com (a) ou fallback para masculino
+        return neutro if neutro else f"{masc}(a)"
+
+
+def g(masc: str, fem: str, neutro: str = None) -> str:
+    """Alias curto para genero_texto()."""
+    return genero_texto(masc, fem, neutro)
+
 # ==================== GOOGLE SHEETS CONFIG ====================
 GOOGLE_SHEETS_URL = "https://docs.google.com/spreadsheets/d/1BE2le2ZVm2ej20w7UF5T7RSjO-V_Ii0RuhZQ2vEQQLY/edit"
 ABA_FORMULARIO_INICIAL = "formulario_inicial"
@@ -370,24 +393,24 @@ with tab1:
     with col1:
         if st.session_state.step >= 1:
             st.success("✅ 1. Formulário inicial")
-            if '🎯 Explorador' not in st.session_state.badges:
-                add_badge('🎯 Explorador')
+            if f'🎯 {g("Explorador", "Exploradora")}' not in st.session_state.badges:
+                add_badge(f'🎯 {g("Explorador", "Exploradora")}')
         else:
             st.info("⏳ 1. Formulário inicial")
 
     with col2:
         if st.session_state.step >= 2:
             st.success("✅ 2. Grafo de conceitos")
-            if '🔬 Pesquisador' not in st.session_state.badges:
-                add_badge('🔬 Pesquisador')
+            if f'🔬 {g("Pesquisador", "Pesquisadora")}' not in st.session_state.badges:
+                add_badge(f'🔬 {g("Pesquisador", "Pesquisadora")}')
         else:
             st.info("⏳ 2. Grafo de conceitos")
 
     with col3:
         if st.session_state.step >= 2 and sub_step in ['b', 'c']:
             st.success("✅ 3. Seleção de conceitos")
-            if '🧩 Seletor' not in st.session_state.badges:
-                add_badge('🧩 Seletor')
+            if f'🧩 {g("Seletor", "Seletora")}' not in st.session_state.badges:
+                add_badge(f'🧩 {g("Seletor", "Seletora")}')
         elif st.session_state.step == 2 and sub_step == 'a':
             st.info("⏳ 3. Seleção de conceitos")
         else:
@@ -396,20 +419,20 @@ with tab1:
     with col4:
         if st.session_state.step >= 2 and sub_step == 'c':
             st.success("✅ 4. Relatório")
-            if '🏆 Delineador' not in st.session_state.badges:
-                add_badge('🏆 Delineador')
+            if f'🏆 {g("Delineador", "Delineadora")}' not in st.session_state.badges:
+                add_badge(f'🏆 {g("Delineador", "Delineadora")}')
         elif st.session_state.step > 2:
             st.success("✅ 4. Relatório")
-            if '🏆 Delineador' not in st.session_state.badges:
-                add_badge('🏆 Delineador')
+            if f'🏆 {g("Delineador", "Delineadora")}' not in st.session_state.badges:
+                add_badge(f'🏆 {g("Delineador", "Delineadora")}')
         else:
             st.info("⏳ 4. Relatório")
 
     with col5:
         if st.session_state.get('avaliacao_completa', False):
             st.success("✅ 5. Avaliação")
-            if '💎 Avaliador' not in st.session_state.badges:
-                add_badge('💎 Avaliador')
+            if f'💎 {g("Avaliador", "Avaliadora")}' not in st.session_state.badges:
+                add_badge(f'💎 {g("Avaliador", "Avaliadora")}')
         elif st.session_state.step >= 3:
             st.warning("🔄 5. Avaliação")
         else:
@@ -442,6 +465,15 @@ with tab1:
                     placeholder="Ex: ana@email.com",
                     help="Seu e-mail para contato"
                 )
+
+            # Preferência de gênero para personalização dos textos
+            genero = st.radio(
+                "Como prefere ser tratado(a) nos textos?",
+                options=["Masculino", "Feminino", "Neutro"],
+                index=2,  # Neutro como padrão
+                horizontal=True,
+                help="Usado para personalizar distintivos e textos do relatório"
+            )
 
             st.divider()
             st.subheader("🔬 Projeto de Pesquisa")
@@ -505,6 +537,7 @@ with tab1:
                     st.session_state.form_data = {
                         'nome': nome,
                         'email': email,
+                        'genero': genero,
                         'tema': tema,
                         'questao': questao,
                         'palavras_chave': palavras_chave,
@@ -512,6 +545,9 @@ with tab1:
                         'google_academico': google_academico,
                         'timestamp': datetime.now(timezone(timedelta(hours=-3))).strftime("%d/%m/%Y às %H:%M")
                     }
+
+                    # Gênero para acesso global (biblioteca de gênero)
+                    st.session_state.genero = genero
 
                     # Enviar para Google Sheets e salvar ID
                     id_usuario = enviar_formulario_inicial(st.session_state.form_data)
@@ -529,7 +565,7 @@ with tab1:
 
                             # Executar pipeline
                             tempo_inicio = time_module.time()
-                            st.session_state.resultado = pipe.process(nome, tema, questao, kws)
+                            st.session_state.resultado = pipe.process(nome, tema, questao, kws, genero=genero)
                             tempo_fim = time_module.time()
 
                             # Enviar resultados para Google Sheets
@@ -685,7 +721,7 @@ with tab1:
 
                             # Gerar interpretação contextualizada
                             st.session_state.personalized_interpretation = gemini.generate_contextualized_interpretation(
-                                tema, primeiro_nome, selected, all_concepts
+                                tema, primeiro_nome, selected, all_concepts, genero=d.get('genero', 'Neutro')
                             )
 
                             # Gerar sugestões de palavras-chave
@@ -858,14 +894,15 @@ with tab1:
             with col1:
                 # PDF disponível após completar a trilha
                 try:
-                    # Adicionar dados da seleção ao resultado para o PDF
-                    r_completo = r.copy()
-                    r_completo['selected_concepts'] = selected
-                    r_completo['personalized_interpretation'] = st.session_state.get('personalized_interpretation', '')
-                    r_completo['suggested_keywords'] = st.session_state.get('suggested_keywords', [])
-                    r_completo['suggested_strings'] = st.session_state.get('suggested_strings', {})
-
-                    pdf_bytes = generate_pdf_report(d, r_completo)
+                    # Gerar PDF com todos os dados da trilha
+                    pdf_bytes = generate_pdf_report(
+                        form_data=d,
+                        result=r,
+                        selected_concepts=selected,
+                        suggested_keywords=st.session_state.get('suggested_keywords', []),
+                        suggested_strings=st.session_state.get('suggested_strings', {}),
+                        badges=st.session_state.get('badges', [])
+                    )
                     st.download_button(
                         "📥 Baixar PDF Completo",
                         pdf_bytes,
@@ -932,7 +969,7 @@ Ao prosseguir com o preenchimento deste formulário, você declara que entende o
 """)
 
         # Botão para download do TCLE completo
-        with open("TCLE_Delineia.pdf", "rb") as pdf_file:
+        with open("assets/TCLE_Delineia.pdf", "rb") as pdf_file:
             st.download_button(
                 label="📄 Baixar TCLE Completo (PDF)",
                 data=pdf_file,
