@@ -931,6 +931,18 @@ Caso tenha dúvidas ou necessite de mais informações, entre em contato por e-m
 Ao prosseguir com o preenchimento deste formulário, você declara que entende os objetivos da pesquisa e concorda em participar voluntariamente.
 """)
 
+        # Botão para download do TCLE completo
+        with open("TCLE_Delineia.pdf", "rb") as pdf_file:
+            st.download_button(
+                label="📄 Baixar TCLE Completo (PDF)",
+                data=pdf_file,
+                file_name="TCLE_Delineia.pdf",
+                mime="application/pdf",
+                help="Clique para baixar o Termo de Consentimento Livre e Esclarecido completo"
+            )
+
+        st.divider()
+
         with st.form("formulario_avaliacao"):
 
             # ==================== SEÇÃO 1: UTILIDADE PERCEBIDA ====================
@@ -1552,7 +1564,7 @@ with tab2:
         # Campo de busca
         query = st.text_input(
             "Chave de Busca:",
-            value=st.session_state.get('dashboard_query', "HIV/AIDS AND Brasil"),
+            value=st.session_state.get('dashboard_query', "games AND education"),
             help="Use operadores: AND, OR, NOT"
         )
 
@@ -1695,7 +1707,7 @@ with tab2:
             st.markdown("""
             **Como usar o Painel:**
 
-            1. **Digite uma chave de busca** (ex: "machine learning AND education")
+            1. **Digite uma chave de busca** (ex: "machine learning" AND education)
             2. **Ajuste os filtros** conforme necessário
             3. **Clique em Buscar** para processar
             4. **Explore as abas** com diferentes análises

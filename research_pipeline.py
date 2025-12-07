@@ -371,7 +371,7 @@ Saída: Psychology, School, Teachers, Burnout
     def create_search_string_with_objective(self, tema: str,
                                            original_keywords: List[str],
                                            suggested_keywords: str) -> Tuple[str, str]:
-        """Cria string de busca otimizada com lógica booleana"""
+        """Cria chave de busca otimizada com lógica booleana"""
         suggested_list = [s.strip() for s in suggested_keywords.split(',') if s.strip()]
         all_keywords = original_keywords + suggested_list
 
@@ -382,7 +382,7 @@ Tema da pesquisa: {tema}
 Termos disponíveis: {', '.join(all_keywords)}
 
 **TAREFA:**
-Crie uma string de busca em INGLÊS para bases científicas que:
+Crie uma chave de busca em INGLÊS para bases científicas que:
 
 1. **Selecione os melhores termos** (escolha 4-7 termos mais relevantes da lista)
 2. **Use operadores booleanos:**
@@ -396,11 +396,11 @@ Crie uma string de busca em INGLÊS para bases científicas que:
 Explique em 2-3 linhas o objetivo desta busca.
 
 **FORMATO EXATO DA SAÍDA:**
-STRING: (sua string aqui)
+CHAVE DE BUSCA: (sua chave de busca aqui)
 OBJETIVO: (explicação de 2-3 linhas)
 
 **EXEMPLO:**
-STRING: "teacher burnout" AND ("mental health" OR "psychological wellbeing") AND (school OR education)
+CHAVE DE BUSCA: "teacher burnout" AND ("mental health" OR "psychological wellbeing") AND (school OR education)
 OBJETIVO: Identificar estudos sobre esgotamento docente relacionados à saúde mental no contexto escolar, combinando descritores específicos do fenômeno com termos do ambiente educacional.
 
 **AGORA CRIE PARA O TEMA '{tema}':**"""
@@ -714,7 +714,7 @@ Sugira exatamente 5 palavras-chave complementares que:
                                 original_keywords: List[str],
                                 suggested_terms: List[Dict] = None) -> Dict[str, Dict]:
         """
-        Gera 3 strings de busca usando:
+        Gera 3 chaves de busca usando:
         1. Conceitos selecionados (já em inglês do OpenAlex)
         2. Termos ricos sugeridos pelo Gemini (suggested_terms)
         3. Keywords originais traduzidas (fallback)
@@ -754,29 +754,29 @@ Sugira exatamente 5 palavras-chave complementares que:
         # ========== ESTRUTURA DE RETORNO ==========
         strings = {
             'ampla': {
-                'titulo': 'String Ampla (Tema Geral)',
+                'titulo': 'Chave de Busca Ampla (Tema Geral)',
                 'descricao': 'Busca abrangente combinando palavras-chave sugeridas e conceitos centrais',
                 'string': ''
             },
             'focada': {
-                'titulo': 'String Focada (Conceitos Selecionados)',
+                'titulo': 'Chave de Busca Focada (Conceitos Selecionados)',
                 'descricao': 'Busca direcionada aos conceitos que você identificou como relevantes',
                 'string': ''
             },
             'interseccional': {
-                'titulo': 'String Interseccional (Combinação)',
+                'titulo': 'Chave de Busca Interseccional (Combinação)',
                 'descricao': 'Busca que cruza diferentes dimensões do seu tema',
                 'string': ''
             }
         }
         
-        # ========== CONSTRUIR STRINGS ==========
+        # ========== CONSTRUIR CHAVES ==========
         
         # Separar termos por tipo para combinações mais ricas
         suggested_en = [t.get('term_en', '') for t in (suggested_terms or []) if t.get('term_en')][:4]
         concepts_en = selected_concepts[:4] if selected_concepts else []
         
-        # STRING AMPLA: Usa termos sugeridos (ricos) + conceito central
+        # CHAVE AMPLA: Usa termos sugeridos (ricos) + conceito central
         # Formato: ("termo1" OR "termo2") AND ("conceito1" OR "conceito2")
         if len(suggested_en) >= 2 and concepts_en:
             part1 = f'("{suggested_en[0]}" OR "{suggested_en[1]}")'
@@ -791,7 +791,7 @@ Sugira exatamente 5 palavras-chave complementares que:
         elif concepts_en:
             strings['ampla']['string'] = f'"{concepts_en[0]}"'
         
-        # STRING FOCADA: Usa conceitos selecionados (mais específica)
+        # CHAVE FOCADA: Usa conceitos selecionados (mais específica)
         # Formato: "conceito1" AND "conceito2" AND "conceito3"
         if len(concepts_en) >= 3:
             strings['focada']['string'] = f'"{concepts_en[0]}" AND "{concepts_en[1]}" AND "{concepts_en[2]}"'
@@ -800,7 +800,7 @@ Sugira exatamente 5 palavras-chave complementares que:
         elif concepts_en:
             strings['focada']['string'] = f'"{concepts_en[0]}"'
         
-        # STRING INTERSECCIONAL: Cruza termos sugeridos com conceitos
+        # CHAVE INTERSECCIONAL: Cruza termos sugeridos com conceitos
         # Formato: ("sugerido1" OR "sugerido2") AND ("conceito1") AND ("conceito2")
         if len(suggested_en) >= 2 and len(concepts_en) >= 2:
             strings['interseccional']['string'] = f'("{suggested_en[0]}" OR "{suggested_en[1]}") AND "{concepts_en[0]}" AND "{concepts_en[1]}"'
@@ -927,8 +927,8 @@ class ResearchScopePipeline:
         log_diagnostico("Etapa 2/7: Gerando termos complementares...", "info")
         suggested = self.gemini.generate_suggested_keywords(nome, tema, questao, keywords)
 
-        # 3. String de busca
-        log_diagnostico("Etapa 3/7: Criando string de busca...", "info")
+        # 3. Chave de busca
+        log_diagnostico("Etapa 3/7: Criando chave de busca...", "info")
         search_str, objetivo = self.gemini.create_search_string_with_objective(tema, keywords, suggested)
 
         # 4. Buscar artigos
