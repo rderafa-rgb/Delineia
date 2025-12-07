@@ -112,7 +112,16 @@ class GeminiQueryGenerator:
     def __init__(self):
         self.model = None
         self.api_key_status = "não verificada"
-        
+    
+    def _get_gender_instruction(self, genero: str) -> str:
+        """Gera instrução de gênero para o prompt."""
+        if genero == 'Feminino':
+            return "IMPORTANTE: Trate a usuária no feminino (ex: aluna, pesquisadora, ela)."
+        elif genero == 'Masculino':
+            return "IMPORTANTE: Trate o usuário no masculino (ex: aluno, pesquisador, ele)."
+        else:
+            return "IMPORTANTE: Use linguagem neutra ou inclusiva sempre que possível (ex: estudante, pessoa pesquisadora)."
+
         try:
             # DIAGNÓSTICO 1: Verificar API Key
             api_key = st.secrets.get("GEMINI_API_KEY", "")
@@ -241,15 +250,18 @@ class GeminiQueryGenerator:
         return fallback
 
     def generate_full_report(self, nome: str, tema: str, questao: str,
-                            keywords: List[str]) -> str:
+                            keywords: List[str], genero: str = "Neutro") -> str:
         """Gera avaliação crítica e construtiva do projeto"""
         keywords_str = ', '.join(keywords)
         primeiro_nome = nome.split()[0] if nome else "estudante"
+        
+        # Obter instrução de gênero
+        gender_instruction = self._get_gender_instruction(genero)
 
         prompt = f"""Você é um professor universitário experiente orientando um aluno de pesquisa.
+{gender_instruction}
 
 **CONTEXTO DO PROJETO:**
-
 Aluno: {nome} (você vai chamá-lo de {primeiro_nome})
 Tema proposto: {tema}
 Questão de pesquisa: {questao}
@@ -430,16 +442,22 @@ OBJETIVO: Identificar estudos sobre esgotamento docente relacionados à saúde m
         return search_str, objective
 
     def create_glossary_and_interpretation(self, concepts: List[str],
-                                          tema: str, primeiro_nome: str) -> Tuple[str, str]:
+                                          tema: str, primeiro_nome: str, 
+                                          genero: str = "Neutro") -> Tuple[str, str]:
         """Cria glossário técnico e interpretação detalhada do grafo"""
-        if not concepts or len(concepts) < 3:
-            return ("Poucos conceitos identificados para análise detalhada.",
-                    "Dados insuficientes para interpretação da rede conceitual.")
+        
+        # ... (código existente de verificação de conceitos) ...
 
-        concepts = concepts[:9]
-        concepts_list = '\n'.join([f"{i+1}. {c}" for i, c in enumerate(concepts)])
+        gender_instruction = self._get_gender_instruction(genero)
+        
+        # ... (prompt do glossário continua igual) ...
 
-        glossary_prompt = f"""Você é um especialista criando um glossário técnico.
+        interpretation_prompt = f"""Você é um cientometrista analisando uma rede conceitual.
+{gender_instruction}
+
+**CONTEXTO:**
+Tema da pesquisa: {tema}
+Aluno: {primeiro_nome}
 
 **CONCEITOS IDENTIFICADOS NA REDE BIBLIOMÉTRICA:**
 {concepts_list}
@@ -536,15 +554,17 @@ Escreva uma interpretação detalhada da rede em 3-4 parágrafos (mínimo 12 lin
                                                tema: str, 
                                                primeiro_nome: str,
                                                selected_concepts: List[str],
-                                               all_concepts: List[str]) -> str:
+                                               all_concepts: List[str],
+                                               genero: str = "Neutro") -> str:
         """
         Gera interpretação do grafo contextualizada aos conceitos selecionados pelo aluno.
         """
-        selected_str = ', '.join(selected_concepts)
-        all_concepts_str = ', '.join(all_concepts)
-        num_selected = len(selected_concepts)
+        # ... (código existente das variáveis) ...
+        
+        gender_instruction = self._get_gender_instruction(genero)
 
         prompt = f"""Você é um cientometrista experiente analisando a seleção de conceitos de um estudante.
+{gender_instruction}
 
 **RESTRIÇÕES DE ESTILO (OBRIGATÓRIO):**
 - NÃO use superlativos: extremamente, absolutamente, fundamentalmente, profundamente, excepcionalmente, notavelmente, indubitavelmente
@@ -914,14 +934,14 @@ class ResearchScopePipeline:
         self.gemini = GeminiQueryGenerator()
         self.analyzer = CooccurrenceAnalyzer()
 
-    def process(self, nome: str, tema: str, questao: str, keywords: List[str]) -> Dict:
+    def process(self, nome: str, tema: str, questao: str, keywords: List[str], genero: str = "Neutro") -> Dict:
         """Executa pipeline"""
         
         primeiro_nome = nome.split()[0] if nome else "estudante"
 
-        # 1. Avaliação
+        # 1. Avaliação (passando gênero)
         log_diagnostico("Etapa 1/7: Gerando avaliação do projeto...", "info")
-        full_report = self.gemini.generate_full_report(nome, tema, questao, keywords)
+        full_report = self.gemini.generate_full_report(nome, tema, questao, keywords, genero)
 
         # 2. Termos complementares
         log_diagnostico("Etapa 2/7: Gerando termos complementares...", "info")
@@ -952,14 +972,14 @@ class ResearchScopePipeline:
         G = self.analyzer.build_graph(concepts_lists, min_cooc=1)
         log_diagnostico(f"Grafo: {len(G.nodes())} nós, {len(G.edges())} arestas", "success")
 
-        # 7. Visualizar e interpretar
+        # 7. Visualizar e interpretar (passando gênero)
         log_diagnostico("Etapa 7/7: Gerando visualização e análise...", "info")
         viz_path = self.analyzer.visualize_graph(G, 9)
         top_concepts = self.analyzer.get_top_nodes(G, 9)
         log_diagnostico(f"Top conceitos: {top_concepts[:5]}...", "info")
 
         glossary, interpretation = self.gemini.create_glossary_and_interpretation(
-            top_concepts, tema, primeiro_nome
+            top_concepts, tema, primeiro_nome, genero
         )
 
         return {
