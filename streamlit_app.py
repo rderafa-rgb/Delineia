@@ -372,11 +372,23 @@ if 'sub_step' not in st.session_state:
 
 # ==================== FUNÇÕES AUXILIARES ====================
 def add_badge(badge_name: str) -> bool:
-    """Adiciona badge ao perfil do usuário"""
-    if badge_name not in st.session_state.badges:
-        st.session_state.badges.append(badge_name)
-        return True
-    return False
+    """
+    Adiciona badge, removendo versões anteriores (de outro gênero) do mesmo badge.
+    Identifica o badge pelo ícone (primeiro caractere).
+    """
+    # Se o badge exato já existe, não faz nada
+    if badge_name in st.session_state.badges:
+        return False
+        
+    # Identificar o ícone (ex: 🎯, 🔬)
+    icone = badge_name.split(' ')[0]
+    
+    # Remover versões antigas desse mesmo badge (ex: remove "Explorador" se for entrar "Exploradora")
+    st.session_state.badges = [b for b in st.session_state.badges if not b.startswith(icone)]
+    
+    # Adicionar a nova versão correta
+    st.session_state.badges.append(badge_name)
+    return True
 
 # ==================== ABAS PRINCIPAIS ====================
 tab1, tab2 = st.tabs(["📚 Delineascópio", "📊 Painel"])
@@ -1349,9 +1361,9 @@ Ao prosseguir com o preenchimento deste formulário, você declara que entende o
                         avaliacao_data
                     )
 
-                # Badge de conclusão
-                if '💎 Avaliador' not in st.session_state.badges:
-                    add_badge('💎 Avaliador')
+                # Badge de conclusão (Agora usando a função g() para o gênero correto)
+                badge_final = f'💎 {g("Avaliador", "Avaliadora")}'
+                add_badge(badge_final)
 
                 # Feedback visual
                 st.success("✅ Avaliação enviada com sucesso!")
