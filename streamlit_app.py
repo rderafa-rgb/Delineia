@@ -43,6 +43,29 @@ def g(masc: str, fem: str, neutro: str = None) -> str:
     """Alias curto para genero_texto()."""
     return genero_texto(masc, fem, neutro)
 
+# ==================== RODAPÉ INSTITUCIONAL ====================
+def rodape_institucional():
+    st.markdown("---")
+    col1, col2, col3 = st.columns([1, 6, 1])
+    
+    with col1:
+        st.image("assets/ufrgs_logo.png", width=100)
+    
+    with col2:
+        st.markdown(
+            """
+            <div style="text-align: center; color: #666; font-size: 0.8rem;">
+                <b>Delineia</b> - Sistema de Apoio ao Delineamento de Escopo Temático<br>
+                Pesquisa de Doutorado - PPGIE / UFRGS<br>
+                2025
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
+
+    with col3:
+        st.image("assets/ppgie_logo.png", width=100)
+
 # ==================== GOOGLE SHEETS CONFIG ====================
 GOOGLE_SHEETS_URL = "https://docs.google.com/spreadsheets/d/1BE2le2ZVm2ej20w7UF5T7RSjO-V_Ii0RuhZQ2vEQQLY/edit"
 ABA_FORMULARIO_INICIAL = "formulario_inicial"
@@ -210,7 +233,10 @@ def enviar_formulario_avaliacao(id_usuario, avaliacao_data):
             avaliacao_data.get('q28', ''),
             avaliacao_data.get('q29', ''),
             avaliacao_data.get('q30', ''),
+            'Sim' if avaliacao_data.get('tcle_aceite', False) else 'Não',
+            'Sim' if avaliacao_data.get('tcle_rejeita', False) else 'Não',
             'Sim' if avaliacao_data.get('aceite_continuidade', False) else 'Não',
+            'Sim' if avaliacao_data.get('rejeita_continuidade', False) else 'Não'
             ",".join(st.session_state.get('badges', [])),
             tempo_total,
             st.session_state.get('play_video', False),
@@ -303,6 +329,13 @@ st.set_page_config(
 # ==================== CSS CUSTOMIZADO (BOTÕES VERDES) ====================
 st.markdown("""
 <style>
+    /* Centralizar texto de expanders */
+    .streamlit-expanderHeader {
+        justify-content: center;
+        text-align: center;
+        font-weight: bold;
+    }
+    
     /* Botões primários em verde claro */
     .stButton > button[kind="primary"] {
         background-color: #10b981 !important;
@@ -595,7 +628,9 @@ with tab1:
                         except Exception as e:
                             st.error(f"❌ Erro ao processar: {str(e)}")
                             st.exception(e)
-
+        
+        rodape_institucional()
+    
     # ========== ETAPA 2: TRILHA DE APRENDIZAGEM ATIVA ==========
     elif st.session_state.step == 2:
         d = st.session_state.form_data
@@ -653,6 +688,8 @@ with tab1:
             if st.button("Continuar para Seleção de Conceitos ▶️", type="primary", use_container_width=True):
                 st.session_state.sub_step = 'b'
                 st.rerun()
+
+            rodape_institucional()
 
         # ========== SUB-ETAPA 2b: SELEÇÃO DE CONCEITOS ==========
         elif sub_step == 'b':
@@ -755,6 +792,8 @@ with tab1:
                         st.rerun()
                 else:
                     st.button("Gerar Interpretação Personalizada ▶️", disabled=True, use_container_width=True)
+
+            rodape_institucional()
 
         # ========== SUB-ETAPA 2c: INTERPRETAÇÃO PERSONALIZADA ==========
         elif sub_step == 'c':
@@ -961,6 +1000,8 @@ with tab1:
                 st.session_state.suggested_strings = {}
                 st.rerun()
 
+            rodape_institucional()
+
 # ========== ETAPA 3: AVALIAÇÃO EXPANDIDA ==========
     elif st.session_state.step == 3:
         st.header("⭐ 5. Avaliação")
@@ -989,6 +1030,18 @@ Ao prosseguir com o preenchimento deste formulário, você declara que entende o
                 mime="application/pdf",
                 help="Clique para baixar o Termo de Consentimento Livre e Esclarecido completo"
             )
+
+        st.markdown("") # Um pequeno espaço
+        tcle_aceite = st.checkbox(
+            "📝 **Li, compreendi e CONCORDO em participar da Etapa 1 (formulários online).**",
+            key="tcle_aceite"
+        )
+
+        st.markdown("") # Um pequeno espaço
+        tcle_rejeita = st.checkbox(
+            "📝 **Li, mas NÃO CONCORDO em participar desta pesquisa.**",
+            key="tcle_rejeita"
+        )
 
         st.divider()
 
@@ -1296,9 +1349,15 @@ Ao prosseguir com o preenchimento deste formulário, você declara que entende o
             """)
 
             aceite_continuidade = st.checkbox(
-                "✅ **Sim, aceito participar de outras fases desta pesquisa e autorizo contato por e-mail**",
+                "✅ **CONCORDO em ser convidado(a) para atividades com gravação de áudio e vídeo.**",
                 key="aceite_continuidade",
                 help="Ao marcar esta opção, você demonstra interesse em contribuir com o desenvolvimento do Delinéia"
+            )
+
+            rejeita_continuidade = st.checkbox(
+                "✅ **NÃO CONCORDO em participar de atividades qualitativas com gravação.**",
+                key="rejeita_continuidade",
+                help="Você não será considerado em convites de continuidade da pesquisa."
             )
 
             if aceite_continuidade:
@@ -1345,7 +1404,10 @@ Ao prosseguir com o preenchimento deste formulário, você declara que entende o
                     'q29': q29,
                     'q30': q30,
                     # Convite à continuidade
+                    'tcle_aceite': tcle_aceite,
+                    'tecle_rejeita': tcle_rejeita,
                     'aceite_continuidade': aceite_continuidade,
+                    'rejeita_continuidade': rejeita_continuidade,
                     # Metadados
                     'timestamp': datetime.now().isoformat()
                 }
@@ -1391,11 +1453,13 @@ Ao prosseguir com o preenchimento deste formulário, você declara que entende o
                 # Avançar para próxima etapa
                 st.session_state.step = 4
                 st.rerun()
+
+        rodape_institucional()
     
     # ========== ETAPA 4: CONCLUSÃO ==========
     elif st.session_state.step == 4:
         st.success("🎉 Parabéns! Você completou todas as etapas!")
-        st.markdown("### 🏆 Conquista Desbloqueada: Delineador!")
+        st.markdown(f"### 🏆 Conquista Desbloqueada: {g('Delineador', 'Delineadora')}!")
         st.balloons()
 
         primeiro_nome = st.session_state.form_data['nome'].split()[0]
@@ -1600,6 +1664,8 @@ Que sangre o dedo, mas que estanque o vício.
             st.session_state.avaliacao_completa = False
             st.session_state.badges = []
             st.rerun()
+
+        rodape_institucional()
 
 # ==================== ABA 2: PAINEL DE ANÁLISE ====================
 with tab2:
@@ -2822,3 +2888,5 @@ Query: {query}
                         "application/zip",
                         use_container_width=True
                     )
+
+    rodape_institucional()

@@ -112,16 +112,8 @@ class GeminiQueryGenerator:
     def __init__(self):
         self.model = None
         self.api_key_status = "não verificada"
-    
-    def _get_gender_instruction(self, genero: str) -> str:
-        """Gera instrução de gênero para o prompt."""
-        if genero == 'Feminino':
-            return "IMPORTANTE: Trate a usuária no feminino (ex: aluna, pesquisadora, ela)."
-        elif genero == 'Masculino':
-            return "IMPORTANTE: Trate o usuário no masculino (ex: aluno, pesquisador, ele)."
-        else:
-            return "IMPORTANTE: Use linguagem neutra ou inclusiva sempre que possível (ex: estudante, pessoa pesquisadora)."
-
+        
+        # --- CÓDIGO MOVIDO PARA O LUGAR CORRETO ---
         try:
             # DIAGNÓSTICO 1: Verificar API Key
             api_key = st.secrets.get("GEMINI_API_KEY", "")
@@ -140,7 +132,7 @@ class GeminiQueryGenerator:
             
             # DIAGNÓSTICO 3: Criar modelo
             self.model = genai.GenerativeModel(
-                'gemini-2.5-pro',
+                'gemini-3-pro-preview',
                 generation_config={
                     'temperature': 1.2,
                     'top_p': 0.95,
@@ -153,6 +145,15 @@ class GeminiQueryGenerator:
         except Exception as e:
             log_diagnostico(f"ERRO na inicialização: {type(e).__name__}: {str(e)}", "error")
             self.model = None
+    
+    def _get_gender_instruction(self, genero: str) -> str:
+        """Gera instrução de gênero para o prompt."""
+        if genero == 'Feminino':
+            return "IMPORTANTE: Trate a usuária no feminino (ex: aluna, pesquisadora, ela)."
+        elif genero == 'Masculino':
+            return "IMPORTANTE: Trate o usuário no masculino (ex: aluno, pesquisador, ele)."
+        else:
+            return "IMPORTANTE: Use linguagem neutra ou inclusiva sempre que possível (ex: estudante, pessoa pesquisadora)."
 
     def _safe_generate(self, prompt: str, fallback: str = "", max_retries: int = 3) -> str:
         """Geração segura com DIAGNÓSTICO COMPLETO"""
@@ -383,61 +384,62 @@ Saída: Psychology, School, Teachers, Burnout
     def create_search_string_with_objective(self, tema: str,
                                            original_keywords: List[str],
                                            suggested_keywords: str) -> Tuple[str, str]:
-        """Cria chave de busca otimizada com lógica booleana"""
+        """Cria chave de busca otimizada EXCLUSIVAMENTE em inglês"""
+        
+        # 1. Traduzir termos originais para inglês (Etapa Extra)
+        prompt_translate = f"""Traduza os seguintes termos para Inglês Acadêmico. 
+        Saída apenas os termos traduzidos separados por vírgula, sem explicações.
+        
+        Tema: {tema}
+        Palavras: {', '.join(original_keywords)}"""
+        
+        # Gera a tradução
+        terms_in_english_str = self._safe_generate(prompt_translate).strip()
+        
+        # Prepara listas
         suggested_list = [s.strip() for s in suggested_keywords.split(',') if s.strip()]
-        all_keywords = original_keywords + suggested_list
-
-        prompt = f"""Você é especialista em recuperação de informação científica.
-
-**CONTEXTO:**
-Tema da pesquisa: {tema}
-Termos disponíveis: {', '.join(all_keywords)}
-
-**TAREFA:**
-Crie uma chave de busca em INGLÊS para bases científicas que:
-
-1. **Selecione os melhores termos** (escolha 4-7 termos mais relevantes da lista)
-2. **Use operadores booleanos:**
-   - AND para termos obrigatórios
-   - OR para sinônimos/alternativas (dentro de parênteses)
-3. **Use aspas** para termos compostos (ex: "mental health")
-4. **Agrupe** termos relacionados com parênteses
-5. **Limite:** máximo 200 caracteres
-
-**DEPOIS:**
-Explique em 2-3 linhas o objetivo desta busca.
-
-**FORMATO EXATO DA SAÍDA:**
-CHAVE DE BUSCA: (sua chave de busca aqui)
-OBJETIVO: (explicação de 2-3 linhas)
-
-**EXEMPLO:**
-CHAVE DE BUSCA: "teacher burnout" AND ("mental health" OR "psychological wellbeing") AND (school OR education)
-OBJETIVO: Identificar estudos sobre esgotamento docente relacionados à saúde mental no contexto escolar, combinando descritores específicos do fenômeno com termos do ambiente educacional.
-
-**AGORA CRIE PARA O TEMA '{tema}':**"""
+        
+        # 2. Pedir a string booleana usando os termos traduzidos + sugeridos
+        prompt = f"""Você é um especialista em busca booleana para bases de dados científicas (como Scopus/Web of Science).
+        
+        **INPUT (CONCEITOS EM INGLÊS):** {terms_in_english_str}, {', '.join(suggested_list)}
+        
+        **TAREFA:**
+        Crie uma 'Search String' avançada APENAS EM INGLÊS.
+        - Use operadores booleanos (AND, OR).
+        - Use aspas para termos compostos.
+        - Agrupe sinônimos entre parênteses.
+        
+        **SAÍDA OBRIGATÓRIA EXATA:**
+        STRING: (sua string booleana aqui)
+        OBJETIVO: (explicação curta em Português sobre o que esta busca recupera)
+        """
 
         response = self._safe_generate(prompt, "")
 
+        # 3. Extrair a resposta (Regex ajustado para o novo prompt)
         string_match = re.search(r'STRING:\s*(.+?)(?=OBJETIVO:|$)', response, re.DOTALL | re.IGNORECASE)
         obj_match = re.search(r'OBJETIVO:\s*(.+)', response, re.DOTALL | re.IGNORECASE)
 
-        if string_match and obj_match:
+        if string_match:
             search_str = string_match.group(1).strip()
+            # Limpeza extra
             search_str = search_str.replace('```', '').replace('\n', ' ')
             search_str = re.sub(r'\s+', ' ', search_str).strip()
-
-            objective = obj_match.group(1).strip()
+            
+            objective = obj_match.group(1).strip() if obj_match else f"Busca estruturada para o tema {tema} em inglês."
         else:
-            main_terms = ' AND '.join([f'"{k}"' for k in original_keywords[:3]])
-            sugg_terms = ' OR '.join([f'"{s}"' for s in suggested_list[:3]])
-
-            if sugg_terms:
-                search_str = f"{main_terms} AND ({sugg_terms})"
-            else:
+            # Fallback se a IA falhar no formato: usa os termos traduzidos
+            clean_terms = [t.strip() for t in terms_in_english_str.split(',') if t.strip()]
+            if clean_terms:
+                # Pega os 3 primeiros termos traduzidos
+                main_terms = ' AND '.join([f'"{t}"' for t in clean_terms[:3]])
                 search_str = main_terms
-
-            objective = f"Identificar estudos que investigam {tema}, combinando descritores específicos do fenômeno com termos técnicos do contexto."
+            else:
+                # Último recurso: usa originais
+                search_str = ' AND '.join([f'"{k}"' for k in original_keywords[:3]])
+            
+            objective = f"Busca exploratória baseada nos termos traduzidos para o inglês."
 
         return search_str, objective
 
@@ -454,11 +456,8 @@ OBJETIVO: Identificar estudos sobre esgotamento docente relacionados à saúde m
         # 2. Limitar a 9 conceitos
         concepts = concepts[:9]
         
-        # === AQUI ESTAVA O ERRO: ESTA LINHA ESTAVA FALTANDO ===
-        # Ela cria a lista formatada (1. Conceito A, 2. Conceito B...)
         concepts_list = '\n'.join([f"{i+1}. {c}" for i, c in enumerate(concepts)])
-        # ======================================================
-
+        
         # 3. Instrução de gênero
         gender_instruction = self._get_gender_instruction(genero)
 
@@ -481,6 +480,7 @@ Para CADA um dos {len(concepts)} conceitos acima, crie uma entrada de glossário
 [Número]. **[Termo em Inglês]** (Tradução em Português) - [Definição técnica de 2-3 linhas]
 
 **REGRAS:**
+- NÃO escreva frases introdutórias como "Aqui está o glossário".
 - Termo em inglês em **negrito**
 - Tradução em português entre (parênteses) SEM negrito
 - Traço " - " após os parênteses
