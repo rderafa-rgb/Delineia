@@ -15,3 +15,5 @@ google-auth-oauthlib==1.2.1
 google-auth-httplib2==0.2.0
 pyarrow==19.0.0
 python-dotenv==1.0.1
+openpyxl
+xlsxwriter
