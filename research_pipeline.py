@@ -132,7 +132,7 @@ class GeminiQueryGenerator:
             
             # DIAGNÓSTICO 3: Criar modelo
             self.model = genai.GenerativeModel(
-                'gemini-3-pro-preview',
+                'gemini-2.5-pro',
                 generation_config={
                     'temperature': 1.2,
                     'top_p': 0.95,
@@ -231,9 +231,6 @@ class GeminiQueryGenerator:
                     if len(extracted_text) >= 30 and extracted_text != "None":
                         log_diagnostico(f"SUCESSO! Texto válido: {len(extracted_text)} chars", "success")
                         log_diagnostico(f"Preview: {extracted_text[:150]}...", "info")
-                        # Delay para respeitar rate limit (2 RPM = aguardar 35s)
-                        log_diagnostico("Aguardando 35s para respeitar rate limit...", "info")
-                        time.sleep(35)
                         return extracted_text
                     else:
                         log_diagnostico(f"Texto muito curto/inválido: {len(extracted_text)} chars", "warning")
