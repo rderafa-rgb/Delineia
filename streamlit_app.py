@@ -19,6 +19,7 @@ from google.oauth2.service_account import Credentials
 import uuid
 import time as time_module
 import matplotlib.pyplot as plt
+import export_utils as exp
 
 # ==================== BIBLIOTECA DE GÊNERO ====================
 
@@ -45,26 +46,38 @@ def g(masc: str, fem: str, neutro: str = None) -> str:
 
 # ==================== RODAPÉ INSTITUCIONAL ====================
 def rodape_institucional():
-    st.markdown("---")
-    col1, col2, col3 = st.columns([1, 6, 1])
-    
-    with col1:
-        st.image("assets/ufrgs_logo.png", width=100)
-    
-    with col2:
-        st.markdown(
-            """
-            <div style="text-align: center; color: #666; font-size: 0.8rem;">
-                <b>Delineia</b> - Sistema de Apoio ao Delineamento de Escopo Temático<br>
-                Pesquisa de Doutorado - PPGIE / UFRGS<br>
-                2025
-            </div>
-            """, 
-            unsafe_allow_html=True
-        )
+    import base64
+    import os
 
-    with col3:
-        st.image("assets/ppgie_logo.png", width=100)
+    def get_img_as_base64(path):
+        try:
+            with open(path, "rb") as f:
+                data = f.read()
+            return base64.b64encode(data).decode()
+        except FileNotFoundError:
+            return ""
+
+    # Ajuste os nomes aqui se necessário (ex: ufrgs_logo.png se não for transparente)
+    img_ufrgs = get_img_as_base64("assets/ufrgs_logo.png") 
+    img_ppgie = get_img_as_base64("assets/ppgie_logo.png")
+
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    
+    # HTML Alinhado à esquerda para evitar bugs de Markdown
+    html_code = f"""
+<div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+<div style="display: flex; gap: 40px; align-items: center; margin-bottom: 15px;">
+<img src="data:image/png;base64,{img_ufrgs}" width="160" style="opacity: 0.9;">
+<img src="data:image/png;base64,{img_ppgie}" width="160" style="opacity: 0.9;">
+</div>
+<div style="text-align: center; color: #888888; font-size: 0.85rem; line-height: 1.5;">
+<b>Delinéia</b> - Sistema de Apoio ao Delineamento de Escopo Temático<br>
+Pesquisa de Doutorado - PPGIE / UFRGS<br>
+2025
+</div>
+</div>
+"""
+    st.markdown(html_code, unsafe_allow_html=True)
 
 # ==================== GOOGLE SHEETS CONFIG ====================
 GOOGLE_SHEETS_URL = "https://docs.google.com/spreadsheets/d/1BE2le2ZVm2ej20w7UF5T7RSjO-V_Ii0RuhZQ2vEQQLY/edit"
@@ -647,8 +660,6 @@ with tab1:
                 st.session_state.step = 1
                 st.rerun()
 
-            st.divider()
-
             # Informações do projeto (resumido)
             with st.expander("📋 Dados do Projeto", expanded=False):
                 st.write(f"**Tema:** {d['tema']}")
@@ -703,8 +714,6 @@ with tab1:
                 st.session_state.sub_step = 'a'
                 st.rerun()
 
-            st.divider()
-
             # Contexto
             primeiro_nome = d['nome'].split()[0]
             st.markdown(f"""
@@ -720,8 +729,6 @@ with tab1:
             with st.expander("🕸️ Ver grafo novamente", expanded=False):
                 if r.get('visualization_path'):
                     st.image(r['visualization_path'], use_container_width=True)
-
-            st.divider()
 
             # Seleção de conceitos com checkboxes
             st.subheader("📋 Conceitos Identificados na Rede")
@@ -751,8 +758,7 @@ with tab1:
                 st.success(f"✅ **{num_selected} conceito(s) selecionado(s):** {', '.join(selected)}")
 
             # Botão avançar (só habilitado se tiver seleção)
-            st.divider()
-
+            
             col1, col2 = st.columns(2)
 
             with col2:
@@ -808,8 +814,6 @@ with tab1:
                 if st.button("⬅️ Voltar à Seleção"):
                     st.session_state.sub_step = 'b'
                     st.rerun()
-
-            st.divider()
 
             # Resumo da seleção
             st.success(f"✅ **Conceitos selecionados:** {', '.join(selected)}")
@@ -975,7 +979,6 @@ with tab1:
                     st.rerun()
 
             # Dica final
-            st.divider()
             st.info("""
             🎉 **Parabéns!** Você completou a trilha de delineamento!
 
@@ -1016,9 +1019,9 @@ O objetivo do estudo é investigar como a avaliação automatizada de definiçõ
 
 Ressaltamos que nenhuma informação identificável é utilizada na pesquisa.
 
-Caso tenha dúvidas ou necessite de mais informações, entre em contato por e-mail com o pesquisador responsável, Rafael Antunes dos Santos (rafael.antunes@ufrgs.br), doutorando do Programa de Pós-Graduação em Informática na Educação, da Universidade Federal do Rio Grande do Sul.
+Caso tenha dúvidas ou necessite de mais informações, entre em contato por e-mail com o pesquisador responsável, Rafael Antunes dos Santos (rafael.antunes@ufrgs.br ou rderafa@gmail.com), doutorando do Programa de Pós-Graduação em Informática na Educação, da Universidade Federal do Rio Grande do Sul.
                 
-Ao prosseguir com o preenchimento deste formulário, você declara que entende os objetivos da pesquisa e concorda em participar voluntariamente.
+Para prosseguir com o preenchimento deste formulário, assinale a alternativa mais conveniente à sua decisão. Ao assinalar que concorda, você declara que entende o objetivo da pesquisa e concorda em participar voluntariamente.
 """)
 
         # Botão para download do TCLE completo
@@ -1042,8 +1045,6 @@ Ao prosseguir com o preenchimento deste formulário, você declara que entende o
             "📝 **Li, mas NÃO CONCORDO em participar desta pesquisa.**",
             key="tcle_rejeita"
         )
-
-        st.divider()
 
         with st.form("formulario_avaliacao"):
 
@@ -1655,8 +1656,6 @@ Que sangre o dedo, mas que estanque o vício.
                         
 """)
 
-        st.divider()
-
         if st.button("🔄 Iniciar Novo Delineamento", use_container_width=True):
             st.session_state.step = 1
             st.session_state.resultado = None
@@ -1725,8 +1724,9 @@ with tab2:
                     concepts_lists = []
                     for article in articles:
                         concepts = [
-                            c['name'] for c in article.get('concepts', [])
-                            if c['score'] >= min_score and c['level'] >= min_level
+                            c.get('display_name', c.get('name')) # <--- CORREÇÃO
+                            for c in article.get('concepts', [])
+                            if c.get('score', 0) >= min_score and c.get('level', 0) >= min_level
                         ]
                         if concepts:
                             concepts_lists.append(concepts)
@@ -1912,9 +1912,10 @@ with tab2:
     
                 concepts_df = pd.DataFrame([
                     {
-                        'Conceito': c['name'],
-                        'Score': f"{c['score']:.3f}",
-                        'Level': c['level']
+                        # Usa display_name ou name, igual fizemos no pipeline
+                        'Conceito': c.get('display_name', c.get('name', 'Sem nome')), 
+                        'Score': f"{c.get('score', 0):.3f}",
+                        'Level': c.get('level', '?')
                     }
                     for c in selected.get('concepts', [])
                 ])
@@ -2178,7 +2179,6 @@ with tab2:
                     """)
 
             # Tabela
-            st.divider()
             st.subheader("📋 Tabela de Frequências")
             st.dataframe(df_freq, use_container_width=True)
 
@@ -2278,8 +2278,6 @@ with tab2:
             )
 
             st.plotly_chart(fig3, use_container_width=True)
-
-        st.divider()
 
         # ========== SUB-ABA 4: GRAFO ==========
         with t4:
@@ -2425,8 +2423,6 @@ with tab2:
 
                 else:
                     st.warning("⚠️ Grafo muito grande (>100 nós). Use filtros para reduzir o tamanho.")
-
-        st.divider()
 
         # ========== SUB-ABA 5: MAPA TEMÁTICO =========
         with t5:
@@ -2828,9 +2824,7 @@ with tab2:
                 )
 
                 st.caption("Para Gephi/Cytoscape")
-
-            st.divider()
-
+            
             # Zip completo
             st.subheader("📦 Pacote Completo")
 
@@ -2888,5 +2882,47 @@ Query: {query}
                         "application/zip",
                         use_container_width=True
                     )
+
+            st.divider()
+            st.subheader("📤 Exportação de Dados e Referências")
+            
+            # Cria colunas para os botões
+            col_exp1, col_exp2, col_exp3 = st.columns(3)
+            
+            # 1. Botão Excel
+            # Usamos a variável 'articles' que JÁ EXISTE aqui no Painel
+            excel_data = exp.generate_excel(articles)
+            with col_exp1:
+                st.download_button(
+                    label="📊 Baixar Excel (.xlsx)",
+                    data=excel_data,
+                    file_name="delineia_resultados.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    help="Planilha formatada com conceitos, score e level."
+                )
+            
+            # 2. Botão BibTeX
+            bibtex_data = exp.generate_bibtex(articles)
+            with col_exp2:
+                st.download_button(
+                    label="🎓 Baixar BibTeX (.bib)",
+                    data=bibtex_data,
+                    file_name="delineia_referencias.bib",
+                    mime="text/plain",
+                    help="Formato para LaTeX e Overleaf (inclui keywords)."
+                )
+                
+            # 3. Botão RIS
+            ris_data = exp.generate_ris(articles)
+            with col_exp3:
+                st.download_button(
+                    label="📚 Baixar RIS (Zotero/EndNote)",
+                    data=ris_data,
+                    file_name="delineia_referencias.ris",
+                    mime="application/x-research-info-systems",
+                    help="Importe no Zotero para gerar ABNT, APA e Vancouver."
+                )
+
+    # O rodapé fica FORA das abas, alinhado à esquerda total       
 
     rodape_institucional()

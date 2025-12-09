@@ -35,54 +35,57 @@ class OpenAlexClient:
         query = re.sub(r'\s+', ' ', query)
         return query
 
-    def search_articles(self, query: str, limit: int = 500) -> List[Dict]:
-        results = []
-        
-        for page in range(1, 4):
-            params = {
-                'search': query,
-                'per_page': min(200, limit - len(results)),
-                'page': page,
-                'mailto': self.email
-            }
+    def search_articles(self, query: str, limit: int = 100) -> List[Dict]:
+        """
+        Busca artigos na API e retorna lista de dicionários COM METADADOS COMPLETOS.
+        """
+        base_url = "https://api.openalex.org/works"
+        params = {
+            "search": query,
+            "per_page": min(limit, 200),
+            "mailto": self.email,
+            # Solicitamos os campos explicitamente para garantir que venham
+            "select": "id,display_name,publication_year,publication_date,concepts,authorships,primary_location,type,cited_by_count,doi,abstract_inverted_index"
+        }
+
+        all_results = []
+        try:
+            # Paginação básica se o limite for > 200
+            response = requests.get(base_url, params=params)
+            response.raise_for_status()
+            data = response.json()
+            results = data.get('results', [])
             
-            try:
-                response = requests.get(self.base_url, params=params, timeout=30)
+            # Mapeamento para garantir compatibilidade com o sistema
+            for work in results:
+                article = {
+                    'id': work.get('id'),
+                    'title': work.get('display_name'), # OpenAlex usa display_name como título
+                    'year': work.get('publication_year'),
+                    'publication_date': work.get('publication_date'),
+                    'concepts': work.get('concepts', []),
+                    
+                    # --- DADOS RICOS PARA EXPORTAÇÃO ---
+                    'authorships': work.get('authorships', []),
+                    'primary_location': work.get('primary_location', {}),
+                    'type': work.get('type'),
+                    'cited_by_count': work.get('cited_by_count'),
+                    'doi': work.get('doi'),
+                    'abstract_inverted_index': work.get('abstract_inverted_index'),
+                    
+                    # Mantemos compatibilidade com 'url' se usado em outros lugares
+                    'url': work.get('doi') or work.get('id')
+                }
+                all_results.append(article)
                 
-                if response.status_code == 200:
-                    data = response.json()
-                    works = data.get('results', [])
-                    
-                    for work in works:
-                        doi = work.get('doi', '')
-                        if doi and doi.startswith('https://doi.org/'):
-                            doi = doi
-                        elif doi:
-                            doi = f"https://doi.org/{doi}"
-                        
-                        results.append({
-                            'id': work.get('id', ''),
-                            'title': work.get('title', ''),
-                            'year': work.get('publication_year', ''),
-                            'doi': work.get('doi', ''),
-                            'url': doi if doi else work.get('id', ''),
-                            'concepts': [
-                                {'name': c.get('display_name', ''), 
-                                 'score': c.get('score', 0),
-                                 'level': c.get('level', 0)}
-                                for c in work.get('concepts', [])
-                            ]
-                        })
-                    
-                    if len(results) >= limit or len(works) < 200:
-                        break
-                else:
+                if len(all_results) >= limit:
                     break
                     
-            except Exception as e:
-                break
-        
-        return results[:limit]
+            return all_results
+
+        except Exception as e:
+            print(f"Erro na busca OpenAlex: {e}")
+            return []
 
     def extract_concepts_for_cooccurrence(self, articles: List[Dict],
                                          min_score: float = 0.35,
@@ -90,17 +93,20 @@ class OpenAlexClient:
         concepts_lists = []
         
         for article in articles:
+            # CORREÇÃO AQUI: Usar 'display_name' em vez de 'name'
+            # Adicionamos verificação para garantir que o nome existe
             concepts = [
-                c['name']
+                c.get('display_name', c.get('name'))
                 for c in article.get('concepts', [])
-                if c.get('score', 0) >= min_score and c.get('level', 0) >= min_level
+                if c.get('score', 0) >= min_score 
+                and c.get('level', 0) >= min_level
+                and (c.get('display_name') or c.get('name'))
             ]
             
             if concepts:
                 concepts_lists.append(concepts)
         
         return concepts_lists
-
 
 # ==================== GERADOR GEMINI COM DIAGNÓSTICO ====================
 class GeminiQueryGenerator:
@@ -228,7 +234,7 @@ class GeminiQueryGenerator:
                 if extracted_text:
                     extracted_text = extracted_text.strip()
                     
-                    if len(extracted_text) >= 30 and extracted_text != "None":
+                    if len(extracted_text) >= 5 and extracted_text != "None":
                         log_diagnostico(f"SUCESSO! Texto válido: {len(extracted_text)} chars", "success")
                         log_diagnostico(f"Preview: {extracted_text[:150]}...", "info")
                         return extracted_text
@@ -739,111 +745,111 @@ Sugira exatamente 5 palavras-chave complementares que:
         # Limpar possíveis aspas ou formatação extra
         return result.strip().strip('"').strip("'")
 
-    def generate_search_strings(self,
-                                tema: str,
-                                selected_concepts: List[str],
-                                original_keywords: List[str],
+    def generate_search_strings(self, 
+                                tema: str, 
+                                selected_concepts: List[str], 
+                                original_keywords: List[str], 
                                 suggested_terms: List[Dict] = None) -> Dict[str, Dict]:
         """
-        Gera 3 chaves de busca usando:
-        1. Conceitos selecionados (já em inglês do OpenAlex)
-        2. Termos ricos sugeridos pelo Gemini (suggested_terms)
-        3. Keywords originais traduzidas (fallback)
-        
-        Args:
-            tema: Tema da pesquisa
-            selected_concepts: Conceitos selecionados do grafo (já em inglês)
-            original_keywords: Palavras-chave originais do aluno
-            suggested_terms: Lista de dicts com 'term_en', 'term_pt', 'description'
+        Gera 3 chaves de busca usando lógica Python (Determinística e Limpa).
+        Garante que TODOS os termos (inclusive o tema) estejam em inglês.
         """
         
-        # ========== COLETAR TERMOS RICOS EM INGLÊS ==========
-        rich_terms_en = []
+        # ========== 1. FUNÇÃO DE LIMPEZA ==========
+        def clean(text):
+            if not text: return ""
+            # Remove aspas extras, asteriscos e espaços
+            return text.replace('*', '').replace('"', '').strip()
+
+        # ========== 2. PREPARAR LISTAS LIMPAS E TRADUZIDAS ==========
         
-        # 1. Extrair termos em inglês das sugestões do Gemini (PRIORIDADE)
+        # A. Termos sugeridos (Rich Terms) - Já vêm em inglês do Gemini
+        suggested_en = []
         if suggested_terms:
-            for term in suggested_terms:
-                term_en = term.get('term_en', '').strip()
-                if term_en and term_en not in rich_terms_en:
-                    rich_terms_en.append(term_en)
+            for t in suggested_terms:
+                term = clean(t.get('term_en', ''))
+                if term and term not in suggested_en:
+                    suggested_en.append(term)
         
-        # 2. Adicionar conceitos selecionados (já em inglês)
-        for concept in selected_concepts:
-            if concept and concept not in rich_terms_en:
-                rich_terms_en.append(concept)
+        # B. Conceitos do Grafo - Já vêm em inglês do OpenAlex
+        concepts_en = [clean(c) for c in selected_concepts if c]
         
-        # 3. Fallback: traduzir keywords originais se necessário
-        if len(rich_terms_en) < 3:
-            for kw in original_keywords[:3]:
-                kw_en = self._translate_to_english(kw)
-                if kw_en and kw_en not in rich_terms_en:
-                    rich_terms_en.append(kw_en)
+        # C. Tema original - FORÇA TRADUÇÃO DO TEMA PARA INGLÊS
+        tema_en_raw = self._translate_to_english(tema)
+        tema_clean = clean(tema_en_raw)
         
-        # Log para debug
-        log_diagnostico(f"Termos ricos coletados: {rich_terms_en[:8]}", "info")
-        
-        # ========== ESTRUTURA DE RETORNO ==========
+        # ========== 3. ESTRUTURA BASE ==========
         strings = {
             'ampla': {
-                'titulo': 'Chave de Busca Ampla (Tema Geral)',
-                'descricao': 'Busca abrangente combinando palavras-chave sugeridas e conceitos centrais',
+                'titulo': 'Chave de Busca Ampla (Exploratória)',
+                'descricao': 'Usa operadores OR para cobrir o máximo de variações dos conceitos.',
                 'string': ''
             },
             'focada': {
-                'titulo': 'Chave de Busca Focada (Conceitos Selecionados)',
-                'descricao': 'Busca direcionada aos conceitos que você identificou como relevantes',
+                'titulo': 'Chave de Busca Focada (Conceitos Centrais)',
+                'descricao': 'Cruza os conceitos mais importantes usando AND para alta precisão.',
                 'string': ''
             },
             'interseccional': {
-                'titulo': 'Chave de Busca Interseccional (Combinação)',
-                'descricao': 'Busca que cruza diferentes dimensões do seu tema',
+                'titulo': 'Chave de Busca Interseccional (Tema + Conceito)',
+                'descricao': 'Garante que os conceitos selecionados apareçam dentro do contexto do seu tema.',
                 'string': ''
             }
         }
         
-        # ========== CONSTRUIR CHAVES ==========
+        # ========== 4. LÓGICA DE CONSTRUÇÃO ==========
         
-        # Separar termos por tipo para combinações mais ricas
-        suggested_en = [t.get('term_en', '') for t in (suggested_terms or []) if t.get('term_en')][:4]
-        concepts_en = selected_concepts[:4] if selected_concepts else []
+        # --- A. LÓGICA AMPLA (OR) ---
+        # Objetivo: Maximizar recuperação. (Conceito A OR Conceito B OR Sugestão A)
+        # Mistura conceitos do grafo com sugestões novas
+        pool_ampla = []
+        if concepts_en: pool_ampla.append(concepts_en[0])
+        if len(concepts_en) > 1: pool_ampla.append(concepts_en[1])
+        if suggested_en: pool_ampla.append(suggested_en[0])
         
-        # CHAVE AMPLA: Usa termos sugeridos (ricos) + conceito central
-        # Formato: ("termo1" OR "termo2") AND ("conceito1" OR "conceito2")
-        if len(suggested_en) >= 2 and concepts_en:
-            part1 = f'("{suggested_en[0]}" OR "{suggested_en[1]}")'
-            part2 = f'("{concepts_en[0]}")'
-            if len(concepts_en) >= 2:
-                part2 = f'("{concepts_en[0]}" OR "{concepts_en[1]}")'
-            strings['ampla']['string'] = f'{part1} AND {part2}'
-        elif suggested_en and concepts_en:
-            strings['ampla']['string'] = f'"{suggested_en[0]}" AND "{concepts_en[0]}"'
-        elif len(concepts_en) >= 2:
-            strings['ampla']['string'] = f'("{concepts_en[0]}" OR "{concepts_en[1]}")'
-        elif concepts_en:
-            strings['ampla']['string'] = f'"{concepts_en[0]}"'
+        pool_ampla = list(dict.fromkeys(pool_ampla)) # Remove duplicatas
         
-        # CHAVE FOCADA: Usa conceitos selecionados (mais específica)
-        # Formato: "conceito1" AND "conceito2" AND "conceito3"
-        if len(concepts_en) >= 3:
-            strings['focada']['string'] = f'"{concepts_en[0]}" AND "{concepts_en[1]}" AND "{concepts_en[2]}"'
-        elif len(concepts_en) >= 2:
-            strings['focada']['string'] = f'"{concepts_en[0]}" AND "{concepts_en[1]}"'
-        elif concepts_en:
-            strings['focada']['string'] = f'"{concepts_en[0]}"'
+        if len(pool_ampla) >= 2:
+            ors = ' OR '.join([f'"{t}"' for t in pool_ampla])
+            strings['ampla']['string'] = f'({ors})'
+        elif pool_ampla:
+            strings['ampla']['string'] = f'"{pool_ampla[0]}"'
+        else:
+            strings['ampla']['string'] = f'"{tema_clean}"'
+
+        # --- B. LÓGICA FOCADA (AND) ---
+        # Objetivo: Precisão extrema usando apenas o que o usuário selecionou
+        pool_focada = concepts_en[:3] # Pega até 3 selecionados
         
-        # CHAVE INTERSECCIONAL: Cruza termos sugeridos com conceitos
-        # Formato: ("sugerido1" OR "sugerido2") AND ("conceito1") AND ("conceito2")
-        if len(suggested_en) >= 2 and len(concepts_en) >= 2:
-            strings['interseccional']['string'] = f'("{suggested_en[0]}" OR "{suggested_en[1]}") AND "{concepts_en[0]}" AND "{concepts_en[1]}"'
-        elif suggested_en and len(concepts_en) >= 2:
-            strings['interseccional']['string'] = f'"{suggested_en[0]}" AND ("{concepts_en[0]}" OR "{concepts_en[1]}")'
-        elif len(suggested_en) >= 2 and concepts_en:
-            strings['interseccional']['string'] = f'("{suggested_en[0]}" OR "{suggested_en[1]}") AND "{concepts_en[0]}"'
-        elif len(concepts_en) >= 3:
-            strings['interseccional']['string'] = f'("{concepts_en[0]}" OR "{concepts_en[1]}") AND "{concepts_en[2]}"'
-        elif len(concepts_en) >= 2:
-            strings['interseccional']['string'] = f'"{concepts_en[0]}" AND "{concepts_en[1]}"'
+        if len(pool_focada) >= 2:
+            ands = ' AND '.join([f'"{t}"' for t in pool_focada])
+            strings['focada']['string'] = ands
+        elif pool_focada:
+            strings['focada']['string'] = f'"{pool_focada[0]}"'
         
+        # --- C. LÓGICA INTERSECCIONAL (Tema Traduzido AND (Conceitos OR Sugestões)) ---
+        # Objetivo: Contextualizar. Garante que o TEMA esteja presente.
+        
+        # Monta o bloco de conceitos (usando OR para dar flexibilidade ao tema)
+        concept_block = ""
+        context_pool = (concepts_en[:2] + suggested_en[:1]) # Pega 2 do grafo e 1 sugestão
+        context_pool = list(dict.fromkeys(context_pool))
+        
+        if len(context_pool) >= 2:
+            concept_block = ' OR '.join([f'"{t}"' for t in context_pool])
+            concept_block = f"({concept_block})"
+        elif context_pool:
+            concept_block = f'"{context_pool[0]}"'
+            
+        # Monta a string final: "TEMA EM INGLÊS" AND (Conceitos...)
+        if tema_clean and concept_block:
+            strings['interseccional']['string'] = f'"{tema_clean}" AND {concept_block}'
+        elif concept_block:
+             # Fallback se a tradução do tema falhar
+             strings['interseccional']['string'] = concept_block
+        else:
+             strings['interseccional']['string'] = f'"{tema_clean}"'
+
         return strings
 
     def _generate_fallback_glossary(self, concepts: List[str], tema: str) -> str:
