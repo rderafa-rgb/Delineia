@@ -17,6 +17,22 @@ from io import BytesIO
 import textwrap
 import re
 
+# ==================== FUNÇÃO LIMPEZA ========================
+
+def clean_text(text):
+    if not isinstance(text, str):
+        return str(text)
+    
+    # 1. Tenta manter UTF-8 (aceita acentos e símbolos comuns)
+    try:
+        # Se o ReportLab aceitar, ótimo. 
+        # Mas para evitar quadrados/erros, removemos caracteres fora do Basic Multilingual Plane (onde vivem os emojis)
+        # Emojis geralmente estão acima de U+FFFF
+        return re.sub(r'[^\u0000-\uFFFF]', '', text)
+    except:
+        # Fallback seguro: remove caracteres não-latinos mas sem deixar '?' (usando ignore)
+        return text.encode('latin-1', 'ignore').decode('latin-1')
+
 
 # ==================== FUNÇÕES AUXILIARES ====================
 
@@ -107,7 +123,6 @@ def format_badge_for_pdf(badge: str) -> str:
     badge_lower = badge.lower().strip()
     emoji = badge_emojis.get(badge_lower, '🏅')
     return f"{emoji} {badge}"
-
 
 # ==================== ESTILOS ====================
 
@@ -240,7 +255,6 @@ def create_styles():
     
     return custom_styles
 
-
 # ==================== GERADOR PRINCIPAL ====================
 
 def generate_pdf_report(
@@ -296,7 +310,7 @@ def generate_pdf_report(
     
     # ==================== 1. CAPA ====================
     story.append(Spacer(1, 1*cm))
-    story.append(Paragraph("🎯 Delinéia", styles['title']))
+    story.append(Paragraph("Delinéia", styles['title']))
     story.append(Paragraph("Relatório de Delineamento de Escopo Temático", styles['subtitle']))
     story.append(Spacer(1, 0.5*cm))
     
@@ -324,12 +338,12 @@ def generate_pdf_report(
     
     # Distintivos conquistados (se houver)
     if badges:
-        badges_text = "🏆 Distintivos: " + " | ".join([format_badge_for_pdf(b) for b in badges])
+        badges_text = "Distintivos: " + " | ".join([format_badge_for_pdf(b) for b in badges])
         story.append(Paragraph(badges_text, styles['badge']))
         story.append(Spacer(1, 0.3*cm))
     
     # ==================== 2. DADOS FORNECIDOS ====================
-    story.append(Paragraph("📝 Dados Fornecidos", styles['heading']))
+    story.append(Paragraph("Dados do Projeto", styles['heading']))
     
     story.append(Paragraph(f"<b>Tema:</b> {form_data.get('tema', 'N/A')}", styles['body_left']))
     story.append(Paragraph(f"<b>Questão de pesquisa:</b> {form_data.get('questao', 'N/A')}", styles['body_left']))
@@ -341,7 +355,7 @@ def generate_pdf_report(
         story.append(Paragraph(f"<b>Nível de confiança inicial:</b> {confianca}", styles['body_left']))
     
     # ==================== 3. AVALIAÇÃO DO PROJETO ====================
-    story.append(Paragraph("💡 Avaliação do Projeto", styles['heading']))
+    story.append(Paragraph("Avaliação do Projeto", styles['heading']))
     
     report_text = clean_markdown_for_pdf(result.get('full_report', 'Não disponível'))
     paragraphs = report_text.split('\n\n')
@@ -351,15 +365,15 @@ def generate_pdf_report(
             story.append(Paragraph(para.strip(), styles['body']))
     
     # ==================== 4. MÉTRICAS DA BUSCA ====================
-    story.append(Paragraph("📊 Métricas da Análise Bibliométrica", styles['heading']))
+    story.append(Paragraph("Métricas da Análise Bibliométrica", styles['heading']))
     
     graph_stats = result.get('graph_stats', {})
     
     metrics_data = [
-        ['Métrica', 'Valor'],
+        ['Métrica', 'Contagem'],
         ['Artigos analisados', str(result.get('articles_count', 0))],
         ['Conceitos identificados', str(graph_stats.get('nodes', 0))],
-        ['Conexões (coocorrências)', str(graph_stats.get('edges', 0))]
+        ['Coocorrências', str(graph_stats.get('edges', 0))]
     ]
     
     metrics_table = Table(metrics_data, colWidths=[10*cm, 7*cm])
@@ -378,11 +392,11 @@ def generate_pdf_report(
     story.append(Spacer(1, 0.5*cm))
     
     # ==================== 5. GRAFO DE COOCORRÊNCIAS ====================
-    story.append(Paragraph("🕸️ Rede de Coocorrência de Conceitos", styles['heading']))
+    story.append(Paragraph("Grafo de Coocorrência de Conceitos", styles['heading']))
     
     story.append(Paragraph(
-        "O grafo abaixo ilustra as relações entre os principais conceitos identificados na literatura. "
-        "Os nós representam conceitos e as arestas indicam coocorrência em artigos científicos.",
+        "O grafo abaixo ilustra as relações entre os principais conceitos identificados na busca por literatura. "
+        "Os nós representam conceitos e as arestas indicam a coocorrência entre eles nos artigos científicos recuperados.",
         styles['body']
     ))
     
@@ -394,7 +408,7 @@ def generate_pdf_report(
             # Legenda do grafo
             n_concepts = len(selected_concepts) if selected_concepts else graph_stats.get('nodes', 0)
             story.append(Paragraph(
-                f"Grafo com {n_concepts} conceitos selecionados (Miller, 7±2)",
+                f"Grafo com {n_concepts} conceitos selecionados",
                 styles['caption']
             ))
         except Exception as e:
@@ -404,10 +418,10 @@ def generate_pdf_report(
     
     # ==================== 6. CONCEITOS SELECIONADOS ====================
     if selected_concepts:
-        story.append(Paragraph("🎯 Conceitos Selecionados", styles['heading']))
+        story.append(Paragraph("Conceitos Selecionados", styles['heading']))
         
         story.append(Paragraph(
-            f"Você selecionou <b>{len(selected_concepts)}</b> conceitos para delimitar o escopo do seu projeto:",
+            f"Você selecionou <b>{len(selected_concepts)}</b> conceitos para delinear o escopo do seu projeto:",
             styles['body']
         ))
         
@@ -435,7 +449,7 @@ def generate_pdf_report(
             story.append(concepts_table)
     
     # ==================== 7. GLOSSÁRIO ====================
-    story.append(Paragraph("📖 Glossário de Conceitos", styles['heading']))
+    story.append(Paragraph("Glossário de Conceitos", styles['heading']))
     
     glossary_text = result.get('glossary', 'Não disponível')
     
@@ -453,7 +467,7 @@ def generate_pdf_report(
         story.append(Paragraph(glossary_text or "Glossário não disponível", styles['body']))
     
     # ==================== 8. INTERPRETAÇÃO DO GRAFO ====================
-    story.append(Paragraph("🔍 Interpretação Personalizada", styles['heading']))
+    story.append(Paragraph("Interpretação Personalizada do Grafo", styles['heading']))
     
     interpretation_text = clean_markdown_for_pdf(result.get('graph_interpretation', 'Não disponível'))
     interp_paragraphs = interpretation_text.split('\n\n')
@@ -464,10 +478,10 @@ def generate_pdf_report(
     
     # ==================== 9. SUGESTÕES DE PALAVRAS-CHAVE ====================
     if suggested_keywords:
-        story.append(Paragraph("🏷️ Sugestões de Palavras-chave", styles['heading']))
+        story.append(Paragraph("Sugestões de Palavras-chave", styles['heading']))
         
         story.append(Paragraph(
-            "Com base na análise do seu projeto, sugerimos os seguintes termos para enriquecer sua busca:",
+            "Com base na análise do seu projeto, sugerimos as seguintes palavras-chave para enriquecer sua busca:",
             styles['body']
         ))
         
@@ -482,20 +496,20 @@ def generate_pdf_report(
             
             story.append(Paragraph(entry_text, styles['glossary_entry']))
     
-    # ==================== 10. STRINGS DE BUSCA SUGERIDAS ====================
+    # ==================== 10. CHAVES DE BUSCA SUGERIDAS ====================
     if suggested_strings:
-        story.append(Paragraph("🔎 Strings de Busca Sugeridas", styles['heading']))
+        story.append(Paragraph("Chaves de Busca Sugeridas", styles['heading']))
         
         story.append(Paragraph(
-            "As strings abaixo foram elaboradas para diferentes estratégias de busca bibliográfica:",
+            "As chaves abaixo foram elaboradas para diferentes estratégias de busca bibliográfica:",
             styles['body']
         ))
         
         string_order = ['ampla', 'focada', 'interseccional']
         string_labels = {
-            'ampla': ('🌐 String Ampla', 'Abrange o tema de forma abrangente'),
-            'focada': ('🎯 String Focada', 'Concentra nos conceitos selecionados'),
-            'interseccional': ('🔗 String Interseccional', 'Cruza termos sugeridos com conceitos')
+            'ampla': ('Chave de busca ampla (exploratória)', 'Usa operadores OR para cobrir o máximo de variações dos conceitos.'),
+            'focada': ('Chave de busca focada (conceitos centrais)', 'Cruza os conceitos mais importantes usando AND para alta precisão.'),
+            'interseccional': ('Chave de busca interseccional (tema + conceito)', 'Garante que os conceitos selecionados apareçam dentro do contexto do seu tema.')
         }
         
         for key in string_order:
@@ -522,11 +536,10 @@ def generate_pdf_report(
                 story.append(Spacer(1, 0.3*cm))
     
     # ==================== 11. TRANSPARÊNCIA ====================
-    story.append(Paragraph("🔬 Transparência da Busca", styles['heading']))
+    story.append(Paragraph("Transparência: chave de busca usada", styles['heading']))
     
     story.append(Paragraph(
-        "Para garantir a reprodutibilidade desta análise, apresentamos a string original utilizada "
-        "na consulta à base OpenAlex:",
+        "Para garantir a reprodutibilidade desta análise, apresentamos a chave de busca original utilizada na consulta à base OpenAlex:",
         styles['body']
     ))
     
@@ -563,11 +576,7 @@ def generate_pdf_report(
         "https://delineia.streamlit.app",
         styles['footer']
     ))
-    story.append(Paragraph(
-        "Ferramenta desenvolvida como parte de pesquisa de doutorado em Informática na Educação - UFRGS",
-        styles['footer']
-    ))
-    
+        
     # ==================== BUILD ====================
     try:
         doc.build(story)
