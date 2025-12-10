@@ -41,7 +41,7 @@ class OpenAlexClient:
         query = re.sub(r'\s+', ' ', query)
         return query
 
-    def search_works(self, query: str, limit: int = 500) -> List[Dict]:
+    def search_articles(self, query: str, limit: int = 500) -> List[Dict]:
         """
         Busca artigos na API com PAGINAÇÃO para atingir limites maiores (ex: 500).
         Retorna lista de dicionários mapeados.

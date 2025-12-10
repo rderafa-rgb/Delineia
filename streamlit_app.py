@@ -2986,8 +2986,4 @@ Total de Artigos: {len(articles)}
                         use_container_width=True
                     )
 
-            st.divider()
-    
-    # O rodapé fica FORA das abas, alinhado à esquerda total       
-
     rodape_institucional()
