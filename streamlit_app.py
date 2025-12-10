@@ -20,6 +20,7 @@ import uuid
 import time as time_module
 import matplotlib.pyplot as plt
 import export_utils as exp
+from export_utils import generate_excel, generate_bibtex, generate_ris, generate_pajek_net
 
 # ==================== BIBLIOTECA DE GÊNERO ====================
 
@@ -57,8 +58,9 @@ def rodape_institucional():
         except FileNotFoundError:
             return ""
 
-    # Ajuste os nomes aqui se necessário (ex: ufrgs_logo.png se não for transparente)
-    img_ufrgs = get_img_as_base64("assets/ufrgs_logo.png") 
+    # Ajuste os nomes aqui se necessário
+    img_ufrgs = get_img_as_base64("assets/ufrgs_logo.png")
+    img_cinted = get_img_as_base64("assets/cinted_logo.png") 
     img_ppgie = get_img_as_base64("assets/ppgie_logo.png")
 
     st.markdown("<br><br>", unsafe_allow_html=True)
@@ -68,6 +70,7 @@ def rodape_institucional():
 <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
 <div style="display: flex; gap: 40px; align-items: center; margin-bottom: 15px;">
 <img src="data:image/png;base64,{img_ufrgs}" width="160" style="opacity: 0.9;">
+<img src="data:image/png;base64,{img_cinted}" width="160" style="opacity: 0.9;">
 <img src="data:image/png;base64,{img_ppgie}" width="160" style="opacity: 0.9;">
 </div>
 <div style="text-align: center; color: #888888; font-size: 0.85rem; line-height: 1.5;">
@@ -2720,21 +2723,22 @@ with tab2:
 
                     st.plotly_chart(fig, use_container_width=True)
 
-        # ========== SUB-ABA 7: EXPORTAÇÃO ==========
+        # ========== SUB-ABA 7: EXPORTAÇÃO (ATUALIZADA) ==========
         with t7:
             st.header("💾 Exportação de Dados")
 
             col1, col2, col3 = st.columns(3)
 
-            # JSON
+            # --- COLUNA 1: JSON ---
             with col1:
                 st.subheader("📄 JSON")
 
                 st.download_button(
-                    "📥 Artigos (JSON)",
+                    "📥 Artigos (JSON Completo)",
                     json.dumps(articles, indent=2, ensure_ascii=False),
                     "articles.json",
                     "application/json",
+                    help="Dados brutos completos (ideal para mineração).",
                     use_container_width=True
                 )
 
@@ -2759,7 +2763,7 @@ with tab2:
                     use_container_width=True
                 )
 
-            # CSV
+            # --- COLUNA 2: CSV ---
             with col2:
                 st.subheader("📊 CSV")
 
@@ -2804,32 +2808,107 @@ with tab2:
                     use_container_width=True
                 )
 
-            # Outros formatos
+            # --- COLUNA 3: OUTROS FORMATOS (GraphML e .net) ---
             with col3:
-                st.subheader("🔧 Outros")
+                st.subheader("🔧 Redes")
 
+                # 1. GraphML (Já existente)
                 import tempfile
-
-                with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.graphml') as f:
-                    nx.write_graphml(G, f.name)
-                    with open(f.name, 'r') as file:
+                try:
+                    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.graphml') as f:
+                        nx.write_graphml(G, f.name)
+                        # Reabre para leitura
+                    with open(f.name, 'r', encoding='utf-8') as file:
                         graphml_content = file.read()
+                    
+                    st.download_button(
+                        "📥 Grafo (GraphML)",
+                        graphml_content,
+                        "graph.graphml",
+                        "application/xml",
+                        help="Para Gephi ou Cytoscape",
+                        use_container_width=True
+                    )
+                except Exception as e:
+                    st.error(f"Erro GraphML: {e}")
 
-                st.download_button(
-                    "📥 Grafo (GraphML)",
-                    graphml_content,
-                    "graph.graphml",
-                    "application/xml",
-                    use_container_width=True
-                )
+                # 2. Pajek .net (NOVO - INSERIDO AQUI)
+                try:
+                    # Usa a função nova que criamos no export_utils
+                    pajek_data = exp.generate_pajek_net(G)
+                    st.download_button(
+                        "📥 Grafo (.net Pajek)", 
+                        pajek_data, 
+                        "graph.net", 
+                        "text/plain",
+                        help="Para VOSviewer ou Pajek",
+                        use_container_width=True
+                    )
+                except Exception as e:
+                    st.error(f"Erro Pajek: {e}")
 
-                st.caption("Para Gephi/Cytoscape")
+            st.divider()
+                   
+            # --- DADOS RICOS (BIBTEX, RIS, EXCEL) ---
+            st.subheader("📤 Exportação de Dados e Referências")
+            st.caption("Arquivos processados com metadados completos (DOI, Abstract, Keywords).")
             
-            # Zip completo
+            col_exp1, col_exp2, col_exp3 = st.columns(3)
+            
+            # 1. Botão Excel
+            try:
+                excel_data = exp.generate_excel(articles)
+                with col_exp1:
+                    st.download_button(
+                        label="📊 Excel (.xlsx)",
+                        data=excel_data,
+                        file_name="delineia_resultados.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        help="Planilha formatada com conceitos, score e level.",
+                        use_container_width=True
+                    )
+            except Exception as e:
+                st.error(f"Erro Excel: {e}")
+            
+            # 2. Botão BibTeX
+            try:
+                bibtex_data = exp.generate_bibtex(articles)
+                with col_exp2:
+                    st.download_button(
+                        label="🎓 BibTeX (.bib)",
+                        data=bibtex_data,
+                        file_name="delineia_referencias.bib",
+                        mime="text/plain",
+                        help="Para LaTeX/Overleaf.",
+                        use_container_width=True
+                    )
+            except Exception as e:
+                st.error(f"Erro BibTeX: {e}")
+                
+            # 3. Botão RIS
+            try:
+                ris_data = exp.generate_ris(articles)
+                with col_exp3:
+                    st.download_button(
+                        label="📚 RIS (Zotero)",
+                        data=ris_data,
+                        file_name="delineia_referencias.ris",
+                        mime="application/x-research-info-systems",
+                        help="Para Zotero, Mendeley, EndNote.",
+                        use_container_width=True
+                    )
+            except Exception as e:
+                st.error(f"Erro RIS: {e}")
+
+            # --- PACOTE ZIP ---
             st.subheader("📦 Pacote Completo")
 
             if st.button("🎁 Gerar ZIP com Todos os Dados", use_container_width=True):
                 with st.spinner("📦 Gerando arquivo ZIP..."):
+                    import zipfile
+                    from io import BytesIO
+                    from datetime import datetime
+                    
                     zip_buffer = BytesIO()
 
                     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
@@ -2843,35 +2922,59 @@ with tab2:
                         zf.writestr('concepts.csv', df_concepts.to_csv(index=False))
                         zf.writestr('cooccurrences.csv', df_cooc.to_csv(index=False))
 
-                        # GraphML
+                        # Redes
                         zf.writestr('graph.graphml', graphml_content)
+                        # Adicionando o .net ao ZIP também
+                        try:
+                            if isinstance(pajek_data, bytes):
+                                zf.writestr('graph.net', pajek_data)
+                            else:
+                                zf.writestr('graph.net', pajek_data.encode('utf-8'))
+                        except:
+                            pass # Se falhar o pajek, gera o zip sem ele
 
-                        # README
-                        readme = f"""# Delinéia IX - Dados Exportados
+                        # --- DADOS RICOS (Excel, BibTeX, RIS) ---
+                        # Excel (.xlsx)
+                        try:
+                            excel_bytes = exp.generate_excel(articles)
+                            zf.writestr('delineia_dados.xlsx', excel_bytes)
+                        except Exception as e:
+                            print(f"Erro ao incluir Excel no ZIP: {e}")
 
+                        # BibTeX (.bib)
+                        try:
+                            bib_str = exp.generate_bibtex(articles)
+                            zf.writestr('delineia_referencias.bib', bib_str)
+                        except Exception as e:
+                            print(f"Erro ao incluir BibTeX no ZIP: {e}")
+
+                        # RIS (.ris)
+                        try:
+                            ris_str = exp.generate_ris(articles)
+                            zf.writestr('delineia_referencias.ris', ris_str)
+                        except Exception as e:
+                            print(f"Erro ao incluir RIS no ZIP: {e}")
+
+                        # README ATUALIZADO
+                        readme = f"""# Delinéia - Dados Exportados
 Data: {datetime.now().strftime("%d/%m/%Y às %H:%M")}
-Query: {query}
 
-## Arquivos incluídos:
+Arquivos no pacote:
+1. DADOS COMPLETOS (Para leitura humana e importação)
+   - delineia_dados.xlsx: Excel com metadados, autores e conceitos
+   - delineia_referencias.bib: Para LaTeX/Overleaf
+   - delineia_referencias.ris: Para Zotero/Mendeley
 
-### JSON
-- articles.json: Lista completa de artigos
-- concepts.json: Conceitos extraídos por artigo
-- cooccurrences.json: Pares de coocorrências
+2. DADOS BRUTOS (Para mineração)
+   - articles.json / csv
+   - concepts.json / csv
+   - cooccurrences.json / csv
 
-### CSV
-- articles.csv: Artigos (título, ano, num_conceitos)
-- concepts.csv: Conceitos e frequências
-- cooccurrences.csv: Rede de coocorrências
+3. REDES (Para visualização)
+   - graph.graphml (Gephi)
+   - graph.net (Pajek/VOSviewer)
 
-### Grafo
-- graph.graphml: Grafo no formato GraphML (Gephi/Cytoscape)
-
-## Estatísticas:
-- Artigos: {len(articles)}
-- Conceitos únicos: {len(freq)}
-- Nós no grafo: {len(G.nodes())}
-- Arestas: {len(G.edges())}
+Total de Artigos: {len(articles)}
 """
                         zf.writestr('README.txt', readme)
 
@@ -2884,45 +2987,7 @@ Query: {query}
                     )
 
             st.divider()
-            st.subheader("📤 Exportação de Dados e Referências")
-            
-            # Cria colunas para os botões
-            col_exp1, col_exp2, col_exp3 = st.columns(3)
-            
-            # 1. Botão Excel
-            # Usamos a variável 'articles' que JÁ EXISTE aqui no Painel
-            excel_data = exp.generate_excel(articles)
-            with col_exp1:
-                st.download_button(
-                    label="📊 Baixar Excel (.xlsx)",
-                    data=excel_data,
-                    file_name="delineia_resultados.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    help="Planilha formatada com conceitos, score e level."
-                )
-            
-            # 2. Botão BibTeX
-            bibtex_data = exp.generate_bibtex(articles)
-            with col_exp2:
-                st.download_button(
-                    label="🎓 Baixar BibTeX (.bib)",
-                    data=bibtex_data,
-                    file_name="delineia_referencias.bib",
-                    mime="text/plain",
-                    help="Formato para LaTeX e Overleaf (inclui keywords)."
-                )
-                
-            # 3. Botão RIS
-            ris_data = exp.generate_ris(articles)
-            with col_exp3:
-                st.download_button(
-                    label="📚 Baixar RIS (Zotero/EndNote)",
-                    data=ris_data,
-                    file_name="delineia_referencias.ris",
-                    mime="application/x-research-info-systems",
-                    help="Importe no Zotero para gerar ABNT, APA e Vancouver."
-                )
-
+    
     # O rodapé fica FORA das abas, alinhado à esquerda total       
 
     rodape_institucional()
