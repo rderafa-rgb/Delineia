@@ -22,11 +22,17 @@ def log_diagnostico(mensagem: str, tipo: str = "info"):
     print(f"[{tipo.upper()}] {mensagem}")
 
 
-# ==================== CLIENTE OPENALEX ====================
-class OpenAlexClient:
-    """Cliente para buscar artigos no OpenAlex"""
+import time
+import requests
+import re
+from typing import List, Dict
 
-    def __init__(self, email: str):
+# ==================== CLIENTE OPENALEX (ATUALIZADO) ====================
+class OpenAlexClient:
+    """Cliente para buscar artigos no OpenAlex com Paginação"""
+
+    def __init__(self, email="delineia@example.com"):
+        # Deixamos um email padrão para não quebrar se não for passado
         self.email = email
         self.base_url = "https://api.openalex.org/works"
 
@@ -35,57 +41,76 @@ class OpenAlexClient:
         query = re.sub(r'\s+', ' ', query)
         return query
 
-    def search_articles(self, query: str, limit: int = 100) -> List[Dict]:
+    def search_works(self, query: str, limit: int = 500) -> List[Dict]:
         """
-        Busca artigos na API e retorna lista de dicionários COM METADADOS COMPLETOS.
+        Busca artigos na API com PAGINAÇÃO para atingir limites maiores (ex: 500).
+        Retorna lista de dicionários mapeados.
         """
         base_url = "https://api.openalex.org/works"
-        params = {
-            "search": query,
-            "per_page": min(limit, 200),
-            "mailto": self.email,
-            # Solicitamos os campos explicitamente para garantir que venham
-            "select": "id,display_name,publication_year,publication_date,concepts,authorships,primary_location,type,cited_by_count,doi,abstract_inverted_index"
-        }
-
+        per_page = 200 # Limite máximo por página da API
+        
+        # Calcula quantas páginas precisamos (ex: 500 / 200 = 3 páginas)
+        num_pages = (limit // per_page) + (1 if limit % per_page > 0 else 0)
+        
         all_results = []
-        try:
-            # Paginação básica se o limite for > 200
-            response = requests.get(base_url, params=params)
-            response.raise_for_status()
-            data = response.json()
-            results = data.get('results', [])
-            
-            # Mapeamento para garantir compatibilidade com o sistema
-            for work in results:
-                article = {
-                    'id': work.get('id'),
-                    'title': work.get('display_name'), # OpenAlex usa display_name como título
-                    'year': work.get('publication_year'),
-                    'publication_date': work.get('publication_date'),
-                    'concepts': work.get('concepts', []),
-                    
-                    # --- DADOS RICOS PARA EXPORTAÇÃO ---
-                    'authorships': work.get('authorships', []),
-                    'primary_location': work.get('primary_location', {}),
-                    'type': work.get('type'),
-                    'cited_by_count': work.get('cited_by_count'),
-                    'doi': work.get('doi'),
-                    'abstract_inverted_index': work.get('abstract_inverted_index'),
-                    
-                    # Mantemos compatibilidade com 'url' se usado em outros lugares
-                    'url': work.get('doi') or work.get('id')
-                }
-                all_results.append(article)
+        
+        for page in range(1, num_pages + 1):
+            params = {
+                "search": query,
+                "per_page": per_page,
+                "page": page,
+                "mailto": self.email,
+                # Campos ricos solicitados explicitamente
+                "select": "id,display_name,publication_year,publication_date,concepts,authorships,primary_location,type,cited_by_count,doi,abstract_inverted_index"
+            }
+
+            try:
+                response = requests.get(base_url, params=params)
                 
-                if len(all_results) >= limit:
+                # Se der erro (ex: 429 too many requests), espera e tenta de novo ou para
+                if response.status_code != 200:
                     break
                     
-            return all_results
+                data = response.json()
+                results = data.get('results', [])
+                
+                if not results:
+                    break # Acabaram os resultados
+                
+                # Processamento e Mapeamento
+                for work in results:
+                    article = {
+                        'id': work.get('id'),
+                        'title': work.get('display_name'), # OpenAlex usa display_name como título
+                        'year': work.get('publication_year'),
+                        'publication_date': work.get('publication_date'),
+                        'concepts': work.get('concepts', []),
+                        
+                        # --- DADOS RICOS PARA EXPORTAÇÃO ---
+                        'authorships': work.get('authorships', []),
+                        'primary_location': work.get('primary_location', {}),
+                        'type': work.get('type'),
+                        'cited_by_count': work.get('cited_by_count'),
+                        'doi': work.get('doi'),
+                        'abstract_inverted_index': work.get('abstract_inverted_index'),
+                        
+                        # Compatibilidade de URL
+                        'url': work.get('doi') or work.get('id')
+                    }
+                    all_results.append(article)
+                    
+                    # Se já atingimos o limite total solicitado, paramos tudo
+                    if len(all_results) >= limit:
+                        return all_results
+                
+                # Pausa educada entre páginas para não bloquear a API
+                time.sleep(0.1)
+                
+            except Exception as e:
+                print(f"Erro na página {page}: {e}")
+                break
 
-        except Exception as e:
-            print(f"Erro na busca OpenAlex: {e}")
-            return []
+        return all_results
 
     def extract_concepts_for_cooccurrence(self, articles: List[Dict],
                                          min_score: float = 0.35,
@@ -93,8 +118,7 @@ class OpenAlexClient:
         concepts_lists = []
         
         for article in articles:
-            # CORREÇÃO AQUI: Usar 'display_name' em vez de 'name'
-            # Adicionamos verificação para garantir que o nome existe
+            # Lógica corrigida para display_name
             concepts = [
                 c.get('display_name', c.get('name'))
                 for c in article.get('concepts', [])
@@ -745,6 +769,30 @@ Sugira exatamente 5 palavras-chave complementares que:
         # Limpar possíveis aspas ou formatação extra
         return result.strip().strip('"').strip("'")
 
+    def _extract_core_theme(self, user_input):
+        """
+        NOVO: Extrai o conceito central de inputs longos (Textão).
+        Retorna o termo em INGLÊS limpo.
+        """
+        prompt = f"""
+        TASK: Extract the CORE SUBJECT from the user input below.
+        INPUT: "{user_input}"
+        
+        RULES:
+        1. Ignore context like "I want to study...", "The research is about...".
+        2. Output ONLY the main concept/phenomenon.
+        3. Translate it to ACADEMIC ENGLISH.
+        4. Max 5 words.
+        5. If input is already simple, just translate it.
+        
+        OUTPUT (Just the term):
+        """
+        extracted = self._safe_generate(prompt).strip()
+        # Fallback de segurança se a IA falhar
+        if len(extracted) > 50 or "Error" in extracted:
+            return user_input 
+        return extracted.replace('"', '').replace('.', '')
+
     def generate_search_strings(self, 
                                 tema: str, 
                                 selected_concepts: List[str], 
@@ -774,8 +822,9 @@ Sugira exatamente 5 palavras-chave complementares que:
         # B. Conceitos do Grafo - Já vêm em inglês do OpenAlex
         concepts_en = [clean(c) for c in selected_concepts if c]
         
-        # C. Tema original - FORÇA TRADUÇÃO DO TEMA PARA INGLÊS
-        tema_en_raw = self._translate_to_english(tema)
+        # C. Tema original - FORÇA EXTRAÇÃO DO NÚCLEO E TRADUÇÃO
+        # MUDANÇA AQUI: Usamos _extract_core_theme em vez de _translate_to_english direto
+        tema_en_raw = self._extract_core_theme(tema)
         tema_clean = clean(tema_en_raw)
         
         # ========== 3. ESTRUTURA BASE ==========

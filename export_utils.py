@@ -1,214 +1,177 @@
 import pandas as pd
-from io import BytesIO
+import io
+import json
+import networkx as nx
+from bibtexparser.bwriter import BibTexWriter
+from bibtexparser.bibdatabase import BibDatabase
 
-def safe_get(d, keys, default=''):
-    """
-    Navega com segurança por dicionários aninhados, evitando erros com None.
-    Uso: safe_get(artigo, ['primary_location', 'source', 'display_name'])
-    """
-    if not isinstance(d, dict):
-        return default
-    
-    current = d
-    for key in keys:
-        if isinstance(current, dict):
-            current = current.get(key)
-        else:
-            return default
-            
-        if current is None:
-            return default
-            
-    return current if current else default
-
-def clean_authors(authors_list):
-    """Transforma a lista de autores em string legível."""
-    if not authors_list or not isinstance(authors_list, list):
+def _extract_authors(article):
+    """Auxiliar: Extrai string limpa de autores."""
+    try:
+        authorships = article.get('authorships') or [] # Proteção contra None
+        names = []
+        for a in authorships:
+            author_obj = a.get('author') or {}
+            name = author_obj.get('display_name')
+            if name: names.append(name)
+        
+        return ", ".join(names)
+    except:
         return ""
-    
-    names = []
-    for auth in authors_list:
-        if isinstance(auth, dict):
-            # Tenta pegar author -> display_name
-            name = safe_get(auth, ['author', 'display_name'])
-            if name:
-                names.append(name)
-                
-    return ", ".join(names)
 
-def format_concepts_detailed(concepts_list):
-    """Formata conceitos com seus atributos para o Excel."""
-    if not concepts_list or not isinstance(concepts_list, list):
+def _extract_concepts_string(article):
+    """Auxiliar: Extrai string limpa de conceitos/keywords."""
+    try:
+        concepts = article.get('concepts') or [] # Proteção contra None
+        
+        # Pega top 5 conceitos usando display_name ou name
+        names = [c.get('display_name', c.get('name', '')) for c in concepts[:5]]
+        return ", ".join([n for n in names if n])
+    except:
         return ""
-    
-    # Ordena por score
-    sorted_concepts = sorted(concepts_list, key=lambda x: x.get('score', 0) if isinstance(x, dict) else 0, reverse=True)
-    
-    formatted_items = []
-    for c in sorted_concepts:
-        if not isinstance(c, dict): continue
-        
-        name = c.get('display_name', '')
-        score = c.get('score', 0)
-        level = c.get('level', '?')
-        
-        if name:
-            formatted_items.append(f"{name} (S:{score:.3f}, L:{level})")
-            
-    return "; ".join(formatted_items)
 
-def get_concept_names(concepts_list):
-    """Retorna lista simples de nomes para BibTeX/RIS."""
-    if not concepts_list or not isinstance(concepts_list, list):
-        return []
-    
-    sorted_concepts = sorted(concepts_list, key=lambda x: x.get('score', 0) if isinstance(x, dict) else 0, reverse=True)
-    return [c.get('display_name', '') for c in sorted_concepts if isinstance(c, dict) and c.get('display_name')]
+def _safe_get_source(article):
+    """Auxiliar: Extrai nome da revista/fonte com segurança máxima."""
+    try:
+        loc = article.get('primary_location') or {}
+        source = loc.get('source') or {}
+        return source.get('display_name', '')
+    except:
+        return ""
 
-def prepare_dataframe(results):
-    """Prepara DataFrame incluindo a coluna rica de Conceitos."""
-    if not results:
-        return pd.DataFrame()
+def _get_year(article):
+    """Auxiliar: Tenta pegar o ano de várias formas."""
+    # Tenta o campo padrão
+    year = article.get('publication_year')
+    if year: return int(year)
     
-    data = []
-    for r in results:
-        # Extração segura usando a função auxiliar
-        doi_raw = r.get('doi')
-        doi_safe = doi_raw if doi_raw else ''
+    # Tenta extrair da data completa (YYYY-MM-DD)
+    date = article.get('publication_date')
+    if date and len(str(date)) >= 4:
+        return str(date)[:4]
         
-        titulo = r.get('title') or 'Sem Título'
-        ano = r.get('publication_year') or ''
-        data_pub = r.get('publication_date') or ''
-        tipo = r.get('type') or ''
-        citacoes = r.get('cited_by_count') or 0
-        
-        # Extração complexa segura
-        autores = clean_authors(r.get('authorships'))
-        revista = safe_get(r, ['primary_location', 'source', 'display_name'])
-        conceitos = format_concepts_detailed(r.get('concepts'))
-        abstract = "Disponível (Índice Invertido)" if r.get('abstract_inverted_index') else "Não disponível"
+    return ""
 
-        row = {
-            'ID OpenAlex': r.get('id', ''),
+def generate_excel(articles):
+    """Gera Excel com metadados RICOS e TRATADOS."""
+    flattened_data = []
+    
+    for art in articles:
+        # Blindagem do DOI (transforma None em string vazia antes do replace)
+        doi = (art.get('doi') or '').replace('https://doi.org/', '')
+        
+        # Garante título
+        titulo = art.get('title') or art.get('display_name') or 'Sem título'
+
+        flattened_data.append({
             'Título': titulo,
-            'Ano': ano,
-            'Data Publicação': data_pub,
-            'Autores': autores,
-            'Revista/Fonte': revista,
-            'Conceitos (Score/Level)': conceitos,
-            'Tipo': tipo,
-            'Citações': citacoes,
-            'DOI': doi_safe,
-            'Abstract': abstract
-        }
-        data.append(row)
+            'Ano': _get_year(art), # USANDO NOVA FUNÇÃO DE ANO
+            'Autores': _extract_authors(art),
+            'Revista/Fonte': _safe_get_source(art),
+            'Citações': art.get('cited_by_count', 0),
+            'DOI': doi,
+            'Conceitos (Keywords)': _extract_concepts_string(art),
+            'Tipo': art.get('type', ''),
+            'Link': art.get('doi') or art.get('id', '')
+        })
     
-    return pd.DataFrame(data)
-
-def generate_excel(results):
-    """Gera Excel com a nova coluna de conceitos."""
-    df = prepare_dataframe(results)
-    output = BytesIO()
-    
-    # Se o dataframe estiver vazio, retorna buffer vazio mas válido
-    if df.empty:
-        df = pd.DataFrame({'Info': ['Nenhum dado encontrado para exportar']})
-
+    df = pd.DataFrame(flattened_data)
+    output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Resultados Delinéia')
-        worksheet = writer.sheets['Resultados Delinéia']
-        
-        # Ajustes de largura
-        worksheet.set_column('B:B', 40) # Título
-        worksheet.set_column('E:E', 30) # Autores
-        worksheet.set_column('F:F', 25) # Revista
-        worksheet.set_column('G:G', 50) # Conceitos
-        
+        df.to_excel(writer, index=False, sheet_name='Resultados')
+        worksheet = writer.sheets['Resultados']
+        for idx, col in enumerate(df.columns):
+            worksheet.set_column(idx, idx, 20)
+            
     return output.getvalue()
 
-def generate_bibtex(results):
-    """Gera BibTeX incluindo conceitos como keywords (Versão Blindada)."""
-    if not results:
-        return ""
+def generate_bibtex(articles):
+    """Gera BibTeX robusto."""
+    db = BibDatabase()
+    entries = []
+    
+    for i, art in enumerate(articles):
+        authors = _extract_authors(art).split(', ')
+        first_author = authors[0].split(' ')[-1] if authors and authors[0] else "Unknown"
+        year = str(_get_year(art) or 'nd')
         
-    bibtex_str = ""
-    for r in results:
-        authors = clean_authors(r.get('authorships'))
+        clean_author = "".join(filter(str.isalnum, first_author))
+        citation_key = f"{clean_author}{year}{i}"
         
-        # Autor seguro para a chave
-        if authors:
-            first_author_raw = authors.split(',')[0]
-            # Pega apenas o último sobrenome
-            first_author = first_author_raw.split(' ')[-1]
-        else:
-            first_author = "Unknown"
-            
-        # Limpa caracteres não alfanuméricos da chave
-        first_author = "".join(filter(str.isalnum, first_author))
+        # Blindagem do DOI
+        doi = (art.get('doi') or '').replace('https://doi.org/', '')
         
-        year = str(r.get('publication_year') or '0000')
-        cite_key = f"{first_author}{year}"
+        entry = {
+            'ENTRYTYPE': 'article',
+            'ID': citation_key,
+            'title': art.get('title', 'Sem título'),
+            'year': year,
+            'author': " and ".join(authors),
+            'journal': _safe_get_source(art),
+            'doi': doi,
+            'url': art.get('doi') or art.get('id', ''),
+            'keywords': _extract_concepts_string(art)
+        }
         
-        # Tratamento seguro de DOI
-        doi_raw = r.get('doi')
-        doi_clean = doi_raw.replace('https://doi.org/', '') if doi_raw else ""
+        entry = {k: v for k, v in entry.items() if v}
+        entries.append(entry)
         
-        # Título e Revista seguros
-        title = r.get('title') or "No Title"
-        journal = safe_get(r, ['primary_location', 'source', 'display_name'])
-        
-        keywords_list = get_concept_names(r.get('concepts'))
-        keywords_str = ", ".join(keywords_list)
-        
-        bibtex_str += f"@article{{{cite_key},\n"
-        bibtex_str += f"  author = {{{authors.replace(', ', ' and ')}}},\n"
-        bibtex_str += f"  title = {{{title}}},\n"
-        if journal:
-            bibtex_str += f"  journal = {{{journal}}},\n"
-        bibtex_str += f"  year = {{{year}}},\n"
-        if doi_clean:
-            bibtex_str += f"  doi = {{{doi_clean}}},\n"
-        if keywords_str:
-            bibtex_str += f"  keywords = {{{keywords_str}}},\n"
-        bibtex_str += "}\n\n"
-    return bibtex_str
+    db.entries = entries
+    writer = BibTexWriter()
+    return writer.write(db)
 
-def generate_ris(results):
-    """Gera RIS com keywords para cada conceito (Versão Blindada)."""
-    if not results:
-        return ""
+def generate_ris(articles):
+    """Gera arquivo RIS."""
+    lines = []
+    for art in articles:
+        lines.append("TY  - JOUR")
+        lines.append(f"TI  - {art.get('title', '')}")
         
-    ris_str = ""
-    for r in results:
-        ris_str += "TY  - JOUR\n"
-        
-        title = r.get('title') or "No Title"
-        ris_str += f"TI  - {title}\n"
-        
-        # Autores
-        raw_authors = r.get('authorships')
-        if isinstance(raw_authors, list):
-            for auth in raw_authors:
-                name = safe_get(auth, ['author', 'display_name'])
-                if name:
-                    ris_str += f"AU  - {name}\n"
-        
-        year = r.get('publication_year') or ''
-        ris_str += f"PY  - {year}\n"
-        
-        journal = safe_get(r, ['primary_location', 'source', 'display_name'])
-        if journal:
-            ris_str += f"JO  - {journal}\n"
-        
-        doi_raw = r.get('doi')
-        if doi_raw:
-            doi_clean = doi_raw.replace('https://doi.org/', '')
-            ris_str += f"DO  - {doi_clean}\n"
-            ris_str += f"UR  - {doi_raw}\n"
-        
-        keywords_list = get_concept_names(r.get('concepts'))
-        for kw in keywords_list:
-            ris_str += f"KW  - {kw}\n"
+        raw_authors = _extract_authors(art).split(', ')
+        for auth in raw_authors:
+            if auth: lines.append(f"AU  - {auth}")
             
-        ris_str += "ER  - \n\n"
-    return ris_str
+        lines.append(f"PY  - {_get_year(art)}///")
+        lines.append(f"JO  - {_safe_get_source(art)}")
+        
+        # Blindagem do DOI
+        doi = (art.get('doi') or '').replace('https://doi.org/', '')
+        if doi: lines.append(f"DO  - {doi}")
+        
+        kws = _extract_concepts_string(art).split(', ')
+        for kw in kws:
+            if kw: lines.append(f"KW  - {kw.strip()}")
+            
+        lines.append(f"UR  - {art.get('doi') or art.get('id', '')}")
+        lines.append("ER  - \n")
+        
+    return "\n".join(lines)
+
+def generate_pajek_net(graph):
+    """Gera arquivo .net para Pajek/VOSviewer."""
+    if not graph: return b""
+    
+    if graph.is_directed():
+        G = graph.to_undirected()
+    else:
+        G = graph
+        
+    output = io.BytesIO()
+    try:
+        lines = [f"*Vertices {G.number_of_nodes()}"]
+        nodes = list(G.nodes())
+        node_map = {name: i+1 for i, name in enumerate(nodes)}
+        
+        for name in nodes:
+            safe_name = name.replace('"', "'")
+            lines.append(f'{node_map[name]} "{safe_name}"')
+            
+        lines.append("*Edges")
+        for u, v, data in G.edges(data=True):
+            weight = data.get('weight', 1)
+            lines.append(f"{node_map[u]} {node_map[v]} {weight}")
+            
+        output.write("\n".join(lines).encode('utf-8'))
+        return output.getvalue()
+    except Exception as e:
+        return f"Erro: {str(e)}".encode('utf-8')
