@@ -343,27 +343,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- HACK: Scroll Para o Topo (Versão Container Streamlit) ---
-components.html(
-    """
-    <script>
-        try {
-            // Tenta rolar a janela principal do navegador
-            window.parent.scrollTo(0, 0);
-            
-            // Tenta rolar o container específico onde o Streamlit coloca o conteúdo
-            var mainContainer = window.parent.document.querySelector('section.main');
-            if (mainContainer) {
-                mainContainer.scrollTo(0, 0);
-            }
-        } catch (e) {
-            console.log("Erro no scroll: " + e);
-        }
-    </script>
-    """,
-    height=0
-)
-
 # ==================== CSS CUSTOMIZADO (BOTÕES VERDES) ====================
 st.markdown("""
 <style>
@@ -659,7 +638,6 @@ with tab1:
                                     tempo_fim - tempo_inicio
                                 )
 
-                            # Avançar para próxima etapa
                             st.session_state.step = 2
                             st.rerun()
 
