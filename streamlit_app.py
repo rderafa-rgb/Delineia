@@ -22,6 +22,15 @@ import matplotlib.pyplot as plt
 import export_utils as exp
 from export_utils import generate_excel, generate_bibtex, generate_ris, generate_pajek_net
 import streamlit.components.v1 as components
+import os
+import io
+import tempfile
+# Importação PyVis para Tab3
+try:
+    from pyvis.network import Network
+    PYVIS_AVAILABLE = True
+except ImportError:
+    PYVIS_AVAILABLE = False
 
 # ==================== BIBLIOTECA DE GÊNERO ====================
 
@@ -478,7 +487,7 @@ def add_badge(badge_name: str) -> bool:
     return True
 
 # ==================== ABAS PRINCIPAIS ====================
-tab1, tab2 = st.tabs(["📚 Delineascópio", "📊 Painel"])
+tab1, tab2, tab3 = st.tabs(["📚 Delineascópio", "📊 Painel", "🔬 Interação"])
 
 # ==================== ABA 1: DELINEASCÓPIO ====================
 with tab1:
@@ -3029,4 +3038,342 @@ Total de Artigos: {len(articles)}
                         use_container_width=True
                     )
 
+    rodape_institucional()
+
+# ==================== ABA 3: INTERAÇÃO (FUNÇÕES) ====================
+
+def render_interactive_graph_pyvis(G: nx.Graph, selected_concepts: list = None, height: str = "550px") -> None:
+    """
+    Renderiza um grafo NetworkX de forma interativa usando PyVis.
+    """
+    
+    if not PYVIS_AVAILABLE:
+        st.error("⚠️ PyVis não está instalado. Adicione 'pyvis>=0.3.0' ao requirements.txt")
+        return
+    
+    if G is None or len(G.nodes()) == 0:
+        st.warning("Grafo vazio ou não disponível")
+        return
+    
+    # Criar rede PyVis
+    nt = Network(
+        height=height,
+        width="100%",
+        bgcolor="#ffffff",
+        font_color="#333333",
+        directed=False
+    )
+    
+    # Configurar física para melhor visualização
+    nt.set_options("""
+    {
+        "nodes": {
+            "borderWidth": 2,
+            "borderWidthSelected": 4,
+            "font": {
+                "size": 14,
+                "face": "arial"
+            }
+        },
+        "edges": {
+            "color": {
+                "color": "#cccccc",
+                "highlight": "#10b981"
+            },
+            "smooth": {
+                "type": "continuous"
+            }
+        },
+        "physics": {
+            "forceAtlas2Based": {
+                "gravitationalConstant": -60,
+                "centralGravity": 0.015,
+                "springLength": 120,
+                "springConstant": 0.08
+            },
+            "maxVelocity": 50,
+            "solver": "forceAtlas2Based",
+            "timestep": 0.35,
+            "stabilization": {
+                "enabled": true,
+                "iterations": 200,
+                "updateInterval": 25
+            }
+        },
+        "interaction": {
+            "hover": true,
+            "tooltipDelay": 150,
+            "hideEdgesOnDrag": true,
+            "zoomView": true,
+            "dragView": true
+        }
+    }
+    """)
+    
+    # Converter NetworkX para PyVis
+    nt.from_nx(G)
+    
+    # Calcular métricas para visualização
+    degrees = dict(G.degree())
+    max_degree = max(degrees.values()) if degrees else 1
+    
+    # Lista de conceitos selecionados (para destaque)
+    selected = selected_concepts or []
+    
+    # Ajustar aparência dos nós
+    for node in nt.nodes:
+        node_id = node['id']
+        degree = degrees.get(node_id, 1)
+        
+        # Tamanho proporcional ao grau
+        node['size'] = 18 + (degree / max_degree) * 30
+        
+        # Cor diferenciada para conceitos selecionados
+        if node_id in selected:
+            node['color'] = {
+                'background': '#f59e0b',
+                'border': '#d97706',
+                'highlight': {
+                    'background': '#fbbf24',
+                    'border': '#b45309'
+                }
+            }
+        else:
+            node['color'] = {
+                'background': '#10b981',
+                'border': '#059669',
+                'highlight': {
+                    'background': '#34d399',
+                    'border': '#047857'
+                }
+            }
+        
+        # Tooltip com informações
+        status = "✓ Selecionado" if node_id in selected else ""
+        node['title'] = f"<b>{node_id}</b><br>Conexões: {degree}<br>{status}"
+    
+    # Salvar em arquivo temporário
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.html', mode='w', encoding='utf-8') as f:
+        nt.save_graph(f.name)
+        temp_path = f.name
+    
+    # Ler e exibir
+    try:
+        with open(temp_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+        
+        components.html(html_content, height=int(height.replace('px', '')) + 50, scrolling=False)
+    finally:
+        try:
+            os.unlink(temp_path)
+        except:
+            pass
+
+def render_tab3_interacao():
+    """
+    Renderiza a Tab3: Interação com o Grafo
+    """
+    
+    st.title("🔬 Exploração Interativa do Grafo")
+    st.caption("Visualize e explore a rede de conceitos de forma dinâmica")
+    
+    # Verificar se há dados disponíveis
+    if st.session_state.get('resultado') is None:
+        st.info("👈 Complete primeiro o **Delineascópio** para visualizar o grafo interativo.")
+        st.markdown("""
+        **O que você encontrará aqui:**
+        - 🕸️ Grafo interativo (arraste, zoom, clique)
+        - 📊 Estatísticas de centralidade
+        - 🔍 Filtros dinâmicos por grau e peso
+        - 💾 Exportação para Gephi e outros softwares
+        """)
+        return
+    
+    r = st.session_state.resultado
+    G = r.get('graph')
+    
+    if G is None or len(G.nodes()) == 0:
+        st.warning("⚠️ Grafo não disponível. Execute o pipeline novamente.")
+        return
+    
+    # Conceitos selecionados pelo usuário
+    selected_concepts = st.session_state.get('selected_concepts', [])
+    
+    # ==================== CONTROLES DE FILTRO ====================
+    with st.expander("⚙️ **Filtros do Grafo**", expanded=True):
+        col_f1, col_f2, col_f3 = st.columns(3)
+        
+        with col_f1:
+            max_deg_value = max(dict(G.degree()).values()) if G.nodes() else 1
+            min_degree = st.slider(
+                "Grau mínimo dos nós:",
+                min_value=1,
+                max_value=max(max_deg_value, 2),
+                value=1,
+                help="Remove nós com poucas conexões"
+            )
+        
+        with col_f2:
+            if G.edges():
+                edge_weights = [G[u][v].get('weight', 1) for u, v in G.edges()]
+                min_w, max_w = int(min(edge_weights)), int(max(edge_weights))
+                min_weight = st.slider(
+                    "Peso mínimo das arestas:",
+                    min_value=min_w,
+                    max_value=max(max_w, min_w + 1),
+                    value=min_w,
+                    help="Remove conexões fracas"
+                )
+            else:
+                min_weight = 1
+        
+        with col_f3:
+            max_nodes = st.slider(
+                "Máximo de nós:",
+                min_value=5,
+                max_value=min(len(G.nodes()), 50),
+                value=min(len(G.nodes()), 20),
+                help="Limita visualização aos mais conectados"
+            )
+    
+    # ==================== APLICAR FILTROS ====================
+    G_filtered = G.copy()
+    
+    nodes_to_remove = [n for n in G_filtered.nodes() if G_filtered.degree(n) < min_degree]
+    G_filtered.remove_nodes_from(nodes_to_remove)
+    
+    edges_to_remove = [(u, v) for u, v in G_filtered.edges() 
+                       if G_filtered[u][v].get('weight', 1) < min_weight]
+    G_filtered.remove_edges_from(edges_to_remove)
+    
+    if len(G_filtered.nodes()) > max_nodes:
+        degrees = dict(G_filtered.degree())
+        top_nodes = sorted(degrees, key=degrees.get, reverse=True)[:max_nodes]
+        G_filtered = G_filtered.subgraph(top_nodes).copy()
+    
+    isolates = list(nx.isolates(G_filtered))
+    G_filtered.remove_nodes_from(isolates)
+    
+    # ==================== MÉTRICAS ====================
+    st.divider()
+    
+    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+    col_m1.metric("🔵 Nós Visíveis", len(G_filtered.nodes()))
+    col_m2.metric("🔗 Arestas Visíveis", len(G_filtered.edges()))
+    
+    if len(G_filtered.nodes()) > 1:
+        density = nx.density(G_filtered)
+        col_m3.metric("📐 Densidade", f"{density:.3f}")
+    else:
+        col_m3.metric("📐 Densidade", "N/A")
+    
+    col_m4.metric("⭐ Selecionados", len([c for c in selected_concepts if c in G_filtered.nodes()]))
+    
+    # ==================== GRAFO INTERATIVO ====================
+    st.divider()
+    
+    if len(G_filtered.nodes()) > 0:
+        st.subheader("🕸️ Grafo Interativo")
+        st.caption("**Arraste** os nós para reorganizar • **Scroll** para zoom • **Clique** para destacar • Nós dourados = selecionados")
+        
+        render_interactive_graph_pyvis(G_filtered, selected_concepts, height="550px")
+    else:
+        st.warning("⚠️ Nenhum nó atende aos critérios de filtro. Ajuste os controles acima.")
+    
+    st.divider()
+    
+    # ==================== ESTATÍSTICAS AVANÇADAS ====================
+    col_stats1, col_stats2 = st.columns(2)
+    
+    with col_stats1:
+        with st.expander("📊 **Centralidade de Grau** (Top 10)", expanded=False):
+            if len(G_filtered.nodes()) > 0:
+                degree_centrality = nx.degree_centrality(G_filtered)
+                sorted_dc = sorted(degree_centrality.items(), key=lambda x: x[1], reverse=True)[:10]
+                
+                for i, (node, centrality) in enumerate(sorted_dc, 1):
+                    marker = "🟡" if node in selected_concepts else "🟢"
+                    st.write(f"{i}. {marker} **{node}**: {centrality:.3f}")
+    
+    with col_stats2:
+        with st.expander("🔀 **Centralidade de Intermediação** (Top 10)", expanded=False):
+            if len(G_filtered.nodes()) > 1:
+                try:
+                    betweenness = nx.betweenness_centrality(G_filtered)
+                    sorted_bc = sorted(betweenness.items(), key=lambda x: x[1], reverse=True)[:10]
+                    
+                    for i, (node, centrality) in enumerate(sorted_bc, 1):
+                        marker = "🟡" if node in selected_concepts else "🟢"
+                        st.write(f"{i}. {marker} **{node}**: {centrality:.3f}")
+                except:
+                    st.write("Não disponível para este grafo")
+            else:
+                st.write("Precisa de pelo menos 2 nós")
+    
+    # ==================== EXPORTAÇÃO ====================
+    with st.expander("💾 **Exportar Grafo Filtrado**", expanded=False):
+        st.caption("Baixe o grafo com os filtros aplicados para análise em outros softwares.")
+        
+        col_exp1, col_exp2, col_exp3 = st.columns(3)
+        
+        with col_exp1:
+            try:
+                graphml_buffer = io.BytesIO()
+                nx.write_graphml(G_filtered, graphml_buffer)
+                graphml_buffer.seek(0)
+                
+                st.download_button(
+                    "📥 GraphML (Gephi)",
+                    data=graphml_buffer.getvalue(),
+                    file_name="grafo_interativo.graphml",
+                    mime="application/xml",
+                    use_container_width=True,
+                    help="Para Gephi ou Cytoscape"
+                )
+            except Exception as e:
+                st.error(f"Erro: {e}")
+        
+        with col_exp2:
+            edges_data = ["source,target,weight"]
+            for u, v in G_filtered.edges():
+                weight = G_filtered[u][v].get('weight', 1)
+                edges_data.append(f"{u},{v},{weight}")
+            
+            csv_content = "\n".join(edges_data)
+            
+            st.download_button(
+                "📥 Arestas (CSV)",
+                data=csv_content,
+                file_name="grafo_arestas.csv",
+                mime="text/csv",
+                use_container_width=True,
+                help="Lista de conexões"
+            )
+        
+        with col_exp3:
+            nodes_data = ["node,degree,degree_centrality,selected"]
+            degree_cent = nx.degree_centrality(G_filtered) if len(G_filtered.nodes()) > 0 else {}
+            
+            for node in G_filtered.nodes():
+                deg = G_filtered.degree(node)
+                dc = degree_cent.get(node, 0)
+                sel = "sim" if node in selected_concepts else "não"
+                nodes_data.append(f"{node},{deg},{dc:.4f},{sel}")
+            
+            csv_nodes = "\n".join(nodes_data)
+            
+            st.download_button(
+                "📥 Nós (CSV)",
+                data=csv_nodes,
+                file_name="grafo_nos.csv",
+                mime="text/csv",
+                use_container_width=True,
+                help="Lista de conceitos com métricas"
+            )
+
+    rodape_institucional()
+
+# ==================== ABA 3: INTERAÇÃO (CHAMADA) ====================
+with tab3:
+    render_tab3_interacao()
     rodape_institucional()
