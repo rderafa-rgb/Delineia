@@ -179,12 +179,20 @@ def enviar_resultados_pipeline(id_usuario, result, tempo_segundos):
         # Preparar linha
         top_conceitos_str = ",".join(result.get('top_concepts', [])[:9])
         
+        # Extrair termos sugeridos
+        termos_sugeridos = ""
+        suggested_kws = result.get('suggested_keywords', [])
+        if suggested_kws:
+            termos_sugeridos = ", ".join([
+                f"{kw.get('term_pt', '')} ({kw.get('term_en', '')})" 
+                for kw in suggested_kws
+            ])
+        
         row = [
             id_usuario,
             datetime.now().strftime("%d/%m/%Y às %H:%M"),
             result.get('search_string', ''),
-            '',  # termos_sugeridos
-            result.get('full_report', '')[:500],
+            termos_sugeridos,
             result.get('search_objective', ''),
             result.get('articles_count', 0),
             top_conceitos_str,
@@ -199,6 +207,37 @@ def enviar_resultados_pipeline(id_usuario, result, tempo_segundos):
         
     except Exception as e:
         st.error(f"❌ Erro ao enviar resultados: {e}")
+        return False
+
+def atualizar_termos_sugeridos(id_usuario, suggested_keywords):
+    """Atualiza coluna termos_sugeridos no Google Sheets"""
+    try:
+        sheet = conectar_google_sheets()
+        if sheet is None:
+            return False
+        
+        worksheet = sheet.worksheet(ABA_RESULTADOS_PIPELINE)
+        
+        # Formatar termos
+        termos_str = ", ".join([
+            f"{kw.get('term_pt', '')} ({kw.get('term_en', '')})" 
+            for kw in suggested_keywords
+        ]) if suggested_keywords else ""
+        
+        # Encontrar linha do usuário (coluna A = id_usuario)
+        try:
+            cell = worksheet.find(id_usuario)
+            if cell:
+                # Atualizar coluna D (termos_sugeridos)
+                worksheet.update_cell(cell.row, 4, termos_str)
+                return True
+        except:
+            pass
+        
+        return False
+        
+    except Exception as e:
+        # Silencioso - não crítico
         return False
 
 def enviar_formulario_avaliacao(id_usuario, avaliacao_data):
@@ -253,11 +292,9 @@ def enviar_formulario_avaliacao(id_usuario, avaliacao_data):
             'Sim' if avaliacao_data.get('tcle_aceite', False) else 'Não',
             'Sim' if avaliacao_data.get('tcle_rejeita', False) else 'Não',
             'Sim' if avaliacao_data.get('aceite_continuidade', False) else 'Não',
-            'Sim' if avaliacao_data.get('rejeita_continuidade', False) else 'Não'
+            'Sim' if avaliacao_data.get('rejeita_continuidade', False) else 'Não',
             ",".join(st.session_state.get('badges', [])),
-            tempo_total,
-            st.session_state.get('play_video', False),
-            st.session_state.get('open_prologo', False)
+            tempo_total
         ]
         
         worksheet.append_row(row, value_input_option='RAW')
@@ -796,6 +833,12 @@ with tab1:
                             )
 
                             st.session_state.interpretation_generated = True
+                            # Atualizar termos sugeridos no Sheets
+                            if 'id_usuario' in st.session_state:
+                                atualizar_termos_sugeridos(
+                                    st.session_state.id_usuario,
+                                    st.session_state.suggested_keywords
+                                )
 
                         st.session_state.sub_step = 'c'
                         st.rerun()
