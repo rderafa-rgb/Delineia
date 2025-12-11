@@ -3041,10 +3041,49 @@ Total de Artigos: {len(articles)}
     rodape_institucional()
 
 # ==================== ABA 3: INTERAÇÃO (FUNÇÕES) ====================
+def extract_concept_metadata(articles: list) -> dict:
+    """
+    Extrai metadados agregados (frequência, score médio, level médio) de cada conceito.
+    
+    Args:
+        articles: Lista de artigos do OpenAlex (raw_articles do resultado)
+    
+    Returns:
+        Dict com metadados: {concept_name: {'freq': int, 'score': float, 'level': float}}
+    """
+    from collections import defaultdict
+    
+    concept_data = defaultdict(lambda: {'scores': [], 'levels': [], 'count': 0})
+    
+    for article in articles:
+        for concept in article.get('concepts', []):
+            name = concept.get('display_name', '')
+            if name:
+                concept_data[name]['scores'].append(concept.get('score', 0))
+                concept_data[name]['levels'].append(concept.get('level', 0))
+                concept_data[name]['count'] += 1
+    
+    # Calcular médias
+    metadata = {}
+    for name, data in concept_data.items():
+        metadata[name] = {
+            'freq': data['count'],
+            'score': sum(data['scores']) / len(data['scores']) if data['scores'] else 0,
+            'level': sum(data['levels']) / len(data['levels']) if data['levels'] else 0
+        }
+    
+    return metadata
 
-def render_interactive_graph_pyvis(G: nx.Graph, selected_concepts: list = None, height: str = "550px") -> None:
+def render_interactive_graph_pyvis(G: nx.Graph, selected_concepts: list = None, 
+                                    concept_metadata: dict = None, height: str = "550px") -> None:
     """
     Renderiza um grafo NetworkX de forma interativa usando PyVis.
+    
+    Args:
+        G: Grafo NetworkX
+        selected_concepts: Lista de conceitos selecionados (para destaque)
+        concept_metadata: Dict com metadados {concept: {'freq', 'score', 'level'}}
+        height: Altura do iframe
     """
     
     if not PYVIS_AVAILABLE:
@@ -3119,14 +3158,32 @@ def render_interactive_graph_pyvis(G: nx.Graph, selected_concepts: list = None, 
     
     # Lista de conceitos selecionados (para destaque)
     selected = selected_concepts or []
+    metadata = concept_metadata or {}
     
+    # Calcular métricas para visualização
+    degrees = dict(G.degree())
+    max_degree = max(degrees.values()) if degrees else 1
+    
+    # Lista de conceitos selecionados (para destaque)
+    selected = selected_concepts or []
+    metadata = concept_metadata or {}
+    
+    # Calcular frequência máxima para normalização do tamanho
+    max_freq = max([m.get('freq', 1) for m in metadata.values()]) if metadata else max_degree
+        
     # Ajustar aparência dos nós
     for node in nt.nodes:
         node_id = node['id']
         degree = degrees.get(node_id, 1)
         
-        # Tamanho proporcional ao grau
-        node['size'] = 18 + (degree / max_degree) * 30
+        # Obter metadados do conceito
+        meta = metadata.get(node_id, {})
+        freq = meta.get('freq', degree)
+        score = meta.get('score', 0)
+        level = meta.get('level', 0)
+        
+        # Tamanho proporcional à FREQUÊNCIA
+        node['size'] = 18 + (freq / max_freq) * 35
         
         # Cor diferenciada para conceitos selecionados
         if node_id in selected:
@@ -3148,9 +3205,18 @@ def render_interactive_graph_pyvis(G: nx.Graph, selected_concepts: list = None, 
                 }
             }
         
-        # Tooltip com informações
+        # Tooltip em TEXTO SIMPLES
         status = "✓ Selecionado" if node_id in selected else ""
-        node['title'] = f"<b>{node_id}</b><br>Conexões: {degree}<br>{status}"
+        level_desc = ["Geral", "Campo", "Subcampo", "Nicho", "Específico", "Ultra-específico"]
+        level_text = level_desc[int(level)] if 0 <= level < len(level_desc) else f"Nível {level:.0f}"
+        
+        node['title'] = f"""{node_id}
+━━━━━━━━━━━━━━━━━━━━
+📊 Frequência: {freq} artigos
+🎯 Score médio: {score:.2f}
+📐 Level: {level:.1f} ({level_text})
+🔗 Conexões: {degree}
+{status}"""    
     
     # Salvar em arquivo temporário
     with tempfile.NamedTemporaryFile(delete=False, suffix='.html', mode='w', encoding='utf-8') as f:
@@ -3187,10 +3253,14 @@ def render_tab3_interacao():
         - 🔍 Filtros dinâmicos por grau e peso
         - 💾 Exportação para Gephi e outros softwares
         """)
+        rodape_institucional()
         return
     
     r = st.session_state.resultado
     G = r.get('graph')
+    # Extrair metadados dos conceitos
+    articles = r.get('raw_articles', [])
+    concept_metadata = extract_concept_metadata(articles)
     
     if G is None or len(G.nodes()) == 0:
         st.warning("⚠️ Grafo não disponível. Execute o pipeline novamente.")
@@ -3276,7 +3346,7 @@ def render_tab3_interacao():
         st.subheader("🕸️ Grafo Interativo")
         st.caption("**Arraste** os nós para reorganizar • **Scroll** para zoom • **Clique** para destacar • Nós dourados = selecionados")
         
-        render_interactive_graph_pyvis(G_filtered, selected_concepts, height="550px")
+        render_interactive_graph_pyvis(G_filtered, selected_concepts, concept_metadata, height="550px")
     else:
         st.warning("⚠️ Nenhum nó atende aos critérios de filtro. Ajuste os controles acima.")
     
@@ -3376,4 +3446,3 @@ def render_tab3_interacao():
 # ==================== ABA 3: INTERAÇÃO (CHAMADA) ====================
 with tab3:
     render_tab3_interacao()
-    rodape_institucional()
