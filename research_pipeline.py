@@ -838,12 +838,7 @@ Sugira exatamente 5 palavras-chave complementares que:
                 'titulo': 'Chave de Busca Focada (Conceitos Centrais)',
                 'descricao': 'Cruza os conceitos mais importantes usando AND para alta precisão.',
                 'string': ''
-            },
-            'interseccional': {
-                'titulo': 'Chave de Busca Interseccional (Tema + Conceito)',
-                'descricao': 'Garante que os conceitos selecionados apareçam dentro do contexto do seu tema.',
-                'string': ''
-            }
+            },            
         }
         
         # ========== 4. LÓGICA DE CONSTRUÇÃO ==========
@@ -876,29 +871,6 @@ Sugira exatamente 5 palavras-chave complementares que:
         elif pool_focada:
             strings['focada']['string'] = f'"{pool_focada[0]}"'
         
-        # --- C. LÓGICA INTERSECCIONAL (Tema Traduzido AND (Conceitos OR Sugestões)) ---
-        # Objetivo: Contextualizar. Garante que o TEMA esteja presente.
-        
-        # Monta o bloco de conceitos (usando OR para dar flexibilidade ao tema)
-        concept_block = ""
-        context_pool = (concepts_en[:2] + suggested_en[:1]) # Pega 2 do grafo e 1 sugestão
-        context_pool = list(dict.fromkeys(context_pool))
-        
-        if len(context_pool) >= 2:
-            concept_block = ' OR '.join([f'"{t}"' for t in context_pool])
-            concept_block = f"({concept_block})"
-        elif context_pool:
-            concept_block = f'"{context_pool[0]}"'
-            
-        # Monta a string final: "TEMA EM INGLÊS" AND (Conceitos...)
-        if tema_clean and concept_block:
-            strings['interseccional']['string'] = f'"{tema_clean}" AND {concept_block}'
-        elif concept_block:
-             # Fallback se a tradução do tema falhar
-             strings['interseccional']['string'] = concept_block
-        else:
-             strings['interseccional']['string'] = f'"{tema_clean}"'
-
         return strings
 
     def _generate_fallback_glossary(self, concepts: List[str], tema: str) -> str:

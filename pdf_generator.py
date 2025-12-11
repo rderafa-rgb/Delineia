@@ -279,7 +279,7 @@ def generate_pdf_report(
     suggested_keywords : list
         Lista de dicts com sugestões de palavras-chave [{term_pt, term_en, description}, ...]
     suggested_strings : dict
-        Dict com strings de busca {ampla: {string, objetivo}, focada: {...}, interseccional: {...}}
+        Dict com strings de busca {ampla: {string, objetivo}, focada: {...}}
     badges : list
         Lista de distintivos conquistados
     
@@ -505,11 +505,10 @@ def generate_pdf_report(
             styles['body']
         ))
         
-        string_order = ['ampla', 'focada', 'interseccional']
+        string_order = ['ampla', 'focada']
         string_labels = {
             'ampla': ('Chave de busca ampla (exploratória)', 'Usa operadores OR para cobrir o máximo de variações dos conceitos.'),
-            'focada': ('Chave de busca focada (conceitos centrais)', 'Cruza os conceitos mais importantes usando AND para alta precisão.'),
-            'interseccional': ('Chave de busca interseccional (tema + conceito)', 'Garante que os conceitos selecionados apareçam dentro do contexto do seu tema.')
+            'focada': ('Chave de busca focada (conceitos centrais)', 'Cruza os conceitos mais importantes usando AND para alta precisão.'),            
         }
         
         for key in string_order:
