@@ -3041,15 +3041,10 @@ Total de Artigos: {len(articles)}
     rodape_institucional()
 
 # ==================== ABA 3: INTERAÇÃO (FUNÇÕES) ====================
+
 def extract_concept_metadata(articles: list) -> dict:
     """
     Extrai metadados agregados (frequência, score médio, level médio) de cada conceito.
-    
-    Args:
-        articles: Lista de artigos do OpenAlex (raw_articles do resultado)
-    
-    Returns:
-        Dict com metadados: {concept_name: {'freq': int, 'score': float, 'level': float}}
     """
     from collections import defaultdict
     
@@ -3063,7 +3058,6 @@ def extract_concept_metadata(articles: list) -> dict:
                 concept_data[name]['levels'].append(concept.get('level', 0))
                 concept_data[name]['count'] += 1
     
-    # Calcular médias
     metadata = {}
     for name, data in concept_data.items():
         metadata[name] = {
@@ -3074,16 +3068,68 @@ def extract_concept_metadata(articles: list) -> dict:
     
     return metadata
 
+
+def calculate_layout_positions(G: nx.Graph, layout_name: str) -> dict:
+    """
+    Calcula posições dos nós usando diferentes algoritmos de layout.
+    """
+    scale = 500
+    
+    if layout_name == "Kamada-Kawai":
+        try:
+            pos = nx.kamada_kawai_layout(G, scale=scale)
+        except:
+            pos = nx.spring_layout(G, scale=scale, seed=42)
+    
+    elif layout_name == "Circular":
+        pos = nx.circular_layout(G, scale=scale)
+    
+    elif layout_name == "Shell (concêntrico)":
+        degrees = dict(G.degree())
+        if degrees:
+            sorted_nodes = sorted(degrees.keys(), key=lambda x: degrees[x], reverse=True)
+            n = len(sorted_nodes)
+            shells = [
+                sorted_nodes[:n//3] if n > 3 else sorted_nodes,
+                sorted_nodes[n//3:2*n//3] if n > 3 else [],
+                sorted_nodes[2*n//3:] if n > 3 else []
+            ]
+            shells = [s for s in shells if s]
+            pos = nx.shell_layout(G, nlist=shells, scale=scale)
+        else:
+            pos = nx.shell_layout(G, scale=scale)
+    
+    elif layout_name == "Spectral":
+        try:
+            pos = nx.spectral_layout(G, scale=scale)
+        except:
+            pos = nx.spring_layout(G, scale=scale, seed=42)
+    
+    elif layout_name == "Random":
+        pos = nx.random_layout(G, seed=42)
+        pos = {k: (v[0] * scale, v[1] * scale) for k, v in pos.items()}
+    
+    elif layout_name == "Fruchterman-Reingold":
+        k_val = 2 / (len(G.nodes()) ** 0.5) if len(G.nodes()) > 0 else 1
+        pos = nx.spring_layout(G, scale=scale, seed=42, k=k_val)
+    
+    else:
+        return None
+    
+    # Converter numpy.float32 para float nativo
+    if pos:
+        pos = {k: (float(v[0]), float(v[1])) for k, v in pos.items()}
+    
+    return pos
+
+
 def render_interactive_graph_pyvis(G: nx.Graph, selected_concepts: list = None, 
-                                    concept_metadata: dict = None, height: str = "550px") -> None:
+                                    concept_metadata: dict = None, 
+                                    layout_positions: dict = None,
+                                    enable_physics: bool = True,
+                                    height: str = "550px") -> None:
     """
     Renderiza um grafo NetworkX de forma interativa usando PyVis.
-    
-    Args:
-        G: Grafo NetworkX
-        selected_concepts: Lista de conceitos selecionados (para destaque)
-        concept_metadata: Dict com metadados {concept: {'freq', 'score', 'level'}}
-        height: Altura do iframe
     """
     
     if not PYVIS_AVAILABLE:
@@ -3094,7 +3140,6 @@ def render_interactive_graph_pyvis(G: nx.Graph, selected_concepts: list = None,
         st.warning("Grafo vazio ou não disponível")
         return
     
-    # Criar rede PyVis
     nt = Network(
         height=height,
         width="100%",
@@ -3103,89 +3148,80 @@ def render_interactive_graph_pyvis(G: nx.Graph, selected_concepts: list = None,
         directed=False
     )
     
-    # Configurar física para melhor visualização
-    nt.set_options("""
-    {
-        "nodes": {
+    physics_config = "true" if enable_physics else "false"
+    
+    nt.set_options(f"""
+    {{
+        "nodes": {{
             "borderWidth": 2,
             "borderWidthSelected": 4,
-            "font": {
+            "font": {{
                 "size": 14,
                 "face": "arial"
-            }
-        },
-        "edges": {
-            "color": {
+            }}
+        }},
+        "edges": {{
+            "color": {{
                 "color": "#cccccc",
                 "highlight": "#10b981"
-            },
-            "smooth": {
+            }},
+            "smooth": {{
                 "type": "continuous"
-            }
-        },
-        "physics": {
-            "forceAtlas2Based": {
+            }}
+        }},
+        "physics": {{
+            "enabled": {physics_config},
+            "forceAtlas2Based": {{
                 "gravitationalConstant": -60,
                 "centralGravity": 0.015,
                 "springLength": 120,
                 "springConstant": 0.08
-            },
+            }},
             "maxVelocity": 50,
             "solver": "forceAtlas2Based",
             "timestep": 0.35,
-            "stabilization": {
+            "stabilization": {{
                 "enabled": true,
                 "iterations": 200,
                 "updateInterval": 25
-            }
-        },
-        "interaction": {
+            }}
+        }},
+        "interaction": {{
             "hover": true,
             "tooltipDelay": 150,
             "hideEdgesOnDrag": true,
             "zoomView": true,
             "dragView": true
-        }
-    }
+        }}
+    }}
     """)
     
-    # Converter NetworkX para PyVis
     nt.from_nx(G)
     
-    # Calcular métricas para visualização
     degrees = dict(G.degree())
     max_degree = max(degrees.values()) if degrees else 1
     
-    # Lista de conceitos selecionados (para destaque)
     selected = selected_concepts or []
     metadata = concept_metadata or {}
     
-    # Calcular métricas para visualização
-    degrees = dict(G.degree())
-    max_degree = max(degrees.values()) if degrees else 1
-    
-    # Lista de conceitos selecionados (para destaque)
-    selected = selected_concepts or []
-    metadata = concept_metadata or {}
-    
-    # Calcular frequência máxima para normalização do tamanho
     max_freq = max([m.get('freq', 1) for m in metadata.values()]) if metadata else max_degree
-        
-    # Ajustar aparência dos nós
+    
     for node in nt.nodes:
         node_id = node['id']
         degree = degrees.get(node_id, 1)
         
-        # Obter metadados do conceito
         meta = metadata.get(node_id, {})
         freq = meta.get('freq', degree)
         score = meta.get('score', 0)
         level = meta.get('level', 0)
         
-        # Tamanho proporcional à FREQUÊNCIA
         node['size'] = 18 + (freq / max_freq) * 35
         
-        # Cor diferenciada para conceitos selecionados
+        if layout_positions and node_id in layout_positions:
+            pos = layout_positions[node_id]
+            node['x'] = pos[0]
+            node['y'] = pos[1]
+        
         if node_id in selected:
             node['color'] = {
                 'background': '#f59e0b',
@@ -3205,7 +3241,6 @@ def render_interactive_graph_pyvis(G: nx.Graph, selected_concepts: list = None,
                 }
             }
         
-        # Tooltip em TEXTO SIMPLES
         status = "✓ Selecionado" if node_id in selected else ""
         level_desc = ["Geral", "Campo", "Subcampo", "Nicho", "Específico", "Ultra-específico"]
         level_text = level_desc[int(level)] if 0 <= level < len(level_desc) else f"Nível {level:.0f}"
@@ -3216,14 +3251,12 @@ def render_interactive_graph_pyvis(G: nx.Graph, selected_concepts: list = None,
 🎯 Score médio: {score:.2f}
 📐 Level: {level:.1f} ({level_text})
 🔗 Conexões: {degree}
-{status}"""    
+{status}"""
     
-    # Salvar em arquivo temporário
     with tempfile.NamedTemporaryFile(delete=False, suffix='.html', mode='w', encoding='utf-8') as f:
         nt.save_graph(f.name)
         temp_path = f.name
     
-    # Ler e exibir
     try:
         with open(temp_path, 'r', encoding='utf-8') as f:
             html_content = f.read()
@@ -3235,6 +3268,7 @@ def render_interactive_graph_pyvis(G: nx.Graph, selected_concepts: list = None,
         except:
             pass
 
+
 def render_tab3_interacao():
     """
     Renderiza a Tab3: Interação com o Grafo
@@ -3243,7 +3277,6 @@ def render_tab3_interacao():
     st.title("🔬 Exploração Interativa do Grafo")
     st.caption("Visualize e explore a rede de conceitos de forma dinâmica")
     
-    # Verificar se há dados disponíveis
     if st.session_state.get('resultado') is None:
         st.info("👈 Complete primeiro o **Delineascópio** para visualizar o grafo interativo.")
         st.markdown("""
@@ -3258,19 +3291,22 @@ def render_tab3_interacao():
     
     r = st.session_state.resultado
     G = r.get('graph')
+    
+    if G is None or len(G.nodes()) == 0:
+        st.warning("⚠️ Grafo não disponível. Execute o pipeline novamente.")
+        rodape_institucional()
+        return
+    
     # Extrair metadados dos conceitos
     articles = r.get('raw_articles', [])
     concept_metadata = extract_concept_metadata(articles)
     
-    if G is None or len(G.nodes()) == 0:
-        st.warning("⚠️ Grafo não disponível. Execute o pipeline novamente.")
-        return
-    
-    # Conceitos selecionados pelo usuário
     selected_concepts = st.session_state.get('selected_concepts', [])
     
     # ==================== CONTROLES DE FILTRO ====================
-    with st.expander("⚙️ **Filtros do Grafo**", expanded=True):
+    with st.expander(f"⚙️ **Filtros do Grafo** ({len(G.nodes())} conceitos disponíveis)", expanded=True):
+        
+        # Linha 1: Filtros numéricos
         col_f1, col_f2, col_f3 = st.columns(3)
         
         with col_f1:
@@ -3301,13 +3337,74 @@ def render_tab3_interacao():
             max_nodes = st.slider(
                 "Máximo de nós:",
                 min_value=5,
-                max_value=min(len(G.nodes()), 50),
-                value=min(len(G.nodes()), 20),
-                help="Limita visualização aos mais conectados"
+                max_value=min(len(G.nodes()), 100),
+                value=min(len(G.nodes()), 50),
+                help="Limita visualização aos mais frequentes"
+            )
+        
+        st.divider()
+        
+        # Linha 2: Seleção de conceitos (INCLUSÃO/EXCLUSÃO)
+        all_concepts_sorted = sorted(G.nodes())
+        
+        col_inc, col_exc = st.columns(2)
+        
+        with col_inc:
+            include_concepts = st.multiselect(
+                "✅ Incluir apenas estes conceitos:",
+                options=all_concepts_sorted,
+                default=[],
+                help="Deixe vazio para incluir todos. Se selecionar, mostra APENAS os escolhidos.",
+                placeholder="Todos os conceitos (padrão)"
+            )
+        
+        with col_exc:
+            exclude_concepts = st.multiselect(
+                "❌ Excluir estes conceitos:",
+                options=all_concepts_sorted,
+                default=[],
+                help="Conceitos que serão removidos do grafo.",
+                placeholder="Nenhum excluído (padrão)"
+            )
+        
+        st.divider()
+        
+        # Linha 3: Layout do grafo
+        col_layout, col_physics = st.columns(2)
+        
+        with col_layout:
+            layout_option = st.selectbox(
+                "🗺️ Layout do grafo:",
+                options=[
+                    "Força (padrão)",
+                    "Kamada-Kawai",
+                    "Circular",
+                    "Shell (concêntrico)",
+                    "Spectral",
+                    "Random",
+                    "Fruchterman-Reingold"
+                ],
+                index=0,
+                help="Algoritmo de posicionamento dos nós"
+            )
+        
+        with col_physics:
+            enable_physics = st.checkbox(
+                "⚡ Física ativa",
+                value=(layout_option == "Força (padrão)"),
+                help="Permite arrastar nós. Desative para layouts fixos."
             )
     
     # ==================== APLICAR FILTROS ====================
     G_filtered = G.copy()
+    
+    if include_concepts:
+        nodes_to_keep = set(include_concepts)
+        nodes_to_remove = [n for n in G_filtered.nodes() if n not in nodes_to_keep]
+        G_filtered.remove_nodes_from(nodes_to_remove)
+    
+    if exclude_concepts:
+        G_filtered.remove_nodes_from(exclude_concepts)
     
     nodes_to_remove = [n for n in G_filtered.nodes() if G_filtered.degree(n) < min_degree]
     G_filtered.remove_nodes_from(nodes_to_remove)
@@ -3346,7 +3443,16 @@ def render_tab3_interacao():
         st.subheader("🕸️ Grafo Interativo")
         st.caption("**Arraste** os nós para reorganizar • **Scroll** para zoom • **Clique** para destacar • Nós dourados = selecionados")
         
-        render_interactive_graph_pyvis(G_filtered, selected_concepts, concept_metadata, height="550px")
+        layout_positions = calculate_layout_positions(G_filtered, layout_option)
+        
+        render_interactive_graph_pyvis(
+            G_filtered, 
+            selected_concepts, 
+            concept_metadata, 
+            layout_positions,
+            enable_physics,
+            height="550px"
+        )
     else:
         st.warning("⚠️ Nenhum nó atende aos critérios de filtro. Ajuste os controles acima.")
     
@@ -3440,8 +3546,9 @@ def render_tab3_interacao():
                 use_container_width=True,
                 help="Lista de conceitos com métricas"
             )
-
+    
     rodape_institucional()
+
 
 # ==================== ABA 3: INTERAÇÃO (CHAMADA) ====================
 with tab3:
