@@ -3547,8 +3547,137 @@ def render_tab3_interacao():
                 help="Lista de conceitos com métricas"
             )
     
+    # ==================== CONSTRUTOR DE CHAVE DE BUSCA ====================
+    st.divider()
+    st.subheader("🔧 Construtor de Chave de Busca")
+    st.caption("Monte sua própria chave de busca selecionando conceitos do grafo")
+    
+    with st.expander("**Construir Chave Personalizada**", expanded=False):
+        
+        # Conceitos disponíveis (do grafo filtrado ou original)
+        available_concepts = sorted(G_filtered.nodes()) if len(G_filtered.nodes()) > 0 else sorted(G.nodes())
+        
+        # Linha 1: Seleção de conceitos
+        st.markdown("**1. Selecione os conceitos:**")
+        
+        selected_for_query = st.multiselect(
+            "Conceitos para incluir na chave:",
+            options=available_concepts,
+            default=[],
+            help="Escolha os conceitos que deseja combinar na chave de busca",
+            placeholder="Selecione conceitos...",
+            label_visibility="collapsed"
+        )
+        
+        if selected_for_query:
+            st.divider()
+            
+            # Linha 2: Configurações
+            st.markdown("**2. Configure a chave:**")
+            
+            col_op, col_trunc, col_aspas = st.columns(3)
+            
+            with col_op:
+                operator = st.selectbox(
+                    "Operador entre termos:",
+                    options=["AND", "OR"],
+                    index=0,
+                    help="AND = todos os termos; OR = qualquer um dos termos"
+                )
+            
+            with col_trunc:
+                use_truncation = st.checkbox(
+                    "Usar truncagem (*)",
+                    value=False,
+                    help="Adiciona * ao final para recuperar variações (ex: educ* = education, educational...)"
+                )
+            
+            with col_aspas:
+                use_quotes = st.checkbox(
+                    'Usar aspas (" ")',
+                    value=True,
+                    help="Coloca cada termo entre aspas para busca exata"
+                )
+            
+            # Opção de adicionar termos NOT
+            st.divider()
+            st.markdown("**3. Excluir termos (opcional):**")
+            
+            excluded_for_query = st.multiselect(
+                "Conceitos para EXCLUIR (NOT):",
+                options=[c for c in available_concepts if c not in selected_for_query],
+                default=[],
+                help="Estes termos serão adicionados com NOT para excluí-los dos resultados",
+                placeholder="Nenhum termo excluído",
+                label_visibility="collapsed"
+            )
+            
+            st.divider()
+            
+            # Construir a chave
+            st.markdown("**4. Chave de busca gerada:**")
+            
+            def build_search_key(terms, operator, use_truncation, use_quotes, excluded_terms):
+                """Constrói a chave de busca baseada nas configurações."""
+                if not terms:
+                    return ""
+                
+                # Processar termos principais
+                processed_terms = []
+                for term in terms:
+                    t = term
+                    if use_truncation:
+                        # Truncar última palavra
+                        words = t.split()
+                        if words:
+                            words[-1] = words[-1][:4] + "*" if len(words[-1]) > 4 else words[-1] + "*"
+                            t = " ".join(words)
+                    if use_quotes:
+                        t = f'"{t}"'
+                    processed_terms.append(t)
+                
+                # Juntar com operador
+                main_query = f" {operator} ".join(processed_terms)
+                
+                # Adicionar termos excluídos
+                if excluded_terms:
+                    excluded_processed = []
+                    for term in excluded_terms:
+                        t = term
+                        if use_quotes:
+                            t = f'"{t}"'
+                        excluded_processed.append(f"NOT {t}")
+                    
+                    main_query = f"({main_query}) {' '.join(excluded_processed)}"
+                
+                return main_query
+            
+            # Gerar chave
+            search_key = build_search_key(
+                selected_for_query, 
+                operator, 
+                use_truncation, 
+                use_quotes, 
+                excluded_for_query
+            )
+            
+            # Exibir chave em destaque
+            st.code(search_key, language=None)
+            
+            # Métricas da chave
+            col_info1, col_info2, col_info3 = st.columns(3)
+            col_info1.metric("Termos incluídos", len(selected_for_query))
+            col_info2.metric("Termos excluídos", len(excluded_for_query))
+            col_info3.metric("Caracteres", len(search_key))
+            
+            st.divider()
+            
+            # Botões de ação 
+            if st.button("📋 Copiar para o Painel", use_container_width=True, type="primary"):
+                st.session_state.dashboard_query = search_key
+                st.success("✅ Chave copiada! Vá para a aba **Painel** e cole na caixa de busca.")
+            
     rodape_institucional()
-
 
 # ==================== ABA 3: INTERAÇÃO (CHAMADA) ====================
 with tab3:
