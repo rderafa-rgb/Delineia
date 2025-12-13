@@ -949,6 +949,7 @@ with tab1:
                         with col_btn:
                             if st.button("📋 Copiar", key=f"copy_{key}", use_container_width=True):
                                 st.session_state.dashboard_query = data.get('string', '')
+                                st.session_state.dashboard_query_source = "delineascópio"
                                 st.toast(f"✅ Chave de busca copiada para o Painel!")
             else:
                 # Fallback: mostrar chave de busca original
@@ -961,6 +962,7 @@ with tab1:
                     with col_btn:
                         if st.button("📋 Copiar", key="copy_original", use_container_width=True):
                             st.session_state.dashboard_query = search_string
+                            st.session_state.dashboard_query_source = "delineascópio"
                             st.toast("✅ Chave de busca copiada para o Painel!")
 
             # ========== SEÇÃO 7: CHAVE DE TRANSPARÊNCIA (ORIGINAL OPENALEX) ==========
@@ -986,6 +988,7 @@ with tab1:
                 with col_btn:
                     if st.button("📋 Copiar", key="copy_transparency", use_container_width=True):
                         st.session_state.dashboard_query = search_string
+                        st.session_state.dashboard_query_source = "delineascópio"
                         st.toast("✅ Chave de busca copiada para o Painel!")
                 
                 # Estatísticas
@@ -1738,7 +1741,11 @@ with tab2:
         )
 
         if 'dashboard_query' in st.session_state and st.session_state.dashboard_query:
-            st.info("📋 Chave de busca copiada do Delineascópio")
+            source = st.session_state.get('dashboard_query_source', 'delineascópio')
+            if source == "construtor":
+                st.info("📋 Chave de busca copiada do construtor de chaves")
+            else:
+                st.info("📋 Chave de busca copiada do Delineascópio")
 
         st.divider()
         st.subheader("🔧 Filtros")
@@ -1846,16 +1853,20 @@ with tab2:
               - **Artigos:** Contagens de artigos e links de acesso
               - **Conceitos:** Contagens de conceitos, nuvem de palavras e Lei de Zipf
               - **Coocorrências:** Contagens de associações entre conceitos e matrizes
-              - **Grafo:** Visualização interativa
+              - **Grafo:** Visualização aumentada
               - **Mapa Temático:** Posição do cluster
               - **Estatísticas:** Resumo breve
-              - **Exportação:** Dados em JSON, CSV, GraphML, BibTeX, RIS
+              - **Exportação:** Dados em JSON, CSV, GraphML, .net, XLSX, BibTeX e RIS
+            -**Interação:** Grafo dinâmico
+              - **Movimentação com física:** Inclusão e exclusão de nós
+              - **Exportação de rede:** Dados em GraphML e CSV
+              - **Construtor de chaves de busca:** Para maior autonomia
         
             ### Tecnologias
             - Python / Streamlit
             - Google Gemini AI 2.5 Pro / Anthropic Claude Opus 4.5
             - OpenAlex API
-            - NetworkX, Plotly, ReportLab
+            - NetworkX / Plotly / PyVis / ReportLab
         
             ### Contato
             📧 rafael.antunes@ufrgs.br
@@ -3550,133 +3561,195 @@ def render_tab3_interacao():
     # ==================== CONSTRUTOR DE CHAVE DE BUSCA ====================
     st.divider()
     st.subheader("🔧 Construtor de Chave de Busca")
-    st.caption("Monte sua própria chave de busca selecionando conceitos do grafo")
+    st.caption("Monte sua própria chave de busca selecionando conceitos do grafo e inserindo operadores booleanos")
     
     with st.expander("**Construir Chave Personalizada**", expanded=False):
         
+        # Inicializar session_state para o text_area se não existir
+        if 'search_key_text' not in st.session_state:
+            st.session_state.search_key_text = ""
+        if 'collected_terms' not in st.session_state:
+            st.session_state.collected_terms = []
+
         # Conceitos disponíveis (do grafo filtrado ou original)
         available_concepts = sorted(G_filtered.nodes()) if len(G_filtered.nodes()) > 0 else sorted(G.nodes())
         
-        # Linha 1: Seleção de conceitos
-        st.markdown("**1. Selecione os conceitos:**")
+        # ========== SEÇÃO 1: SELEÇÃO DE CONCEITOS ==========
+        st.markdown("**1. Selecione um conceito:**")
         
-        selected_for_query = st.multiselect(
-            "Conceitos para incluir na chave:",
-            options=available_concepts,
-            default=[],
-            help="Escolha os conceitos que deseja combinar na chave de busca",
-            placeholder="Selecione conceitos...",
+        selected_concept = st.selectbox(
+            "Conceito para formatar:",
+            options=[""] + available_concepts,
+            index=0,
+            help="Escolha um conceito para formatar e adicionar à chave",
             label_visibility="collapsed"
         )
         
-        if selected_for_query:
+        if selected_concept:
             st.divider()
             
-            # Linha 2: Configurações
-            st.markdown("**2. Configure a chave:**")
+            # ========== SEÇÃO 2: FORMATAÇÃO DO TERMO ==========
+            st.markdown("**2. Formatação do termo:**")
             
-            col_op, col_trunc, col_aspas = st.columns(3)
-            
-            with col_op:
-                operator = st.selectbox(
-                    "Operador entre termos:",
-                    options=["AND", "OR"],
-                    index=0,
-                    help="AND = todos os termos; OR = qualquer um dos termos"
-                )
+            col_trunc, col_aspas = st.columns(2)
             
             with col_trunc:
                 use_truncation = st.checkbox(
                     "Usar truncagem (*)",
                     value=False,
-                    help="Adiciona * ao final para recuperar variações (ex: educ* = education, educational...)"
+                    help="Adiciona * ao final para recuperar variações"
                 )
             
             with col_aspas:
                 use_quotes = st.checkbox(
                     'Usar aspas (" ")',
                     value=True,
-                    help="Coloca cada termo entre aspas para busca exata"
+                    help="Coloca o termo entre aspas para busca exata"
                 )
             
-            # Opção de adicionar termos NOT
-            st.divider()
-            st.markdown("**3. Excluir termos (opcional):**")
+            def format_term(term, truncation=False, quotes=False):
+                t = term
+                if truncation:
+                    words = t.split()
+                    if words:
+                        words[-1] = words[-1][:4] + "*" if len(words[-1]) > 4 else words[-1] + "*"
+                        t = " ".join(words)
+                if quotes:
+                    t = f'"{t}"'
+                return t
             
-            excluded_for_query = st.multiselect(
-                "Conceitos para EXCLUIR (NOT):",
-                options=[c for c in available_concepts if c not in selected_for_query],
-                default=[],
-                help="Estes termos serão adicionados com NOT para excluí-los dos resultados",
-                placeholder="Nenhum termo excluído",
-                label_visibility="collapsed"
+            formatted_preview = format_term(selected_concept, use_truncation, use_quotes)
+            st.code(formatted_preview, language=None)
+            
+            if st.button("➕ Colecionar termo", use_container_width=True, type="primary"):
+                if formatted_preview not in st.session_state.collected_terms:
+                    st.session_state.collected_terms.append(formatted_preview)
+                st.rerun()
+            
+            st.divider()
+            
+            # ========== SEÇÃO 3: OPERADORES E CONSTRUÇÃO ==========
+            st.markdown("**3. Construa a chave de busca:**")
+            
+            if st.session_state.collected_terms:
+                st.caption(f"Termos coletados: {', '.join(st.session_state.collected_terms)}")
+            else:
+                st.caption("Nenhum termo coletado ainda.")
+            
+            # Botões de inserção - Operadores Booleanos
+            st.markdown("**Operadores booleanos:**")
+            col_and, col_or, col_not, col_abre, col_fecha = st.columns(5)
+            
+            with col_and:
+                if st.button("AND", use_container_width=True, help="Interseção: retorna resultados que contenham TODOS os termos"):
+                    st.session_state.search_key_text += " AND "
+                    st.rerun()
+            
+            with col_or:
+                if st.button("OR", use_container_width=True, help="União: retorna resultados que contenham QUALQUER um dos termos"):
+                    st.session_state.search_key_text += " OR "
+                    st.rerun()
+            
+            with col_not:
+                if st.button("NOT", use_container_width=True, help="Exclusão: remove resultados que contenham o termo seguinte"):
+                    st.session_state.search_key_text += " NOT "
+                    st.rerun()
+            
+            with col_abre:
+                if st.button("(", use_container_width=True, help="Abre parênteses para agrupar termos"):
+                    st.session_state.search_key_text += "("
+                    st.rerun()
+            
+            with col_fecha:
+                if st.button(")", use_container_width=True, help="Fecha parênteses"):
+                    st.session_state.search_key_text += ")"
+                    st.rerun()
+            
+            # Botões para inserir termos coletados
+            if st.session_state.collected_terms:
+                st.markdown("**Inserir conceitos:**")
+                num_cols = 4
+                for i in range(0, len(st.session_state.collected_terms), num_cols):
+                    cols = st.columns(num_cols)
+                    for j, col in enumerate(cols):
+                        idx = i + j
+                        if idx < len(st.session_state.collected_terms):
+                            term = st.session_state.collected_terms[idx]
+                            display_label = term[:20] + "..." if len(term) > 20 else term
+                            with col:
+                                if st.button(display_label, key=f"term_btn_{idx}", use_container_width=True):
+                                    st.session_state.search_key_text += term
+                                    st.rerun()
+            
+            col_limpar, col_limpar_termos = st.columns(2)
+            with col_limpar:
+                if st.button("🗑️ Limpar chave", use_container_width=True):
+                    st.session_state.search_key_text = ""
+                    st.rerun()
+            with col_limpar_termos:
+                if st.button("🗑️ Limpar termos coletados", use_container_width=True):
+                    st.session_state.collected_terms = []
+                    st.rerun()
+            
+            st.divider()
+                     
+            # ========== SEÇÃO 4: ÁREA DE EDIÇÃO ==========
+            st.markdown("**4. Chave de busca:**")
+            
+            edited_key = st.text_area(
+                "Edite sua chave de busca:",
+                value=st.session_state.search_key_text,
+                height=100,
+                help="Você pode editar diretamente este campo.",
+                label_visibility="collapsed",
+                placeholder="Use os botões acima para construir sua chave..."
             )
             
-            st.divider()
+            if edited_key != st.session_state.search_key_text:
+                st.session_state.search_key_text = edited_key
             
-            # Construir a chave
-            st.markdown("**4. Chave de busca gerada:**")
-            
-            def build_search_key(terms, operator, use_truncation, use_quotes, excluded_terms):
-                """Constrói a chave de busca baseada nas configurações."""
-                if not terms:
-                    return ""
+            if edited_key.strip():
+                import json
+                safe_text = json.dumps(edited_key.strip())
                 
-                # Processar termos principais
-                processed_terms = []
-                for term in terms:
-                    t = term
-                    if use_truncation:
-                        # Truncar última palavra
-                        words = t.split()
-                        if words:
-                            words[-1] = words[-1][:4] + "*" if len(words[-1]) > 4 else words[-1] + "*"
-                            t = " ".join(words)
-                    if use_quotes:
-                        t = f'"{t}"'
-                    processed_terms.append(t)
-                
-                # Juntar com operador
-                main_query = f" {operator} ".join(processed_terms)
-                
-                # Adicionar termos excluídos
-                if excluded_terms:
-                    excluded_processed = []
-                    for term in excluded_terms:
-                        t = term
-                        if use_quotes:
-                            t = f'"{t}"'
-                        excluded_processed.append(f"NOT {t}")
-                    
-                    main_query = f"({main_query}) {' '.join(excluded_processed)}"
-                
-                return main_query
+                copy_js = f"""
+                <script>
+                function copyToClipboard() {{
+                    navigator.clipboard.writeText({safe_text}).then(function() {{
+                        document.getElementById('copy-status').innerHTML = '✅ Copiado!';
+                        setTimeout(function() {{
+                            document.getElementById('copy-status').innerHTML = '';
+                        }}, 2000);
+                    }});
+                }}
+                </script>
+                <div style="text-align: center;">
+                    <button onclick="copyToClipboard()" style="
+                        background-color: #ffffff;
+                        color: #000000;
+                        border: 1px solid #cccccc;
+                        padding: 8px 16px;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 14px;
+                    ">📋 Copiar</button>
+                    <span id="copy-status" style="margin-left: 10px; color: #21c354;"></span>
+                </div>
+                """
+                components.html(copy_js, height=50)
             
-            # Gerar chave
-            search_key = build_search_key(
-                selected_for_query, 
-                operator, 
-                use_truncation, 
-                use_quotes, 
-                excluded_for_query
-            )
-            
-            # Exibir chave em destaque
-            st.code(search_key, language=None)
-            
-            # Métricas da chave
-            col_info1, col_info2, col_info3 = st.columns(3)
-            col_info1.metric("Termos incluídos", len(selected_for_query))
-            col_info2.metric("Termos excluídos", len(excluded_for_query))
-            col_info3.metric("Caracteres", len(search_key))
+            # Métricas
+            col_info1, col_info2 = st.columns(2)
+            col_info1.metric("Termos coletados", len(st.session_state.collected_terms))
+            col_info2.metric("Caracteres", len(edited_key.strip()))
             
             st.divider()
             
-            # Botões de ação 
             if st.button("📋 Copiar para o Painel", use_container_width=True, type="primary"):
-                st.session_state.dashboard_query = search_key
-                st.success("✅ Chave copiada! Vá para a aba **Painel** e cole na caixa de busca.")
-            
+                st.session_state.dashboard_query = edited_key.strip()
+                st.session_state.dashboard_query_source = "construtor"
+                st.success("✅ Chave copiada!")     
+             
     rodape_institucional()
 
 # ==================== ABA 3: INTERAÇÃO (CHAMADA) ====================
