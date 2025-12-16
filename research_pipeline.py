@@ -14,6 +14,7 @@ import google.generativeai as genai
 import networkx as nx
 import matplotlib.pyplot as plt
 import streamlit as st
+from collections import Counter
 
 # ==================== FUNÇÕES DE DIAGNÓSTICO ====================
 def log_diagnostico(mensagem: str, tipo: str = "info"):
@@ -873,6 +874,49 @@ Sugira exatamente 5 palavras-chave complementares que:
         
         return strings
 
+    # Comparação entre grafos
+    
+    def generate_evolution_analysis(self, metrics: dict, nome_aluno: str, genero: str = "Neutro") -> str:
+        """Gera análise pedagógica da evolução entre dois grafos (com gênero)."""
+        
+        # Obtém instrução de gênero
+        gender_instruction = self._get_gender_instruction(genero)
+        
+        # Prepara listas
+        abandonados = ", ".join(metrics['exclusivos_antigos'][:40])
+        novos = ", ".join(metrics['exclusivos_novos'][:40])
+        mantidos = ", ".join(metrics['comuns'][:30])
+        jaccard = f"{metrics['jaccard']*100:.1f}%"
+        delta = metrics['qtd_2'] - metrics['qtd_1']
+        sinal = "cresceu" if delta > 0 else "diminuiu"
+
+        prompt = f"""Atue como um Orientador Acadêmico Sênior em Metodologia Científica.
+{gender_instruction}
+
+CONTEXTO:
+Estudante: {nome_aluno}
+Ação: Realizou dois delineamentos (buscas bibliográficas) em momentos diferentes.
+Tarefa: Analise a EVOLUÇÃO do pensamento baseando-se na mudança do vocabulário.
+
+DADOS:
+- Similaridade (Jaccard): {jaccard}.
+- Vocabulário: {sinal} em {abs(delta)} conceitos.
+
+MUDANÇA SEMÂNTICA:
+- ABANDONOU: {abandonados}
+- ADOTOU: {novos}
+- MANTEVE: {mantidos}
+
+ANÁLISE SOLICITADA (Seja direto e analítico):
+1. **Diagnóstico:** O escopo afunilou? Expandiu? Mudou de área?
+2. **Análise dos Termos:** Cite exemplos da troca de termos.
+3. **Maturidade:** A pesquisa ficou mais técnica/metodológica?
+4. **Veredito:** Uma frase definindo a trajetória.
+
+Use Markdown."""
+
+        return self._safe_generate(prompt, "Não foi possível gerar a análise no momento.")
+
     def _generate_fallback_glossary(self, concepts: List[str], tema: str) -> str:
         """Gera glossário fallback"""
         entries = []
@@ -888,7 +932,6 @@ Sugira exatamente 5 palavras-chave complementares que:
 A presença desses termos indica que o campo de pesquisa está organizado em torno de dimensões teóricas e práticas bem estabelecidas. As conexões entre os conceitos sugerem interdisciplinaridade e múltiplas perspectivas de análise.
 
 A análise desta rede pode orientar o delineamento do escopo da sua pesquisa, identificando áreas consolidadas onde há bastante literatura disponível, bem como possíveis lacunas nas interseções entre conceitos que podem representar oportunidades de investigação original."""
-
 
 # ==================== ANALISADOR DE COOCORRÊNCIAS ====================
 class CooccurrenceAnalyzer:
@@ -1003,6 +1046,11 @@ class ResearchScopePipeline:
         # 5. Extrair conceitos
         log_diagnostico("Etapa 5/7: Extraindo conceitos...", "info")
         concepts_lists = self.openalex.extract_concepts_for_cooccurrence(articles)
+
+        # --- NOVO: CALCULAR FREQUÊNCIAS ---
+        all_concepts = [c for cl in concepts_lists for c in cl]
+        concept_freq = dict(Counter(all_concepts))
+        
         log_diagnostico(f"Conceitos extraídos de {len(concepts_lists)} artigos", "success")
 
         # 6. Construir grafo
@@ -1032,6 +1080,7 @@ class ResearchScopePipeline:
             'top_concepts': top_concepts,
             'raw_articles': articles,
             'concepts_lists': concepts_lists,
+            'concept_freq': concept_freq,
             'graph': G
         }
 

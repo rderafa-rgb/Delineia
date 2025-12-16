@@ -25,12 +25,77 @@ import streamlit.components.v1 as components
 import os
 import io
 import tempfile
-# Importação PyVis para Tab3
 try:
     from pyvis.network import Network
     PYVIS_AVAILABLE = True
 except ImportError:
     PYVIS_AVAILABLE = False
+import gc
+
+def limpar_memoria():
+    """Força coleta de lixo"""
+    gc.collect()
+
+# ==================== FUNÇÕES COM CACHE (OTIMIZAÇÃO DE MEMÓRIA) ====================
+
+@st.cache_resource
+def get_pipeline_instance():
+    """Cache da instância do pipeline para não recriar objetos pesados."""
+    return ResearchScopePipeline(OPENALEX_EMAIL)
+
+@st.cache_data(ttl="2h", show_spinner=False)
+def run_cached_pipeline(nome, tema, questao, kws, genero):
+    """
+    Cache do processamento pesado. 
+    Se os inputs forem os mesmos, retorna o resultado da RAM sem reprocessar.
+    TTL de 2h limpa a memória automaticamente após inatividade.
+    """
+    pipe = get_pipeline_instance()
+    # A função process retorna dicionários e grafos NetworkX, que o Streamlit serializa bem
+    return pipe.process(nome, tema, questao, kws, genero=genero)
+
+@st.cache_data(ttl="1h", show_spinner=False)
+def generate_cached_pdf(form_data, result, selected_concepts, suggested_keywords, suggested_strings, badges):
+    """Cache da geração do PDF para evitar recriação do binário."""
+    return generate_pdf_report(
+        form_data=form_data,
+        result=result,
+        selected_concepts=selected_concepts,
+        suggested_keywords=suggested_keywords,
+        suggested_strings=suggested_strings,
+        badges=badges
+    )
+
+@st.cache_data(show_spinner=False)
+def run_cached_thematic_map(graph_data, concepts_lists, method, min_size):
+    """
+    Executa a análise de mapa temático e retorna os dados prontos.
+    Isso evita reprocessar a clusterização se os parâmetros não mudarem.
+    """
+    from thematic_map_module import ThematicMapAnalyzer
+    
+    # Cria o analisador e detecta clusters
+    tm_analyzer = ThematicMapAnalyzer(graph_data, concepts_lists)
+    tm_analyzer.detect_clusters(method=method, min_size=min_size)
+    
+    # Retorna o DataFrame de métricas E a lista de clusters (necessária para o gráfico)
+    return tm_analyzer.analyze_clusters(), tm_analyzer.clusters
+
+@st.cache_resource
+def get_openalex_client():
+    return OpenAlexClient(OPENALEX_EMAIL)
+
+@st.cache_data(ttl="1h")
+def search_openalex_cached(query, limit, min_score, min_level):
+    """Cache da busca no painel para não bater na API repetidamente."""
+    client = get_openalex_client()
+    # Normalização e busca
+    normalized_query = client.normalize_query(query)
+    raw_articles = client.search_articles(normalized_query, limit)
+    
+    # Processamento leve dos conceitos (extração) para evitar transportar objetos pesados
+    # Se possível, faça a filtragem de score/level aqui e retorne apenas o necessário
+    return raw_articles
 
 # ==================== BIBLIOTECA DE GÊNERO ====================
 
@@ -143,7 +208,69 @@ def conectar_google_sheets():
         print(f"Detalhes do erro: {traceback.format_exc()}")
         return None
 
-def enviar_formulario_inicial(form_data):
+# ==================== HISTÓRICO DE GRAFOS (SHEETS) ====================
+
+def salvar_grafo_historico(id_usuario, query, articles_count, G, freq):
+    """
+    Salva topologia do grafo em nova aba do Google Sheets.
+    Armazena: arestas (source, target, weight, salton) + metadados.
+    """
+    try:
+        sheet = conectar_google_sheets()
+        if not sheet:
+            return False
+        
+        timestamp = datetime.now().strftime("%y%m%d_%H%M")
+        safe_id = id_usuario[-8:] if len(id_usuario) > 8 else id_usuario
+        tab_title = f"G_{safe_id}_{timestamp}"
+        
+        # Preparar dados das arestas com Salton
+        edges_data = []
+        for u, v in G.edges():
+            weight = G[u][v].get('weight', 1)
+            
+            # Cálculo do Cosseno de Salton
+            # Fórmula: Weight / sqrt(Freq(A) * Freq(B))
+            freq_u = freq.get(u, 1)
+            freq_v = freq.get(v, 1)
+            
+            if freq_u > 0 and freq_v > 0:
+                salton = weight / np.sqrt(freq_u * freq_v)
+            else:
+                salton = 0
+            
+            # Adiciona com 4 casas decimais
+            edges_data.append([u, v, weight, round(salton, 4)])
+        
+        metadata = [
+            ["id_usuario", id_usuario],
+            ["timestamp", datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
+            ["query", query[:100]],
+            ["articles_count", articles_count],
+            ["nodes_count", len(G.nodes())],
+            ["edges_count", len(G.edges())],
+            ["---EDGES---", "", "", ""], # Ajuste para 4 colunas
+            ["source", "target", "weight", "salton"] # Cabeçalho atualizado
+        ]
+        
+        all_data = metadata + edges_data
+        
+        # Cria aba com 4 colunas (cols=4)
+        worksheet = sheet.add_worksheet(
+            title=tab_title, 
+            rows=len(all_data) + 10, 
+            cols=4 
+        )
+        worksheet.update(all_data)
+        
+        print(f"✅ Grafo salvo no Sheets: {tab_title} ({len(edges_data)} arestas)")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Erro ao salvar histórico: {e}")
+        return False
+
+def enviar_formulario_inicial(form_data, existing_id=None):
     """Envia dados do formulário inicial para Google Sheets"""
     try:
         sheet = conectar_google_sheets()
@@ -153,8 +280,11 @@ def enviar_formulario_inicial(form_data):
         
         worksheet = sheet.worksheet(ABA_FORMULARIO_INICIAL)
                 
-        # Gerar ID único
-        id_usuario = f"user_{uuid.uuid4().hex[:8]}"
+        # Usa ID existente se houver, senão gera novo
+        if existing_id:
+            id_usuario = existing_id
+        else:
+            id_usuario = f"user_{uuid.uuid4().hex[:8]}"
         
         # Preparar linha
         row = [
@@ -312,6 +442,47 @@ def enviar_formulario_avaliacao(id_usuario, avaliacao_data):
     except Exception as e:
         st.error(f"❌ Erro ao enviar avaliação: {e}")
         return False
+
+def gerar_analise_evolucao(metrics, nome_aluno):
+    """
+    Usa o Gemini para interpretar a mudança entre dois delineamentos.
+    """
+    import google.generativeai as genai
+    
+    # Prepara as listas (limitando a 50 termos para não estourar o prompt com ruído)
+    abandonados = ", ".join(metrics['exclusivos_antigos'][:50])
+    novos = ", ".join(metrics['exclusivos_novos'][:50])
+    mantidos = ", ".join(metrics['comuns'][:30])
+    jaccard = f"{metrics['jaccard']*100:.1f}%"
+    
+    prompt = f"""
+    Atue como um Orientador Acadêmico Sênior e Especialista em Bibliometria.
+    
+    O aluno {nome_aluno} realizou dois delineamentos de pesquisa (buscas bibliográficas) em momentos diferentes.
+    Sua tarefa é analisar a EVOLUÇÃO do pensamento dele baseando-se na mudança do vocabulário dos grafos.
+    
+    DADOS DA MUDANÇA:
+    - Similaridade entre os momentos (Jaccard): {jaccard} (quanto menor, maior a mudança).
+    - O que ele ABANDONOU (Termos que saíram): {abandonados}
+    - O que ele ADOTOU (Novos termos): {novos}
+    - Núcleo Estável (O que ficou): {mantidos}
+    
+    ANÁLISE SOLICITADA (Seja direto, encorajador e analítico):
+    1. **Diagnóstico da Mudança:** O escopo afunilou (ficou mais específico)? Expandiu (ficou mais genérico)? Ou mudou completamente de área (pivô)?
+    2. **Análise dos Termos:** Cite exemplos específicos. "Ao trocar X por Y, nota-se que..."
+    3. **Nível de Maturidade:** A entrada de termos novos sugere uma pesquisa mais madura/técnica ou ainda exploratória?
+    4. **Veredito:** Em uma frase, defina essa evolução.
+    
+    Não use introduções genéricas. Vá direto ao ponto. Use Markdown.
+    """
+    
+    try:
+        # Usa o modelo que já está configurado no seu app
+        model = genai.GenerativeModel('models/gemini-2.5-pro') # Ou o modelo que você estiver usando
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"Erro ao gerar análise: {str(e)}"
 
 # ==================== FUNÇÃO DE ANÁLISE DE ZIPF =================
 def analyze_zipf(frequency_data):
@@ -486,8 +657,706 @@ def add_badge(badge_name: str) -> bool:
     st.session_state.badges.append(badge_name)
     return True
 
+# ==================== FUNÇÕES DE INTERAÇÃO (MOVIDAS DO FINAL) ====================
+
+def extract_concept_metadata(articles: list) -> dict:
+    """
+    Extrai metadados agregados (frequência, score médio, level médio) de cada conceito.
+    """
+    from collections import defaultdict
+    
+    concept_data = defaultdict(lambda: {'scores': [], 'levels': [], 'count': 0})
+    
+    for article in articles:
+        for concept in article.get('concepts', []):
+            name = concept.get('display_name', '')
+            if name:
+                concept_data[name]['scores'].append(concept.get('score', 0))
+                concept_data[name]['levels'].append(concept.get('level', 0))
+                concept_data[name]['count'] += 1
+    
+    metadata = {}
+    for name, data in concept_data.items():
+        metadata[name] = {
+            'freq': data['count'],
+            'score': sum(data['scores']) / len(data['scores']) if data['scores'] else 0,
+            'level': sum(data['levels']) / len(data['levels']) if data['levels'] else 0
+        }
+    
+    return metadata
+
+def calculate_layout_positions(G: nx.Graph, layout_name: str) -> dict:
+    """
+    Calcula posições dos nós usando diferentes algoritmos de layout.
+    """
+    scale = 500
+    
+    if layout_name == "Kamada-Kawai":
+        try:
+            pos = nx.kamada_kawai_layout(G, scale=scale)
+        except:
+            pos = nx.spring_layout(G, scale=scale, seed=42)
+    
+    elif layout_name == "Circular":
+        pos = nx.circular_layout(G, scale=scale)
+    
+    elif layout_name == "Shell (concêntrico)":
+        degrees = dict(G.degree())
+        if degrees:
+            sorted_nodes = sorted(degrees.keys(), key=lambda x: degrees[x], reverse=True)
+            n = len(sorted_nodes)
+            shells = [
+                sorted_nodes[:n//3] if n > 3 else sorted_nodes,
+                sorted_nodes[n//3:2*n//3] if n > 3 else [],
+                sorted_nodes[2*n//3:] if n > 3 else []
+            ]
+            shells = [s for s in shells if s]
+            pos = nx.shell_layout(G, nlist=shells, scale=scale)
+        else:
+            pos = nx.shell_layout(G, scale=scale)
+    
+    elif layout_name == "Spectral":
+        try:
+            pos = nx.spectral_layout(G, scale=scale)
+        except:
+            pos = nx.spring_layout(G, scale=scale, seed=42)
+    
+    elif layout_name == "Random":
+        pos = nx.random_layout(G, seed=42)
+        pos = {k: (v[0] * scale, v[1] * scale) for k, v in pos.items()}
+    
+    elif layout_name == "Fruchterman-Reingold":
+        k_val = 2 / (len(G.nodes()) ** 0.5) if len(G.nodes()) > 0 else 1
+        pos = nx.spring_layout(G, scale=scale, seed=42, k=k_val)
+    
+    else:
+        return None
+    
+    # Converter numpy.float32 para float nativo
+    if pos:
+        pos = {k: (float(v[0]), float(v[1])) for k, v in pos.items()}
+    
+    return pos
+
+def render_interactive_graph_pyvis(G: nx.Graph, selected_concepts: list = None, 
+                                    concept_metadata: dict = None, 
+                                    layout_positions: dict = None,
+                                    enable_physics: bool = True,
+                                    height: str = "550px") -> None:
+    """
+    Renderiza um grafo NetworkX de forma interativa usando PyVis.
+    """
+    
+    if not PYVIS_AVAILABLE:
+        st.error("⚠️ PyVis não está instalado. Adicione 'pyvis>=0.3.0' ao requirements.txt")
+        return
+    
+    if G is None or len(G.nodes()) == 0:
+        st.warning("Grafo vazio ou não disponível")
+        return
+    
+    nt = Network(
+        height=height,
+        width="100%",
+        bgcolor="#ffffff",
+        font_color="#333333",
+        directed=False
+    )
+    
+    physics_config = "true" if enable_physics else "false"
+    
+    nt.set_options(f"""
+    {{
+        "nodes": {{
+            "borderWidth": 2,
+            "borderWidthSelected": 4,
+            "font": {{
+                "size": 14,
+                "face": "arial"
+            }}
+        }},
+        "edges": {{
+            "color": {{
+                "color": "#cccccc",
+                "highlight": "#10b981"
+            }},
+            "smooth": {{
+                "type": "continuous"
+            }}
+        }},
+        "physics": {{
+            "enabled": {physics_config},
+            "forceAtlas2Based": {{
+                "gravitationalConstant": -60,
+                "centralGravity": 0.015,
+                "springLength": 120,
+                "springConstant": 0.08
+            }},
+            "maxVelocity": 50,
+            "solver": "forceAtlas2Based",
+            "timestep": 0.35,
+            "stabilization": {{
+                "enabled": true,
+                "iterations": 200,
+                "updateInterval": 25
+            }}
+        }},
+        "interaction": {{
+            "hover": true,
+            "tooltipDelay": 150,
+            "hideEdgesOnDrag": true,
+            "zoomView": true,
+            "dragView": true
+        }}
+    }}
+    """)
+    
+    nt.from_nx(G)
+    
+    degrees = dict(G.degree())
+    max_degree = max(degrees.values()) if degrees else 1
+    
+    selected = selected_concepts or []
+    metadata = concept_metadata or {}
+    
+    max_freq = max([m.get('freq', 1) for m in metadata.values()]) if metadata else max_degree
+    
+    for node in nt.nodes:
+        node_id = node['id']
+        degree = degrees.get(node_id, 1)
+        
+        meta = metadata.get(node_id, {})
+        freq = meta.get('freq', degree)
+        score = meta.get('score', 0)
+        level = meta.get('level', 0)
+        
+        node['size'] = 18 + (freq / max_freq) * 35
+        
+        if layout_positions and node_id in layout_positions:
+            pos = layout_positions[node_id]
+            node['x'] = pos[0]
+            node['y'] = pos[1]
+        
+        if node_id in selected:
+            node['color'] = {
+                'background': '#f59e0b',
+                'border': '#d97706',
+                'highlight': {
+                    'background': '#fbbf24',
+                    'border': '#b45309'
+                }
+            }
+        else:
+            node['color'] = {
+                'background': '#10b981',
+                'border': '#059669',
+                'highlight': {
+                    'background': '#34d399',
+                    'border': '#047857'
+                }
+            }
+        
+        status = "✓ Selecionado" if node_id in selected else ""
+        level_desc = ["Geral", "Campo", "Subcampo", "Nicho", "Específico", "Ultra-específico"]
+        level_text = level_desc[int(level)] if 0 <= level < len(level_desc) else f"Nível {level:.0f}"
+        
+        node['title'] = f"""{node_id}
+━━━━━━━━━━━━━━━━━━━━
+📊 Frequência: {freq} artigos
+🎯 Score médio: {score:.2f}
+📐 Level: {level:.1f} ({level_text})
+🔗 Conexões: {degree}
+{status}"""
+    
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.html', mode='w', encoding='utf-8') as f:
+        nt.save_graph(f.name)
+        temp_path = f.name
+    
+    try:
+        with open(temp_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+        
+        components.html(html_content, height=int(height.replace('px', '')) + 50, scrolling=False)
+    finally:
+        try:
+            os.unlink(temp_path)
+        except:
+            pass
+
+def render_tab3_interacao():
+    """
+    Renderiza a Tab3: Interação com o Grafo
+    """
+    
+    st.title("🔬 Exploração Interativa do Grafo")
+    st.caption("Visualize e explore a rede de conceitos de forma dinâmica")
+    
+    if st.session_state.get('resultado') is None:
+        st.info("👈 Complete primeiro o **Delineascópio** para visualizar o grafo interativo.")
+        st.markdown("""
+        **O que você encontrará aqui:**
+        - 🕸️ Grafo interativo (arraste, zoom, clique)
+        - 📊 Estatísticas de centralidade
+        - 🔍 Filtros dinâmicos por grau e peso
+        - 💾 Exportação para Gephi e outros softwares
+        """)
+        rodape_institucional()
+        return
+    
+    r = st.session_state.resultado
+    G = r.get('graph')
+    
+    if G is None or len(G.nodes()) == 0:
+        st.warning("⚠️ Grafo não disponível. Execute o pipeline novamente.")
+        rodape_institucional()
+        return
+    
+    # Extrair metadados dos conceitos
+    articles = r.get('raw_articles', [])
+    concept_metadata = extract_concept_metadata(articles)
+    
+    selected_concepts = st.session_state.get('selected_concepts', [])
+    
+    # ==================== CONTROLES DE FILTRO ====================
+    with st.expander(f"⚙️ **Filtros do Grafo** ({len(G.nodes())} conceitos disponíveis)", expanded=True):
+        
+        # Linha 1: Filtros numéricos
+        col_f1, col_f2, col_f3 = st.columns(3)
+        
+        with col_f1:
+            max_deg_value = max(dict(G.degree()).values()) if G.nodes() else 1
+            min_degree = st.slider(
+                "Grau mínimo dos nós:",
+                min_value=1,
+                max_value=max(max_deg_value, 2),
+                value=1,
+                help="Remove nós com poucas conexões"
+            )
+        
+        with col_f2:
+            if G.edges():
+                edge_weights = [G[u][v].get('weight', 1) for u, v in G.edges()]
+                min_w, max_w = int(min(edge_weights)), int(max(edge_weights))
+                min_weight = st.slider(
+                    "Peso mínimo das arestas:",
+                    min_value=min_w,
+                    max_value=max(max_w, min_w + 1),
+                    value=min_w,
+                    help="Remove conexões fracas"
+                )
+            else:
+                min_weight = 1
+        
+        with col_f3:
+            max_nodes = st.slider(
+                "Máximo de nós:",
+                min_value=5,
+                max_value=min(len(G.nodes()), 100),
+                value=min(len(G.nodes()), 50),
+                help="Limita visualização aos mais frequentes"
+            )
+        
+        st.divider()
+        
+        # Linha 2: Seleção de conceitos (INCLUSÃO/EXCLUSÃO)
+        all_concepts_sorted = sorted(G.nodes())
+        
+        col_inc, col_exc = st.columns(2)
+        
+        with col_inc:
+            include_concepts = st.multiselect(
+                "✅ Incluir apenas estes conceitos:",
+                options=all_concepts_sorted,
+                default=[],
+                help="Deixe vazio para incluir todos. Se selecionar, mostra APENAS os escolhidos.",
+                placeholder="Todos os conceitos (padrão)"
+            )
+        
+        with col_exc:
+            exclude_concepts = st.multiselect(
+                "❌ Excluir estes conceitos:",
+                options=all_concepts_sorted,
+                default=[],
+                help="Conceitos que serão removidos do grafo.",
+                placeholder="Nenhum excluído (padrão)"
+            )
+        
+        st.divider()
+        
+        # Linha 3: Layout do grafo
+        col_layout, col_physics = st.columns(2)
+        
+        with col_layout:
+            layout_option = st.selectbox(
+                "🗺️ Layout do grafo:",
+                options=[
+                    "Força (padrão)",
+                    "Kamada-Kawai",
+                    "Circular",
+                    "Shell (concêntrico)",
+                    "Spectral",
+                    "Random",
+                    "Fruchterman-Reingold"
+                ],
+                index=0,
+                help="Algoritmo de posicionamento dos nós"
+            )
+        
+        with col_physics:
+            enable_physics = st.checkbox(
+                "⚡ Física ativa",
+                value=(layout_option == "Força (padrão)"),
+                help="Permite arrastar nós. Desative para layouts fixos."
+            )
+    
+    # ==================== APLICAR FILTROS ====================
+    G_filtered = G.copy()
+    
+    if include_concepts:
+        nodes_to_keep = set(include_concepts)
+        nodes_to_remove = [n for n in G_filtered.nodes() if n not in nodes_to_keep]
+        G_filtered.remove_nodes_from(nodes_to_remove)
+    
+    if exclude_concepts:
+        G_filtered.remove_nodes_from(exclude_concepts)
+    
+    nodes_to_remove = [n for n in G_filtered.nodes() if G_filtered.degree(n) < min_degree]
+    G_filtered.remove_nodes_from(nodes_to_remove)
+    
+    edges_to_remove = [(u, v) for u, v in G_filtered.edges() 
+                       if G_filtered[u][v].get('weight', 1) < min_weight]
+    G_filtered.remove_edges_from(edges_to_remove)
+    
+    if len(G_filtered.nodes()) > max_nodes:
+        degrees = dict(G_filtered.degree())
+        top_nodes = sorted(degrees, key=degrees.get, reverse=True)[:max_nodes]
+        G_filtered = G_filtered.subgraph(top_nodes).copy()
+    
+    isolates = list(nx.isolates(G_filtered))
+    G_filtered.remove_nodes_from(isolates)
+    
+    # ==================== MÉTRICAS ====================
+    st.divider()
+    
+    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+    col_m1.metric("🔵 Nós Visíveis", len(G_filtered.nodes()))
+    col_m2.metric("🔗 Arestas Visíveis", len(G_filtered.edges()))
+    
+    if len(G_filtered.nodes()) > 1:
+        density = nx.density(G_filtered)
+        col_m3.metric("📐 Densidade", f"{density:.3f}")
+    else:
+        col_m3.metric("📐 Densidade", "N/A")
+    
+    col_m4.metric("⭐ Selecionados", len([c for c in selected_concepts if c in G_filtered.nodes()]))
+    
+    # ==================== GRAFO INTERATIVO ====================
+    st.divider()
+    
+    if len(G_filtered.nodes()) > 0:
+        st.subheader("🕸️ Grafo Interativo")
+        st.caption("**Arraste** os nós para reorganizar • **Scroll** para zoom • **Clique** para destacar • Nós dourados = selecionados")
+        
+        layout_positions = calculate_layout_positions(G_filtered, layout_option)
+        
+        render_interactive_graph_pyvis(
+            G_filtered, 
+            selected_concepts, 
+            concept_metadata, 
+            layout_positions,
+            enable_physics,
+            height="550px"
+        )
+    else:
+        st.warning("⚠️ Nenhum nó atende aos critérios de filtro. Ajuste os controles acima.")
+    
+    st.divider()
+    
+    # ==================== ESTATÍSTICAS AVANÇADAS ====================
+    col_stats1, col_stats2 = st.columns(2)
+    
+    with col_stats1:
+        with st.expander("📊 **Centralidade de Grau** (Top 10)", expanded=False):
+            if len(G_filtered.nodes()) > 0:
+                degree_centrality = nx.degree_centrality(G_filtered)
+                sorted_dc = sorted(degree_centrality.items(), key=lambda x: x[1], reverse=True)[:10]
+                
+                for i, (node, centrality) in enumerate(sorted_dc, 1):
+                    marker = "🟡" if node in selected_concepts else "🟢"
+                    st.write(f"{i}. {marker} **{node}**: {centrality:.3f}")
+    
+    with col_stats2:
+        with st.expander("🔀 **Centralidade de Intermediação** (Top 10)", expanded=False):
+            if len(G_filtered.nodes()) > 1:
+                try:
+                    betweenness = nx.betweenness_centrality(G_filtered)
+                    sorted_bc = sorted(betweenness.items(), key=lambda x: x[1], reverse=True)[:10]
+                    
+                    for i, (node, centrality) in enumerate(sorted_bc, 1):
+                        marker = "🟡" if node in selected_concepts else "🟢"
+                        st.write(f"{i}. {marker} **{node}**: {centrality:.3f}")
+                except:
+                    st.write("Não disponível para este grafo")
+            else:
+                st.write("Precisa de pelo menos 2 nós")
+    
+    # ==================== EXPORTAÇÃO ====================
+    with st.expander("💾 **Exportar Grafo Filtrado**", expanded=False):
+        st.caption("Baixe o grafo com os filtros aplicados para análise em outros softwares.")
+        
+        col_exp1, col_exp2, col_exp3 = st.columns(3)
+        
+        with col_exp1:
+            try:
+                graphml_buffer = io.BytesIO()
+                nx.write_graphml(G_filtered, graphml_buffer)
+                graphml_buffer.seek(0)
+                
+                st.download_button(
+                    "📥 GraphML (Gephi)",
+                    data=graphml_buffer.getvalue(),
+                    file_name="grafo_interativo.graphml",
+                    mime="application/xml",
+                    use_container_width=True,
+                    help="Para Gephi ou Cytoscape"
+                )
+            except Exception as e:
+                st.error(f"Erro: {e}")
+        
+        with col_exp2:
+            edges_data = ["source,target,weight"]
+            for u, v in G_filtered.edges():
+                weight = G_filtered[u][v].get('weight', 1)
+                edges_data.append(f"{u},{v},{weight}")
+            
+            csv_content = "\n".join(edges_data)
+            
+            st.download_button(
+                "📥 Arestas (CSV)",
+                data=csv_content,
+                file_name="grafo_arestas.csv",
+                mime="text/csv",
+                use_container_width=True,
+                help="Lista de conexões"
+            )
+        
+        with col_exp3:
+            nodes_data = ["node,degree,degree_centrality,selected"]
+            degree_cent = nx.degree_centrality(G_filtered) if len(G_filtered.nodes()) > 0 else {}
+            
+            for node in G_filtered.nodes():
+                deg = G_filtered.degree(node)
+                dc = degree_cent.get(node, 0)
+                sel = "sim" if node in selected_concepts else "não"
+                nodes_data.append(f"{node},{deg},{dc:.4f},{sel}")
+            
+            csv_nodes = "\n".join(nodes_data)
+            
+            st.download_button(
+                "📥 Nós (CSV)",
+                data=csv_nodes,
+                file_name="grafo_nos.csv",
+                mime="text/csv",
+                use_container_width=True,
+                help="Lista de conceitos com métricas"
+            )
+    
+    # ==================== CONSTRUTOR DE CHAVE DE BUSCA ====================
+    st.divider()
+    st.subheader("🔧 Construtor de Chave de Busca")
+    st.caption("Monte sua própria chave de busca selecionando conceitos do grafo e inserindo operadores booleanos")
+    
+    with st.expander("**Construir Chave Personalizada**", expanded=False):
+        
+        # Inicializar session_state para o text_area se não existir
+        if 'search_key_text' not in st.session_state:
+            st.session_state.search_key_text = ""
+        if 'collected_terms' not in st.session_state:
+            st.session_state.collected_terms = []
+
+        # Conceitos disponíveis (do grafo filtrado ou original)
+        available_concepts = sorted(G_filtered.nodes()) if len(G_filtered.nodes()) > 0 else sorted(G.nodes())
+        
+        # ========== SEÇÃO 1: SELEÇÃO DE CONCEITOS ==========
+        st.markdown("**1. Selecione um conceito:**")
+        
+        selected_concept = st.selectbox(
+            "Conceito para formatar:",
+            options=[""] + available_concepts,
+            index=0,
+            help="Escolha um conceito para formatar e adicionar à chave",
+            label_visibility="collapsed"
+        )
+        
+        if selected_concept:
+            st.divider()
+            
+            # ========== SEÇÃO 2: FORMATAÇÃO DO TERMO ==========
+            st.markdown("**2. Formatação do termo:**")
+            
+            col_trunc, col_aspas = st.columns(2)
+            
+            with col_trunc:
+                use_truncation = st.checkbox(
+                    "Usar truncagem (*)",
+                    value=False,
+                    help="Adiciona * ao final para recuperar variações"
+                )
+            
+            with col_aspas:
+                use_quotes = st.checkbox(
+                    'Usar aspas (" ")',
+                    value=True,
+                    help="Coloca o termo entre aspas para busca exata"
+                )
+            
+            def format_term(term, truncation=False, quotes=False):
+                t = term
+                if truncation:
+                    words = t.split()
+                    if words:
+                        words[-1] = words[-1][:4] + "*" if len(words[-1]) > 4 else words[-1] + "*"
+                        t = " ".join(words)
+                if quotes:
+                    t = f'"{t}"'
+                return t
+            
+            formatted_preview = format_term(selected_concept, use_truncation, use_quotes)
+            st.code(formatted_preview, language=None)
+            
+            if st.button("➕ Colecionar termo", use_container_width=True, type="primary"):
+                if formatted_preview not in st.session_state.collected_terms:
+                    st.session_state.collected_terms.append(formatted_preview)
+                st.rerun()
+            
+            st.divider()
+            
+            # ========== SEÇÃO 3: OPERADORES E CONSTRUÇÃO ==========
+            st.markdown("**3. Construa a chave de busca:**")
+            
+            if st.session_state.collected_terms:
+                st.caption(f"Termos coletados: {', '.join(st.session_state.collected_terms)}")
+            else:
+                st.caption("Nenhum termo coletado ainda.")
+            
+            # Botões de inserção - Operadores Booleanos
+            st.markdown("**Operadores booleanos:**")
+            col_and, col_or, col_not, col_abre, col_fecha = st.columns(5)
+            
+            with col_and:
+                if st.button("AND", use_container_width=True, help="Interseção: retorna resultados que contenham TODOS os termos"):
+                    st.session_state.search_key_text += " AND "
+                    st.rerun()
+            
+            with col_or:
+                if st.button("OR", use_container_width=True, help="União: retorna resultados que contenham QUALQUER um dos termos"):
+                    st.session_state.search_key_text += " OR "
+                    st.rerun()
+            
+            with col_not:
+                if st.button("NOT", use_container_width=True, help="Exclusão: remove resultados que contenham o termo seguinte"):
+                    st.session_state.search_key_text += " NOT "
+                    st.rerun()
+            
+            with col_abre:
+                if st.button("(", use_container_width=True, help="Abre parênteses para agrupar termos"):
+                    st.session_state.search_key_text += "("
+                    st.rerun()
+            
+            with col_fecha:
+                if st.button(")", use_container_width=True, help="Fecha parênteses"):
+                    st.session_state.search_key_text += ")"
+                    st.rerun()
+            
+            # Botões para inserir termos coletados
+            if st.session_state.collected_terms:
+                st.markdown("**Inserir conceitos:**")
+                num_cols = 4
+                for i in range(0, len(st.session_state.collected_terms), num_cols):
+                    cols = st.columns(num_cols)
+                    for j, col in enumerate(cols):
+                        idx = i + j
+                        if idx < len(st.session_state.collected_terms):
+                            term = st.session_state.collected_terms[idx]
+                            display_label = term[:20] + "..." if len(term) > 20 else term
+                            with col:
+                                if st.button(display_label, key=f"term_btn_{idx}", use_container_width=True):
+                                    st.session_state.search_key_text += term
+                                    st.rerun()
+            
+            col_limpar, col_limpar_termos = st.columns(2)
+            with col_limpar:
+                if st.button("🗑️ Limpar chave", use_container_width=True):
+                    st.session_state.search_key_text = ""
+                    st.rerun()
+            with col_limpar_termos:
+                if st.button("🗑️ Limpar termos coletados", use_container_width=True):
+                    st.session_state.collected_terms = []
+                    st.rerun()
+            
+            st.divider()
+                     
+            # ========== SEÇÃO 4: ÁREA DE EDIÇÃO ==========
+            st.markdown("**4. Chave de busca:**")
+            
+            edited_key = st.text_area(
+                "Edite sua chave de busca:",
+                value=st.session_state.search_key_text,
+                height=100,
+                help="Você pode editar diretamente este campo.",
+                label_visibility="collapsed",
+                placeholder="Use os botões acima para construir sua chave..."
+            )
+            
+            if edited_key != st.session_state.search_key_text:
+                st.session_state.search_key_text = edited_key
+            
+            if edited_key.strip():
+                import json
+                safe_text = json.dumps(edited_key.strip())
+                
+                copy_js = f"""
+                <script>
+                function copyToClipboard() {{
+                    navigator.clipboard.writeText({safe_text}).then(function() {{
+                        document.getElementById('copy-status').innerHTML = '✅ Copiado!';
+                        setTimeout(function() {{
+                            document.getElementById('copy-status').innerHTML = '';
+                        }}, 2000);
+                    }});
+                }}
+                </script>
+                <div style="text-align: center;">
+                    <button onclick="copyToClipboard()" style="
+                        background-color: #ffffff;
+                        color: #000000;
+                        border: 1px solid #cccccc;
+                        padding: 8px 16px;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 14px;
+                    ">📋 Copiar</button>
+                    <span id="copy-status" style="margin-left: 10px; color: #21c354;"></span>
+                </div>
+                """
+                components.html(copy_js, height=50)
+            
+            # Métricas
+            col_info1, col_info2 = st.columns(2)
+            col_info1.metric("Termos coletados", len(st.session_state.collected_terms))
+            col_info2.metric("Caracteres", len(edited_key.strip()))
+            
+            st.divider()
+            
+            if st.button("📋 Copiar para o Painel", use_container_width=True, type="primary"):
+                st.session_state.dashboard_query = edited_key.strip()
+                st.session_state.dashboard_query_source = "construtor"
+                st.success("✅ Chave copiada!")     
+             
+    rodape_institucional()
+
 # ==================== ABAS PRINCIPAIS ====================
-tab1, tab2, tab3 = st.tabs(["📚 Delineascópio", "📊 Painel", "🔬 Interação"])
+tab1, tab2, tab3, tab4 = st.tabs(["📚 Delineascópio", "🔬 Interação", "📜 Histórico", "📊 Painel"])
 
 # ==================== ABA 1: DELINEASCÓPIO ====================
 with tab1:
@@ -657,13 +1526,17 @@ with tab1:
                     # Gênero para acesso global (biblioteca de gênero)
                     st.session_state.genero = genero
 
-                    # Enviar para Google Sheets e salvar ID
-                    id_usuario = enviar_formulario_inicial(st.session_state.form_data)
+                    # Verifica se já existe um ID nesta sessão (Continuidade)
+                    existing_id = st.session_state.get('id_usuario')
+
+                    # Enviar para Google Sheets e salvar ID (passando o existente)
+                    id_usuario = enviar_formulario_inicial(st.session_state.form_data, existing_id)
+                  
                     if id_usuario:
                         st.session_state.id_usuario = id_usuario
                         st.session_state.timestamp_formulario_inicial = time_module.time()
 
-                    with st.spinner("🔄 Processando... (aguarde 4-5 minutos)"):
+                    with st.spinner("🔄 Processando... (aguarde 2-3 minutos)"):
                         try:
                             # Inicializar pipeline
                             pipe = ResearchScopePipeline(OPENALEX_EMAIL)
@@ -673,7 +1546,8 @@ with tab1:
 
                             # Executar pipeline
                             tempo_inicio = time_module.time()
-                            st.session_state.resultado = pipe.process(nome, tema, questao, kws, genero=genero)
+                            # Usa a função cacheada
+                            st.session_state.resultado = run_cached_pipeline(nome, tema, questao, kws, genero)
                             tempo_fim = time_module.time()
 
                             # Enviar resultados para Google Sheets
@@ -683,6 +1557,20 @@ with tab1:
                                     st.session_state.resultado,
                                     tempo_fim - tempo_inicio
                                 )
+                            
+                            # Salvar grafo no Google Sheets (histórico)
+                            if 'id_usuario' in st.session_state:
+                                try:
+                                    resultado = st.session_state.resultado
+                                    salvar_grafo_historico(
+                                        id_usuario=st.session_state.id_usuario,
+                                        query=resultado.get('search_string', ''),
+                                        articles_count=resultado.get('articles_count', 0),
+                                        G=resultado.get('graph'),
+                                        freq=resultado.get('concept_freq', {})
+                                    )
+                                except Exception as e:
+                                    print(f"⚠️ Erro ao salvar histórico: {e}")
 
                             st.session_state.step = 2
                             st.rerun()
@@ -813,7 +1701,7 @@ with tab1:
             with col2:
                 if num_selected >= 1:
                     if st.button("Gerar Relatório de Delineamento ▶️", type="primary", use_container_width=True):
-                        with st.spinner("🔄 Gerando relatório... (aguarde 2-3 minutos)"):
+                        with st.spinner("🔄 Gerando relatório... (aguarde 1-2 minutos)"):
                             # Gerar conteúdo personalizado
                             from research_pipeline import GeminiQueryGenerator
                             gemini = GeminiQueryGenerator()
@@ -1724,8 +2612,180 @@ Que sangre o dedo, mas que estanque o vício.
 
         rodape_institucional()
 
-# ==================== ABA 2: PAINEL DE ANÁLISE ====================
+# ==================== ABA 2: INTERAÇÃO (FUNÇÕES) ====================
 with tab2:
+    render_tab3_interacao()
+
+# ==================== ABA 3: HISTÓRICO (Comparação e IA) ====================
+with tab3:
+    st.title("📜 Histórico e Comparação de Delineamentos")
+    st.caption("Compare a evolução do seu escopo de pesquisa ao longo do tempo.")
+
+    # Conectar ao Sheets
+    sheet = conectar_google_sheets()
+            
+    if sheet:
+        # ========================================================
+        # 🔒 LÓGICA DE PRIVACIDADE E FILTRO DE USUÁRIO
+        # ========================================================
+        grafos_salvos = []
+        user_id_atual = st.session_state.get('id_usuario')
+
+        if user_id_atual:
+            # Se temos usuário logado/identificado, filtramos pelo ID dele
+            grafos_salvos = exp.listar_grafos_salvos(sheet, user_id_atual)
+                    
+            if not grafos_salvos:
+                st.info(f"Nenhum histórico encontrado para seu usuário atual. Salve um grafo na aba 'Exportação' primeiro.")
+        else:
+            # Se não tem usuário identificado, não mostra nada (Privacidade)
+            st.warning("⚠️ Você precisa preencher o Formulário Inicial (Etapa 1) para acessar seu histórico privado.")
+            st.stop() # Para a execução desta aba aqui para proteger dados
+                
+        # Se passou daqui, é porque tem grafos e é o usuário certo
+
+        if grafos_salvos:
+            st.subheader("1. Selecione os Delineamentos para Comparar")
+                    
+            # Layout de seleção
+            col_sel1, col_sel2 = st.columns(2)
+            opcoes = [g['title'] for g in grafos_salvos]
+                    
+            with col_sel1:
+                # Padrão: Penúltimo grafo (se existir) ou o mesmo
+                idx_a = len(opcoes)-1 if len(opcoes) > 1 else 0
+                g1_title = st.selectbox("Delineamento A (Referência/Antigo):", options=opcoes, index=idx_a)
+                    
+            with col_sel2:
+                # Padrão: Grafo mais recente (primeiro da lista)
+                g2_title = st.selectbox("Delineamento B (Atual/Recente):", options=opcoes, index=0)
+
+            # Botão de Ação
+            if st.button("🔄 Comparar Delineamentos", type="primary", use_container_width=True):
+                if g1_title == g2_title:
+                    st.warning("⚠️ Selecione dois delineamentos diferentes para ver as diferenças.")
+                else:
+                    with st.spinner("⏳ Baixando dados do Google Sheets e calculando similaridade..."):
+                        # Resgata os objetos worksheet correspondentes
+                        ws1 = next(g['obj'] for g in grafos_salvos if g['title'] == g1_title)
+                        ws2 = next(g['obj'] for g in grafos_salvos if g['title'] == g2_title)
+                                
+                        # Carrega os dados usando função do export_utils
+                        df1 = exp.carregar_grafo_do_sheets(ws1)
+                        df2 = exp.carregar_grafo_do_sheets(ws2)
+                                
+                        if df1 is not None and df2 is not None:
+                            # Calcula a mágica
+                            metrics = exp.calcular_comparacao(df1, df2)
+                                    
+                            # --- RESULTADOS ---
+                            st.divider()
+                            st.subheader("📊 Resultados da Comparação")
+                                    
+                            # 1. Métricas Principais
+                            col_res1, col_res2, col_res3 = st.columns(3)
+                                    
+                            col_res1.metric(
+                                "Similaridade (Jaccard)", 
+                                f"{metrics['jaccard']*100:.1f}%",
+                                help="Mede o quanto os vocabulários se sobrepõem (0% = totalmente diferentes, 100% = iguais)."
+                            )
+                                    
+                            delta = metrics['qtd_2'] - metrics['qtd_1']
+                            col_res2.metric(
+                                "Tamanho do Vocabulário", 
+                                f"{metrics['qtd_2']} conceitos",
+                                f"{delta:+}",
+                                help="Diferença no número total de conceitos entre B e A."
+                            )
+                                    
+                            col_res3.metric(
+                                "Novos Conceitos", 
+                                len(metrics['exclusivos_novos']),
+                                help="Conceitos que existem em B mas não existiam em A."
+                            )
+                                    
+                            # 2. Detalhamento Semântico
+                            st.markdown("---")
+                            c1, c2 = st.columns(2)
+                                    
+                            with c1:
+                                st.markdown("#### 🆕 O que entrou (Novidades)")
+                                if metrics['exclusivos_novos']:
+                                    # Mostra tags coloridas ou lista
+                                    st.success(", ".join(metrics['exclusivos_novos'][:50]))
+                                    if len(metrics['exclusivos_novos']) > 50:
+                                        st.caption(f"...e mais {len(metrics['exclusivos_novos'])-50} conceitos.")
+                                else:
+                                    st.info("Nenhum conceito novo adicionado.")
+
+                            with c2:
+                                st.markdown("#### 🗑️ O que saiu (Removidos)")
+                                if metrics['exclusivos_antigos']:
+                                    st.error(", ".join(metrics['exclusivos_antigos'][:50]))
+                                    if len(metrics['exclusivos_antigos']) > 50:
+                                        st.caption(f"...e mais {len(metrics['exclusivos_antigos'])-50} conceitos.")
+                                else:
+                                    st.info("Nenhum conceito foi removido.")
+                                            
+                            # 3. Intersecção (O que permaneceu)
+                            with st.expander(f"🤝 Núcleo Estável ({len(metrics['comuns'])} conceitos mantidos)"):
+                                st.write(", ".join(metrics['comuns']))
+
+                            # ================== COMPARAÇÃO 🍒 (Versão com Rerun Forçado) ==================
+                            st.divider()
+                            st.markdown("### 🤖 O que o Delinéia diz sobre sua evolução?")
+                                    
+                            # Só mostra se houver diferença e se a análise AINDA NÃO foi feita
+                            if metrics['jaccard'] < 0.99:
+                                        
+                                # 1. MOSTRAR BOTÃO (Se não tiver análise salva)
+                                if 'ultima_analise_historico' not in st.session_state:
+                                    if st.button("✨ Gerar Análise Pedagógica da Mudança", type="primary", use_container_width=True, key="btn_analise_ia_tab8"):
+                                                
+                                        nome_aluno = st.session_state.form_data.get('nome', 'Pesquisador').split()[0]
+                                        genero_aluno = st.session_state.form_data.get('genero', 'Neutro')
+                                                
+                                        with st.spinner(f"🧠 O Orientador IA está analisando a trajetória de {nome_aluno}..."):
+                                            try:
+                                                if 'gemini_gen' not in st.session_state:
+                                                    from research_pipeline import GeminiQueryGenerator
+                                                    st.session_state.gemini_gen = GeminiQueryGenerator()
+                                                        
+                                                # Gera
+                                                analise = st.session_state.gemini_gen.generate_evolution_analysis(
+                                                    metrics, 
+                                                    nome_aluno, 
+                                                    genero=genero_aluno 
+                                                )
+                                                        
+                                                # Salva
+                                                st.session_state['ultima_analise_historico'] = analise
+                                                        
+                                                # FORÇA O RECARREGAMENTO PARA EXIBIR IMEDIATAMENTE
+                                                st.rerun()
+                                                        
+                                            except Exception as e:
+                                                st.error(f"Erro na conexão com IA: {str(e)}")
+
+                                # 2. MOSTRAR RESULTADO (Se já tiver análise salva)
+                                else:
+                                    st.markdown("### 📝 Parecer da Orientação Artificial")
+                                    st.info(st.session_state['ultima_analise_historico'], icon="🤖")
+                                            
+                                    # Botão para limpar e fazer de novo
+                                    if st.button("🔄 Refazer Análise / Limpar", key="btn_limpar_analise"):
+                                        del st.session_state['ultima_analise_historico']
+                                        st.rerun()
+                            else:
+                                st.info("Os dois delineamentos são idênticos. Mude a busca e gere um novo grafo para ver a evolução.")    
+                        else:
+                            st.error("Erro ao ler os dados das planilhas. Verifique se as abas contêm dados válidos.")
+    else:
+        st.error("Não foi possível conectar ao Google Sheets.")
+
+# ==================== ABA 4: PAINEL DE ANÁLISE ====================
+with tab4:
     st.title("📊 Painel de Exploração de Dados")
     st.caption("Análise profunda dos dados do OpenAlex")
 
@@ -1780,7 +2840,8 @@ with tab2:
                     client = OpenAlexClient(OPENALEX_EMAIL)
 
                     # Buscar artigos
-                    articles = client.search_articles(client.normalize_query(query), limit)
+                    articles = search_openalex_cached(query, limit, 0, 0) # Cacheia o bruto, filtra na view
+                    # Nota: Passei 0,0 no score/level para cachear o resultado bruto e permitir que o usuário brinque com os sliders sem refazer a requisição HTTP.
 
                     # Extrair conceitos
                     concepts_lists = []
@@ -1848,7 +2909,13 @@ with tab2:
             Este projeto situa-se no diálogo entre Informática na Educação e Ciência da Informação, explorando como tecnologias de IA podem apoiar processos de pesquisa científica no ensino superior.
         
             ### Funcionalidades
-            - **Delineascópio:** Feedback personalizado sobre projetos de pesquisa
+            - **Delineascópio:** Feedback personalizado sobre projetos de pesquisa        
+            - **Interação:** Grafo dinâmico
+              - **Movimentação com física:** Inclusão e exclusão de nós
+              - **Exportação de rede:** Dados em GraphML e CSV
+              - **Construtor de chaves de busca:** Para maior autonomia
+            - **Histórico:** Comparação entre grafos
+              - **Análise pedagógica da mudança
             - **Painel:** Análise profunda de dados do OpenAlex:
               - **Artigos:** Contagens de artigos e links de acesso
               - **Conceitos:** Contagens de conceitos, nuvem de palavras e Lei de Zipf
@@ -1857,16 +2924,12 @@ with tab2:
               - **Mapa Temático:** Posição do cluster
               - **Estatísticas:** Resumo breve
               - **Exportação:** Dados em JSON, CSV, GraphML, .net, XLSX, BibTeX e RIS
-            -**Interação:** Grafo dinâmico
-              - **Movimentação com física:** Inclusão e exclusão de nós
-              - **Exportação de rede:** Dados em GraphML e CSV
-              - **Construtor de chaves de busca:** Para maior autonomia
-        
+            
             ### Tecnologias
-            - Python / Streamlit
-            - Google Gemini AI 2.5 Pro / Anthropic Claude Opus 4.5
+            - Python | Streamlit
+            - Google Gemini AI 2.5 Pro | Anthropic Claude Opus 4.5
             - OpenAlex API
-            - NetworkX / Plotly / PyVis / ReportLab
+            - NetworkX | Plotly | PyVis | ReportLab
         
             ### Contato
             📧 rafael.antunes@ufrgs.br
@@ -1904,14 +2967,10 @@ with tab2:
         concepts_lists = data['concepts_lists']
         G = data['graph']
 
-        # Criar sub-abas para análises
+        # Criar sub-abas para análises (Adicionei "📜 Histórico")
         t1, t2, t3, t4, t5, t6, t7 = st.tabs([
-            "📚 Artigos",
-            "🧩 Conceitos",
-            "🔗 Coocorrências",
-            "🕸️ Grafo",
-            "🗺️ Mapa Temático",
-            "📊 Estatísticas",
+            "📚 Artigos", "🧩 Conceitos", "🔗 Coocorrências", 
+            "🕸️ Grafo", "🗺️ Mapa Temático", "📊 Estatísticas", 
             "💾 Exportação"
         ])
 
@@ -2100,7 +3159,10 @@ with tab2:
             st.plotly_chart(fig, use_container_width=True)
 
             # Análise de Zipf
-            def analyze_zipf(frequency_data):
+            @st.cache_data
+            def cached_zipf_analysis(frequency_data):
+                """Wrapper para cachear a análise de Zipf."""
+                return analyze_zipf(frequency_data)
                 """
                 Analisa a distribuição de frequências segundo a Lei de Zipf
 
@@ -2291,11 +3353,15 @@ with tab2:
 
             top_pairs = st.slider("Número de pares:", 10, 100, 30, 10, key="top_pairs")
 
+            # Calcular frequências individuais para Salton
+            concept_freq = dict(freq)
+            
             df_pairs = pd.DataFrame([
                 {
                     'Conceito 1': c1,
                     'Conceito 2': c2,
-                    'Frequência': f
+                    'Frequência': f,
+                    'Salton': round(f / np.sqrt(concept_freq.get(c1, 1) * concept_freq.get(c2, 1)), 4)
                 }
                 for (c1, c2), f in pairs.most_common(top_pairs)
             ])
@@ -2331,6 +3397,57 @@ with tab2:
 
             st.divider()
 
+            # Matriz de Similaridade de Salton
+            st.subheader("📐 Matriz de Similaridade (Cosseno de Salton)")
+            st.caption("Salton(i,j) = coocorrência(i,j) / √(freq(i) × freq(j)) — normaliza coocorrências, valores de 0 a 1")
+            
+            top_salton = st.slider("Conceitos na matriz de Salton:", 5, 20, 15, 1, key="salton_size")
+            
+            top_concepts_salton = [c for c, _ in freq.most_common(top_salton)]
+            
+            # Criar matriz de Salton
+            salton_matrix = pd.DataFrame(0.0, index=top_concepts_salton, columns=top_concepts_salton)
+            
+            for (c1, c2), f in pairs.items():
+                if c1 in top_concepts_salton and c2 in top_concepts_salton:
+                    salton_value = f / np.sqrt(concept_freq.get(c1, 1) * concept_freq.get(c2, 1))
+                    salton_matrix.loc[c1, c2] = round(salton_value, 4)
+                    salton_matrix.loc[c2, c1] = round(salton_value, 4)
+            
+            fig_salton = px.imshow(
+                salton_matrix,
+                labels=dict(x="Conceito", y="Conceito", color="Similaridade"),
+                title=f"Similaridade de Salton - Top {top_salton} Conceitos",
+                color_continuous_scale='Greens'
+            )
+            fig_salton.update_layout(height=600)
+            
+            st.plotly_chart(fig_salton, use_container_width=True)
+            
+            # Botão para baixar matriz completa
+            with st.expander("💾 Baixar Matriz Completa de Salton"):
+                st.caption("Matriz com todos os conceitos do grafo")
+                
+                all_concepts = list(freq.keys())
+                full_salton = pd.DataFrame(0.0, index=all_concepts, columns=all_concepts)
+                
+                for (c1, c2), f in pairs.items():
+                    salton_value = f / np.sqrt(concept_freq.get(c1, 1) * concept_freq.get(c2, 1))
+                    full_salton.loc[c1, c2] = round(salton_value, 4)
+                    full_salton.loc[c2, c1] = round(salton_value, 4)
+                
+                csv_salton = full_salton.to_csv()
+                
+                st.download_button(
+                    "📥 Baixar Matriz Salton (CSV)",
+                    data=csv_salton,
+                    file_name="matriz_salton_completa.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+                
+                st.metric("Dimensão da matriz", f"{len(all_concepts)} x {len(all_concepts)}")
+            
             # Distribuição de frequências
             st.subheader("📈 Distribuição das Frequências de Coocorrência")
 
@@ -2494,6 +3611,9 @@ with tab2:
         with t5:
             st.header("🗺️ Mapa Temático (Diagrama Estratégico)")
 
+        @st.cache_data
+        def cached_thematic_map(graph_data, concepts_lists, method, min_size):
+
             st.markdown("""
             O **Mapa Temático** organiza os conceitos em clusters e os classifica em quatro quadrantes
             a partir de centralidade (importância no campo) e densidade (coesão interna):
@@ -2527,15 +3647,10 @@ with tab2:
 
                 if st.button("🔍 Gerar Mapa Temático", type="primary", key="generate_thematic_map"):
                     try:
-                        from thematic_map_module import ThematicMapAnalyzer
-
+                        # Chama a função cacheada definida no topo
                         with st.spinner("🔄 Detectando clusters e calculando métricas do mapa temático..."):
-                            tm_analyzer = ThematicMapAnalyzer(G, concepts_lists)
-                            tm_analyzer.detect_clusters(
-                                method=cluster_method,
-                                min_size=min_cluster_size
-                            )
-                            metrics_df = tm_analyzer.analyze_clusters()
+                            # Recebemos o DataFrame (metrics_df) e a lista de clusters (clusters_detected)
+                            metrics_df, clusters_detected = run_cached_thematic_map(G, concepts_lists, cluster_method, min_cluster_size)
 
                         if metrics_df is None or len(metrics_df) == 0:
                             st.warning("⚠️ Nenhum cluster detectado. Verifique os parâmetros ou amplie o corpus.")
@@ -2552,16 +3667,21 @@ with tab2:
                             centralidades = []
                             densidades = []
 
-                            # garante alinhamento: mesma ordem de metrics_df e tm_analyzer.clusters
+                            # garante alinhamento: mesma ordem de metrics_df e clusters_detected
                             for idx, row in metrics_df.reset_index(drop=True).iterrows():
-                                quadrante = ThematicMapAnalyzer.classify_quadrant(
-                                    row["centralidade_norm"],
-                                    row["densidade_norm"]
-                                )
+                                quadrante = row.get("quadrante", "Basic Theme") # Fallback seguro
+                                if "quadrante" not in row:
+                                    # Recalcula quadrante se não vier do cache (segurança)
+                                    from thematic_map_module import ThematicMapAnalyzer
+                                    quadrante = ThematicMapAnalyzer.classify_quadrant(
+                                        row["centralidade_norm"], 
+                                        row["densidade_norm"]
+                                    )
+                                
                                 tipo = tipo_map.get(quadrante, "Basic Theme")
 
                                 # conceitos do cluster (set -> lista ordenada)
-                                conceitos_cluster = sorted(tm_analyzer.clusters[idx])
+                                conceitos_cluster = sorted(clusters_detected[idx])
                                 tamanho_cluster = len(conceitos_cluster)
 
                                 # conceito principal: primeiro da lista de principais ou primeiro do cluster
@@ -3048,710 +4168,5 @@ Total de Artigos: {len(articles)}
                         "application/zip",
                         use_container_width=True
                     )
-
+        
     rodape_institucional()
-
-# ==================== ABA 3: INTERAÇÃO (FUNÇÕES) ====================
-
-def extract_concept_metadata(articles: list) -> dict:
-    """
-    Extrai metadados agregados (frequência, score médio, level médio) de cada conceito.
-    """
-    from collections import defaultdict
-    
-    concept_data = defaultdict(lambda: {'scores': [], 'levels': [], 'count': 0})
-    
-    for article in articles:
-        for concept in article.get('concepts', []):
-            name = concept.get('display_name', '')
-            if name:
-                concept_data[name]['scores'].append(concept.get('score', 0))
-                concept_data[name]['levels'].append(concept.get('level', 0))
-                concept_data[name]['count'] += 1
-    
-    metadata = {}
-    for name, data in concept_data.items():
-        metadata[name] = {
-            'freq': data['count'],
-            'score': sum(data['scores']) / len(data['scores']) if data['scores'] else 0,
-            'level': sum(data['levels']) / len(data['levels']) if data['levels'] else 0
-        }
-    
-    return metadata
-
-
-def calculate_layout_positions(G: nx.Graph, layout_name: str) -> dict:
-    """
-    Calcula posições dos nós usando diferentes algoritmos de layout.
-    """
-    scale = 500
-    
-    if layout_name == "Kamada-Kawai":
-        try:
-            pos = nx.kamada_kawai_layout(G, scale=scale)
-        except:
-            pos = nx.spring_layout(G, scale=scale, seed=42)
-    
-    elif layout_name == "Circular":
-        pos = nx.circular_layout(G, scale=scale)
-    
-    elif layout_name == "Shell (concêntrico)":
-        degrees = dict(G.degree())
-        if degrees:
-            sorted_nodes = sorted(degrees.keys(), key=lambda x: degrees[x], reverse=True)
-            n = len(sorted_nodes)
-            shells = [
-                sorted_nodes[:n//3] if n > 3 else sorted_nodes,
-                sorted_nodes[n//3:2*n//3] if n > 3 else [],
-                sorted_nodes[2*n//3:] if n > 3 else []
-            ]
-            shells = [s for s in shells if s]
-            pos = nx.shell_layout(G, nlist=shells, scale=scale)
-        else:
-            pos = nx.shell_layout(G, scale=scale)
-    
-    elif layout_name == "Spectral":
-        try:
-            pos = nx.spectral_layout(G, scale=scale)
-        except:
-            pos = nx.spring_layout(G, scale=scale, seed=42)
-    
-    elif layout_name == "Random":
-        pos = nx.random_layout(G, seed=42)
-        pos = {k: (v[0] * scale, v[1] * scale) for k, v in pos.items()}
-    
-    elif layout_name == "Fruchterman-Reingold":
-        k_val = 2 / (len(G.nodes()) ** 0.5) if len(G.nodes()) > 0 else 1
-        pos = nx.spring_layout(G, scale=scale, seed=42, k=k_val)
-    
-    else:
-        return None
-    
-    # Converter numpy.float32 para float nativo
-    if pos:
-        pos = {k: (float(v[0]), float(v[1])) for k, v in pos.items()}
-    
-    return pos
-
-
-def render_interactive_graph_pyvis(G: nx.Graph, selected_concepts: list = None, 
-                                    concept_metadata: dict = None, 
-                                    layout_positions: dict = None,
-                                    enable_physics: bool = True,
-                                    height: str = "550px") -> None:
-    """
-    Renderiza um grafo NetworkX de forma interativa usando PyVis.
-    """
-    
-    if not PYVIS_AVAILABLE:
-        st.error("⚠️ PyVis não está instalado. Adicione 'pyvis>=0.3.0' ao requirements.txt")
-        return
-    
-    if G is None or len(G.nodes()) == 0:
-        st.warning("Grafo vazio ou não disponível")
-        return
-    
-    nt = Network(
-        height=height,
-        width="100%",
-        bgcolor="#ffffff",
-        font_color="#333333",
-        directed=False
-    )
-    
-    physics_config = "true" if enable_physics else "false"
-    
-    nt.set_options(f"""
-    {{
-        "nodes": {{
-            "borderWidth": 2,
-            "borderWidthSelected": 4,
-            "font": {{
-                "size": 14,
-                "face": "arial"
-            }}
-        }},
-        "edges": {{
-            "color": {{
-                "color": "#cccccc",
-                "highlight": "#10b981"
-            }},
-            "smooth": {{
-                "type": "continuous"
-            }}
-        }},
-        "physics": {{
-            "enabled": {physics_config},
-            "forceAtlas2Based": {{
-                "gravitationalConstant": -60,
-                "centralGravity": 0.015,
-                "springLength": 120,
-                "springConstant": 0.08
-            }},
-            "maxVelocity": 50,
-            "solver": "forceAtlas2Based",
-            "timestep": 0.35,
-            "stabilization": {{
-                "enabled": true,
-                "iterations": 200,
-                "updateInterval": 25
-            }}
-        }},
-        "interaction": {{
-            "hover": true,
-            "tooltipDelay": 150,
-            "hideEdgesOnDrag": true,
-            "zoomView": true,
-            "dragView": true
-        }}
-    }}
-    """)
-    
-    nt.from_nx(G)
-    
-    degrees = dict(G.degree())
-    max_degree = max(degrees.values()) if degrees else 1
-    
-    selected = selected_concepts or []
-    metadata = concept_metadata or {}
-    
-    max_freq = max([m.get('freq', 1) for m in metadata.values()]) if metadata else max_degree
-    
-    for node in nt.nodes:
-        node_id = node['id']
-        degree = degrees.get(node_id, 1)
-        
-        meta = metadata.get(node_id, {})
-        freq = meta.get('freq', degree)
-        score = meta.get('score', 0)
-        level = meta.get('level', 0)
-        
-        node['size'] = 18 + (freq / max_freq) * 35
-        
-        if layout_positions and node_id in layout_positions:
-            pos = layout_positions[node_id]
-            node['x'] = pos[0]
-            node['y'] = pos[1]
-        
-        if node_id in selected:
-            node['color'] = {
-                'background': '#f59e0b',
-                'border': '#d97706',
-                'highlight': {
-                    'background': '#fbbf24',
-                    'border': '#b45309'
-                }
-            }
-        else:
-            node['color'] = {
-                'background': '#10b981',
-                'border': '#059669',
-                'highlight': {
-                    'background': '#34d399',
-                    'border': '#047857'
-                }
-            }
-        
-        status = "✓ Selecionado" if node_id in selected else ""
-        level_desc = ["Geral", "Campo", "Subcampo", "Nicho", "Específico", "Ultra-específico"]
-        level_text = level_desc[int(level)] if 0 <= level < len(level_desc) else f"Nível {level:.0f}"
-        
-        node['title'] = f"""{node_id}
-━━━━━━━━━━━━━━━━━━━━
-📊 Frequência: {freq} artigos
-🎯 Score médio: {score:.2f}
-📐 Level: {level:.1f} ({level_text})
-🔗 Conexões: {degree}
-{status}"""
-    
-    with tempfile.NamedTemporaryFile(delete=False, suffix='.html', mode='w', encoding='utf-8') as f:
-        nt.save_graph(f.name)
-        temp_path = f.name
-    
-    try:
-        with open(temp_path, 'r', encoding='utf-8') as f:
-            html_content = f.read()
-        
-        components.html(html_content, height=int(height.replace('px', '')) + 50, scrolling=False)
-    finally:
-        try:
-            os.unlink(temp_path)
-        except:
-            pass
-
-
-def render_tab3_interacao():
-    """
-    Renderiza a Tab3: Interação com o Grafo
-    """
-    
-    st.title("🔬 Exploração Interativa do Grafo")
-    st.caption("Visualize e explore a rede de conceitos de forma dinâmica")
-    
-    if st.session_state.get('resultado') is None:
-        st.info("👈 Complete primeiro o **Delineascópio** para visualizar o grafo interativo.")
-        st.markdown("""
-        **O que você encontrará aqui:**
-        - 🕸️ Grafo interativo (arraste, zoom, clique)
-        - 📊 Estatísticas de centralidade
-        - 🔍 Filtros dinâmicos por grau e peso
-        - 💾 Exportação para Gephi e outros softwares
-        """)
-        rodape_institucional()
-        return
-    
-    r = st.session_state.resultado
-    G = r.get('graph')
-    
-    if G is None or len(G.nodes()) == 0:
-        st.warning("⚠️ Grafo não disponível. Execute o pipeline novamente.")
-        rodape_institucional()
-        return
-    
-    # Extrair metadados dos conceitos
-    articles = r.get('raw_articles', [])
-    concept_metadata = extract_concept_metadata(articles)
-    
-    selected_concepts = st.session_state.get('selected_concepts', [])
-    
-    # ==================== CONTROLES DE FILTRO ====================
-    with st.expander(f"⚙️ **Filtros do Grafo** ({len(G.nodes())} conceitos disponíveis)", expanded=True):
-        
-        # Linha 1: Filtros numéricos
-        col_f1, col_f2, col_f3 = st.columns(3)
-        
-        with col_f1:
-            max_deg_value = max(dict(G.degree()).values()) if G.nodes() else 1
-            min_degree = st.slider(
-                "Grau mínimo dos nós:",
-                min_value=1,
-                max_value=max(max_deg_value, 2),
-                value=1,
-                help="Remove nós com poucas conexões"
-            )
-        
-        with col_f2:
-            if G.edges():
-                edge_weights = [G[u][v].get('weight', 1) for u, v in G.edges()]
-                min_w, max_w = int(min(edge_weights)), int(max(edge_weights))
-                min_weight = st.slider(
-                    "Peso mínimo das arestas:",
-                    min_value=min_w,
-                    max_value=max(max_w, min_w + 1),
-                    value=min_w,
-                    help="Remove conexões fracas"
-                )
-            else:
-                min_weight = 1
-        
-        with col_f3:
-            max_nodes = st.slider(
-                "Máximo de nós:",
-                min_value=5,
-                max_value=min(len(G.nodes()), 100),
-                value=min(len(G.nodes()), 50),
-                help="Limita visualização aos mais frequentes"
-            )
-        
-        st.divider()
-        
-        # Linha 2: Seleção de conceitos (INCLUSÃO/EXCLUSÃO)
-        all_concepts_sorted = sorted(G.nodes())
-        
-        col_inc, col_exc = st.columns(2)
-        
-        with col_inc:
-            include_concepts = st.multiselect(
-                "✅ Incluir apenas estes conceitos:",
-                options=all_concepts_sorted,
-                default=[],
-                help="Deixe vazio para incluir todos. Se selecionar, mostra APENAS os escolhidos.",
-                placeholder="Todos os conceitos (padrão)"
-            )
-        
-        with col_exc:
-            exclude_concepts = st.multiselect(
-                "❌ Excluir estes conceitos:",
-                options=all_concepts_sorted,
-                default=[],
-                help="Conceitos que serão removidos do grafo.",
-                placeholder="Nenhum excluído (padrão)"
-            )
-        
-        st.divider()
-        
-        # Linha 3: Layout do grafo
-        col_layout, col_physics = st.columns(2)
-        
-        with col_layout:
-            layout_option = st.selectbox(
-                "🗺️ Layout do grafo:",
-                options=[
-                    "Força (padrão)",
-                    "Kamada-Kawai",
-                    "Circular",
-                    "Shell (concêntrico)",
-                    "Spectral",
-                    "Random",
-                    "Fruchterman-Reingold"
-                ],
-                index=0,
-                help="Algoritmo de posicionamento dos nós"
-            )
-        
-        with col_physics:
-            enable_physics = st.checkbox(
-                "⚡ Física ativa",
-                value=(layout_option == "Força (padrão)"),
-                help="Permite arrastar nós. Desative para layouts fixos."
-            )
-    
-    # ==================== APLICAR FILTROS ====================
-    G_filtered = G.copy()
-    
-    if include_concepts:
-        nodes_to_keep = set(include_concepts)
-        nodes_to_remove = [n for n in G_filtered.nodes() if n not in nodes_to_keep]
-        G_filtered.remove_nodes_from(nodes_to_remove)
-    
-    if exclude_concepts:
-        G_filtered.remove_nodes_from(exclude_concepts)
-    
-    nodes_to_remove = [n for n in G_filtered.nodes() if G_filtered.degree(n) < min_degree]
-    G_filtered.remove_nodes_from(nodes_to_remove)
-    
-    edges_to_remove = [(u, v) for u, v in G_filtered.edges() 
-                       if G_filtered[u][v].get('weight', 1) < min_weight]
-    G_filtered.remove_edges_from(edges_to_remove)
-    
-    if len(G_filtered.nodes()) > max_nodes:
-        degrees = dict(G_filtered.degree())
-        top_nodes = sorted(degrees, key=degrees.get, reverse=True)[:max_nodes]
-        G_filtered = G_filtered.subgraph(top_nodes).copy()
-    
-    isolates = list(nx.isolates(G_filtered))
-    G_filtered.remove_nodes_from(isolates)
-    
-    # ==================== MÉTRICAS ====================
-    st.divider()
-    
-    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-    col_m1.metric("🔵 Nós Visíveis", len(G_filtered.nodes()))
-    col_m2.metric("🔗 Arestas Visíveis", len(G_filtered.edges()))
-    
-    if len(G_filtered.nodes()) > 1:
-        density = nx.density(G_filtered)
-        col_m3.metric("📐 Densidade", f"{density:.3f}")
-    else:
-        col_m3.metric("📐 Densidade", "N/A")
-    
-    col_m4.metric("⭐ Selecionados", len([c for c in selected_concepts if c in G_filtered.nodes()]))
-    
-    # ==================== GRAFO INTERATIVO ====================
-    st.divider()
-    
-    if len(G_filtered.nodes()) > 0:
-        st.subheader("🕸️ Grafo Interativo")
-        st.caption("**Arraste** os nós para reorganizar • **Scroll** para zoom • **Clique** para destacar • Nós dourados = selecionados")
-        
-        layout_positions = calculate_layout_positions(G_filtered, layout_option)
-        
-        render_interactive_graph_pyvis(
-            G_filtered, 
-            selected_concepts, 
-            concept_metadata, 
-            layout_positions,
-            enable_physics,
-            height="550px"
-        )
-    else:
-        st.warning("⚠️ Nenhum nó atende aos critérios de filtro. Ajuste os controles acima.")
-    
-    st.divider()
-    
-    # ==================== ESTATÍSTICAS AVANÇADAS ====================
-    col_stats1, col_stats2 = st.columns(2)
-    
-    with col_stats1:
-        with st.expander("📊 **Centralidade de Grau** (Top 10)", expanded=False):
-            if len(G_filtered.nodes()) > 0:
-                degree_centrality = nx.degree_centrality(G_filtered)
-                sorted_dc = sorted(degree_centrality.items(), key=lambda x: x[1], reverse=True)[:10]
-                
-                for i, (node, centrality) in enumerate(sorted_dc, 1):
-                    marker = "🟡" if node in selected_concepts else "🟢"
-                    st.write(f"{i}. {marker} **{node}**: {centrality:.3f}")
-    
-    with col_stats2:
-        with st.expander("🔀 **Centralidade de Intermediação** (Top 10)", expanded=False):
-            if len(G_filtered.nodes()) > 1:
-                try:
-                    betweenness = nx.betweenness_centrality(G_filtered)
-                    sorted_bc = sorted(betweenness.items(), key=lambda x: x[1], reverse=True)[:10]
-                    
-                    for i, (node, centrality) in enumerate(sorted_bc, 1):
-                        marker = "🟡" if node in selected_concepts else "🟢"
-                        st.write(f"{i}. {marker} **{node}**: {centrality:.3f}")
-                except:
-                    st.write("Não disponível para este grafo")
-            else:
-                st.write("Precisa de pelo menos 2 nós")
-    
-    # ==================== EXPORTAÇÃO ====================
-    with st.expander("💾 **Exportar Grafo Filtrado**", expanded=False):
-        st.caption("Baixe o grafo com os filtros aplicados para análise em outros softwares.")
-        
-        col_exp1, col_exp2, col_exp3 = st.columns(3)
-        
-        with col_exp1:
-            try:
-                graphml_buffer = io.BytesIO()
-                nx.write_graphml(G_filtered, graphml_buffer)
-                graphml_buffer.seek(0)
-                
-                st.download_button(
-                    "📥 GraphML (Gephi)",
-                    data=graphml_buffer.getvalue(),
-                    file_name="grafo_interativo.graphml",
-                    mime="application/xml",
-                    use_container_width=True,
-                    help="Para Gephi ou Cytoscape"
-                )
-            except Exception as e:
-                st.error(f"Erro: {e}")
-        
-        with col_exp2:
-            edges_data = ["source,target,weight"]
-            for u, v in G_filtered.edges():
-                weight = G_filtered[u][v].get('weight', 1)
-                edges_data.append(f"{u},{v},{weight}")
-            
-            csv_content = "\n".join(edges_data)
-            
-            st.download_button(
-                "📥 Arestas (CSV)",
-                data=csv_content,
-                file_name="grafo_arestas.csv",
-                mime="text/csv",
-                use_container_width=True,
-                help="Lista de conexões"
-            )
-        
-        with col_exp3:
-            nodes_data = ["node,degree,degree_centrality,selected"]
-            degree_cent = nx.degree_centrality(G_filtered) if len(G_filtered.nodes()) > 0 else {}
-            
-            for node in G_filtered.nodes():
-                deg = G_filtered.degree(node)
-                dc = degree_cent.get(node, 0)
-                sel = "sim" if node in selected_concepts else "não"
-                nodes_data.append(f"{node},{deg},{dc:.4f},{sel}")
-            
-            csv_nodes = "\n".join(nodes_data)
-            
-            st.download_button(
-                "📥 Nós (CSV)",
-                data=csv_nodes,
-                file_name="grafo_nos.csv",
-                mime="text/csv",
-                use_container_width=True,
-                help="Lista de conceitos com métricas"
-            )
-    
-    # ==================== CONSTRUTOR DE CHAVE DE BUSCA ====================
-    st.divider()
-    st.subheader("🔧 Construtor de Chave de Busca")
-    st.caption("Monte sua própria chave de busca selecionando conceitos do grafo e inserindo operadores booleanos")
-    
-    with st.expander("**Construir Chave Personalizada**", expanded=False):
-        
-        # Inicializar session_state para o text_area se não existir
-        if 'search_key_text' not in st.session_state:
-            st.session_state.search_key_text = ""
-        if 'collected_terms' not in st.session_state:
-            st.session_state.collected_terms = []
-
-        # Conceitos disponíveis (do grafo filtrado ou original)
-        available_concepts = sorted(G_filtered.nodes()) if len(G_filtered.nodes()) > 0 else sorted(G.nodes())
-        
-        # ========== SEÇÃO 1: SELEÇÃO DE CONCEITOS ==========
-        st.markdown("**1. Selecione um conceito:**")
-        
-        selected_concept = st.selectbox(
-            "Conceito para formatar:",
-            options=[""] + available_concepts,
-            index=0,
-            help="Escolha um conceito para formatar e adicionar à chave",
-            label_visibility="collapsed"
-        )
-        
-        if selected_concept:
-            st.divider()
-            
-            # ========== SEÇÃO 2: FORMATAÇÃO DO TERMO ==========
-            st.markdown("**2. Formatação do termo:**")
-            
-            col_trunc, col_aspas = st.columns(2)
-            
-            with col_trunc:
-                use_truncation = st.checkbox(
-                    "Usar truncagem (*)",
-                    value=False,
-                    help="Adiciona * ao final para recuperar variações"
-                )
-            
-            with col_aspas:
-                use_quotes = st.checkbox(
-                    'Usar aspas (" ")',
-                    value=True,
-                    help="Coloca o termo entre aspas para busca exata"
-                )
-            
-            def format_term(term, truncation=False, quotes=False):
-                t = term
-                if truncation:
-                    words = t.split()
-                    if words:
-                        words[-1] = words[-1][:4] + "*" if len(words[-1]) > 4 else words[-1] + "*"
-                        t = " ".join(words)
-                if quotes:
-                    t = f'"{t}"'
-                return t
-            
-            formatted_preview = format_term(selected_concept, use_truncation, use_quotes)
-            st.code(formatted_preview, language=None)
-            
-            if st.button("➕ Colecionar termo", use_container_width=True, type="primary"):
-                if formatted_preview not in st.session_state.collected_terms:
-                    st.session_state.collected_terms.append(formatted_preview)
-                st.rerun()
-            
-            st.divider()
-            
-            # ========== SEÇÃO 3: OPERADORES E CONSTRUÇÃO ==========
-            st.markdown("**3. Construa a chave de busca:**")
-            
-            if st.session_state.collected_terms:
-                st.caption(f"Termos coletados: {', '.join(st.session_state.collected_terms)}")
-            else:
-                st.caption("Nenhum termo coletado ainda.")
-            
-            # Botões de inserção - Operadores Booleanos
-            st.markdown("**Operadores booleanos:**")
-            col_and, col_or, col_not, col_abre, col_fecha = st.columns(5)
-            
-            with col_and:
-                if st.button("AND", use_container_width=True, help="Interseção: retorna resultados que contenham TODOS os termos"):
-                    st.session_state.search_key_text += " AND "
-                    st.rerun()
-            
-            with col_or:
-                if st.button("OR", use_container_width=True, help="União: retorna resultados que contenham QUALQUER um dos termos"):
-                    st.session_state.search_key_text += " OR "
-                    st.rerun()
-            
-            with col_not:
-                if st.button("NOT", use_container_width=True, help="Exclusão: remove resultados que contenham o termo seguinte"):
-                    st.session_state.search_key_text += " NOT "
-                    st.rerun()
-            
-            with col_abre:
-                if st.button("(", use_container_width=True, help="Abre parênteses para agrupar termos"):
-                    st.session_state.search_key_text += "("
-                    st.rerun()
-            
-            with col_fecha:
-                if st.button(")", use_container_width=True, help="Fecha parênteses"):
-                    st.session_state.search_key_text += ")"
-                    st.rerun()
-            
-            # Botões para inserir termos coletados
-            if st.session_state.collected_terms:
-                st.markdown("**Inserir conceitos:**")
-                num_cols = 4
-                for i in range(0, len(st.session_state.collected_terms), num_cols):
-                    cols = st.columns(num_cols)
-                    for j, col in enumerate(cols):
-                        idx = i + j
-                        if idx < len(st.session_state.collected_terms):
-                            term = st.session_state.collected_terms[idx]
-                            display_label = term[:20] + "..." if len(term) > 20 else term
-                            with col:
-                                if st.button(display_label, key=f"term_btn_{idx}", use_container_width=True):
-                                    st.session_state.search_key_text += term
-                                    st.rerun()
-            
-            col_limpar, col_limpar_termos = st.columns(2)
-            with col_limpar:
-                if st.button("🗑️ Limpar chave", use_container_width=True):
-                    st.session_state.search_key_text = ""
-                    st.rerun()
-            with col_limpar_termos:
-                if st.button("🗑️ Limpar termos coletados", use_container_width=True):
-                    st.session_state.collected_terms = []
-                    st.rerun()
-            
-            st.divider()
-                     
-            # ========== SEÇÃO 4: ÁREA DE EDIÇÃO ==========
-            st.markdown("**4. Chave de busca:**")
-            
-            edited_key = st.text_area(
-                "Edite sua chave de busca:",
-                value=st.session_state.search_key_text,
-                height=100,
-                help="Você pode editar diretamente este campo.",
-                label_visibility="collapsed",
-                placeholder="Use os botões acima para construir sua chave..."
-            )
-            
-            if edited_key != st.session_state.search_key_text:
-                st.session_state.search_key_text = edited_key
-            
-            if edited_key.strip():
-                import json
-                safe_text = json.dumps(edited_key.strip())
-                
-                copy_js = f"""
-                <script>
-                function copyToClipboard() {{
-                    navigator.clipboard.writeText({safe_text}).then(function() {{
-                        document.getElementById('copy-status').innerHTML = '✅ Copiado!';
-                        setTimeout(function() {{
-                            document.getElementById('copy-status').innerHTML = '';
-                        }}, 2000);
-                    }});
-                }}
-                </script>
-                <div style="text-align: center;">
-                    <button onclick="copyToClipboard()" style="
-                        background-color: #ffffff;
-                        color: #000000;
-                        border: 1px solid #cccccc;
-                        padding: 8px 16px;
-                        border-radius: 6px;
-                        cursor: pointer;
-                        font-size: 14px;
-                    ">📋 Copiar</button>
-                    <span id="copy-status" style="margin-left: 10px; color: #21c354;"></span>
-                </div>
-                """
-                components.html(copy_js, height=50)
-            
-            # Métricas
-            col_info1, col_info2 = st.columns(2)
-            col_info1.metric("Termos coletados", len(st.session_state.collected_terms))
-            col_info2.metric("Caracteres", len(edited_key.strip()))
-            
-            st.divider()
-            
-            if st.button("📋 Copiar para o Painel", use_container_width=True, type="primary"):
-                st.session_state.dashboard_query = edited_key.strip()
-                st.session_state.dashboard_query_source = "construtor"
-                st.success("✅ Chave copiada!")     
-             
-    rodape_institucional()
-
-# ==================== ABA 3: INTERAÇÃO (CHAMADA) ====================
-with tab3:
-    render_tab3_interacao()

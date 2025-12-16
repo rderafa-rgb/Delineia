@@ -4,6 +4,7 @@ import json
 import networkx as nx
 from bibtexparser.bwriter import BibTexWriter
 from bibtexparser.bibdatabase import BibDatabase
+import streamlit as st
 
 def _extract_authors(article):
     """Auxiliar: Extrai string limpa de autores."""
@@ -175,3 +176,95 @@ def generate_pajek_net(graph):
         return output.getvalue()
     except Exception as e:
         return f"Erro: {str(e)}".encode('utf-8')
+
+def listar_grafos_salvos(sheet_obj, id_usuario_filtro=None):
+    """
+    Lista grafos. Se id_usuario_filtro for passado, retorna APENAS os desse usuário.
+    """
+    try:
+        worksheets = sheet_obj.worksheets()
+        grafos = []
+        
+        # Prepara o ID curto para comparação (mesma lógica do salvamento)
+        id_busca = None
+        if id_usuario_filtro:
+            # Pega os últimos 8 caracteres se for longo, ou o próprio ID
+            id_busca = id_usuario_filtro[-8:] if len(id_usuario_filtro) > 8 else id_usuario_filtro
+
+        for ws in worksheets:
+            if ws.title.startswith("G_"):
+                # Se tiver filtro, verifica se o ID CURTO está no título da aba
+                if id_busca:
+                    if id_busca in ws.title:
+                        grafos.append({"title": ws.title, "obj": ws})
+                else:
+                    # Sem filtro (admin/debug), não mostra nada por segurança
+                    pass 
+                    
+        return sorted(grafos, key=lambda x: x['title'], reverse=True)
+    except Exception as e:
+        print(f"Erro ao listar: {e}")
+        return []
+
+def carregar_grafo_do_sheets(worksheet):
+    """
+    Lê uma aba do Sheets, ignora os metadados do cabeçalho e retorna um DataFrame das arestas.
+    """
+    try:
+        # Lê todos os valores como uma matriz (lista de listas)
+        all_values = worksheet.get_all_values()
+        
+        # Procura onde começam os dados reais (linha com 'source', 'target', 'weight')
+        start_row = 0
+        for i, row in enumerate(all_values):
+            # Verifica se a linha contém as colunas esperadas
+            if len(row) >= 2 and "source" in row and "target" in row:
+                start_row = i
+                break
+        
+        # Se não achou o cabeçalho
+        if start_row == 0 and "source" not in all_values[0]:
+             return None 
+             
+        # Define cabeçalho e dados
+        headers = all_values[start_row]
+        data = all_values[start_row+1:]
+        
+        # Cria DataFrame
+        df = pd.DataFrame(data, columns=headers)
+        
+        # Limpeza: remove linhas vazias e converte peso para número
+        df = df[df['source'] != ''].copy() # Garante que tem origem
+        if 'weight' in df.columns:
+            df['weight'] = pd.to_numeric(df['weight'], errors='coerce').fillna(1)
+            
+        return df
+    except Exception as e:
+        st.error(f"Erro ao carregar aba {worksheet.title}: {str(e)}")
+        return None
+
+def calcular_comparacao(df1, df2):
+    """
+    Compara dois DataFrames de arestas e retorna métricas de similaridade.
+    """
+    # Extrair conjuntos de nós únicos (união de source e target)
+    nodes1 = set(df1['source']).union(set(df1['target']))
+    nodes2 = set(df2['source']).union(set(df2['target']))
+    
+    # 1. Índice de Jaccard (Similaridade de Vocabulário)
+    interseccao = nodes1.intersection(nodes2)
+    uniao = nodes1.union(nodes2)
+    jaccard = len(interseccao) / len(uniao) if len(uniao) > 0 else 0
+    
+    # 2. Diferenças (Análise de Delta)
+    exclusivos_antigos = nodes1 - nodes2 # O que foi "esquecido" ou removido
+    exclusivos_novos = nodes2 - nodes1   # O que é "novidade"
+    
+    return {
+        "jaccard": jaccard,
+        "comuns": sorted(list(interseccao)),
+        "exclusivos_antigos": sorted(list(exclusivos_antigos)),
+        "exclusivos_novos": sorted(list(exclusivos_novos)),
+        "qtd_1": len(nodes1),
+        "qtd_2": len(nodes2)
+    }

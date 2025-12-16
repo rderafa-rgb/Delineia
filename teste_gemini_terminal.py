@@ -265,3 +265,40 @@ print()
 print("=" * 70)
 print("🏁 DIAGNÓSTICO CONCLUÍDO")
 print("=" * 70)
+
+# ============ ETAPA 7: Teste da Análise Histórica ============
+print("📌 ETAPA 7: Teste Específico da Análise Histórica...")
+print("-" * 50)
+
+# Simulando dados reais da sua Aluna 2
+metrics_mock = {
+    'jaccard': 0.383,
+    'qtd_1': 400,
+    'qtd_2': 660,
+    'exclusivos_antigos': ['Action research', 'Adult Learning', 'Autonomy', 'Classics', 'Comics'],
+    'exclusivos_novos': ['21st century skills', 'Active learning', 'Augmented reality', 'Computational thinking'],
+    'comuns': ['Literacy', 'Pedagogy', 'Psychology', 'Reading']
+}
+nome_mock = "Emilli"
+
+prompt_historico = f"""Atue como Orientador.
+O aluno {nome_mock} teve Jaccard 38.3%.
+Saiu: {', '.join(metrics_mock['exclusivos_antigos'])}
+Entrou: {', '.join(metrics_mock['exclusivos_novos'])}
+Analise a evolução em 3 linhas."""
+
+print(f"   Enviando prompt de histórico...")
+
+try:
+    start = time.time()
+    response = model.generate_content(prompt_historico)
+    print(f"✅ Resposta recebida em {time.time() - start:.2f}s")
+    if hasattr(response, 'text'):
+        print("\n📝 ANÁLISE GERADA:\n")
+        print(response.text)
+    else:
+        print("❌ Sem texto na resposta.")
+except Exception as e:
+    print(f"❌ ERRO: {e}")
+
+print("\n🏁 FIM DOS TESTES")
