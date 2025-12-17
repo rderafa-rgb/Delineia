@@ -685,6 +685,28 @@ def extract_concept_metadata(articles: list) -> dict:
     
     return metadata
 
+def process_openalex_dataframe(articles):
+    """Transforma a lista bruta de artigos em um DataFrame limpo para exibição."""
+    data = []
+    for art in articles:
+        # Pega o primeiro autor (ou 'N/A')
+        authors = art.get('authorships', [])
+        first_author = authors[0].get('author', {}).get('display_name', 'N/A') if authors else 'N/A'
+        
+        # Pega top 3 conceitos
+        concepts = [c.get('display_name', '') for c in art.get('concepts', [])]
+        top_concepts = ", ".join(concepts[:3])
+        
+        data.append({
+            'Título': art.get('title', 'Sem título'),
+            'Ano': art.get('publication_year', art.get('year', 'N/A')),
+            'Autor (1º)': first_author,
+            'Top Conceitos': top_concepts,
+            'Citações': art.get('cited_by_count', 0),
+            'DOI/URL': art.get('doi', art.get('url', ''))
+        })
+    return pd.DataFrame(data)
+
 def calculate_layout_positions(G: nx.Graph, layout_name: str) -> dict:
     """
     Calcula posições dos nós usando diferentes algoritmos de layout.
@@ -1935,7 +1957,7 @@ with tab1:
             """)
 
             # Botão novo projeto
-            if st.button("🔄 Iniciar Novo Projeto", use_container_width=True):
+            if st.button("🔄 Iniciar Novo Delineamento", use_container_width=True):
                 st.session_state.step = 1
                 st.session_state.resultado = None
                 st.session_state.form_data = {}
@@ -1948,6 +1970,8 @@ with tab1:
                 st.session_state.suggested_keywords = []
                 st.session_state.suggested_strings = {}
                 st.rerun()
+
+                limpar_memoria()
 
             rodape_institucional()
 
@@ -2610,6 +2634,8 @@ Que sangre o dedo, mas que estanque o vício.
             st.session_state.badges = []
             st.rerun()
 
+            limpar_memoria()
+
         rodape_institucional()
 
 # ==================== ABA 2: INTERAÇÃO (FUNÇÕES) ====================
@@ -2834,52 +2860,60 @@ with tab4:
 
         # Botão de buscar
         if st.button("🔍 Buscar", type="primary", use_container_width=True):
-            with st.spinner("🔄 Em processamento, confira no Painel"):
+            limpar_memoria()
+            with st.spinner("🔄 Em processamento... confira no Painel   "):
                 try:
-                    # Inicializar cliente
-                    client = OpenAlexClient(OPENALEX_EMAIL)
-
-                    # Buscar artigos
-                    articles = search_openalex_cached(query, limit, 0, 0) # Cacheia o bruto, filtra na view
-                    # Nota: Passei 0,0 no score/level para cachear o resultado bruto e permitir que o usuário brinque com os sliders sem refazer a requisição HTTP.
-
-                    # Extrair conceitos
-                    concepts_lists = []
-                    for article in articles:
+                    # 1. BUSCA (CACHEADA)
+                    # Passamos 0,0 no score/level para o cache guardar TUDO.
+                    # A filtragem fina acontece visualmente abaixo, sem bater na API de novo.
+                    raw_articles = search_openalex_cached(query, limit, 0, 0)
+                    
+                    # 2. FILTRAGEM LOCAL (PYTHON)
+                    # Aqui aplicamos os sliders de Score e Level nos dados que já estão na memória
+                    filtered_concepts_lists = []
+                    
+                    for article in raw_articles:
+                        # Extrai apenas conceitos que passam no filtro dos sliders
                         concepts = [
-                            c.get('display_name', c.get('name')) # <--- CORREÇÃO
+                            c.get('display_name', c.get('name')) 
                             for c in article.get('concepts', [])
                             if c.get('score', 0) >= min_score and c.get('level', 0) >= min_level
                         ]
                         if concepts:
-                            concepts_lists.append(concepts)
+                            filtered_concepts_lists.append(concepts)
 
-                    # Construir grafo
+                    # 3. CONSTRUÇÃO DO GRAFO
                     analyzer = CooccurrenceAnalyzer()
-                    G = analyzer.build_graph(concepts_lists, min_cooc)
+                    G = analyzer.build_graph(filtered_concepts_lists, min_cooc)
 
-                    # Salvar dados
+                    # 4. DATAFRAME LIMPO (Usando a nova função auxiliar)
+                    df_display = process_openalex_dataframe(raw_articles)
+
+                    # Salvar no Session State
                     st.session_state.dashboard_data = {
-                        'articles': articles,
-                        'concepts_lists': concepts_lists,
+                        'articles': raw_articles,      # Guarda o bruto (JSON)
+                        'df_display': df_display,      # Guarda a tabela limpa
+                        'concepts_lists': filtered_concepts_lists,
                         'graph': G
                     }
 
-                    # Mostrar detalhes
-                    with st.expander("📋 Detalhes da Busca"):
-                        st.write(f"**Chave de busca enviada:** {query}")
+                    # Resumo no Expander
+                    with st.expander("📋 Detalhes da Busca", expanded=False):
+                        st.write(f"**Chave de busca:** `{query}`")
                         st.write(f"**Limite:** {limit}")
                         st.write(f"**Coocorrência mínima:** {min_cooc}")
-                        st.write(f"**Filtros:** score≥{min_score}, level≥{min_level}")
-                        st.write(f"**Artigos retornados:** {len(articles)}")
-                        st.write(f"**Conceitos extraídos:** {len(concepts_lists)}")
+                        st.write(f"**Filtros:** Score ≥ {min_score} | Level ≥ {min_level}")
+                        st.write(f"**Artigos recuperados:** {len(raw_articles)}")
+                        st.write(f"**Conceitos extraídos:** {len(filtered_concepts_lists)} listas válidas")
                         st.write(f"**Nós no grafo:** {len(G.nodes())}")
 
-                    st.success(f"✅ {len(articles)} artigos | {len(G.nodes())} conceitos")
+                    st.success(f"✅ Análise concluída: {len(raw_articles)} artigos | {len(G.nodes())} nós no grafo")
 
                 except Exception as e:
-                    st.error(f"❌ Erro: {str(e)}")
-
+                    st.error(f"❌ Erro na busca: {str(e)}")
+                    # Dica de debug útil em dev
+                    # st.exception(e)
+        
         st.divider()
 
         # ========== SEÇÃO SOBRE ==========
@@ -2974,35 +3008,38 @@ with tab4:
             "💾 Exportação"
         ])
 
-        # ========== SUB-ABA 1: ARTIGOS (COM DOI/URL) - VERSÃO CORRIGIDA ==========
+        # ========== SUB-ABA 1: ARTIGOS ==========
         with t1:
             st.header("📚 Artigos Analisados")
-            st.metric("Total de Artigos", len(articles))
+            
+            # Recupera o DataFrame limpo que geramos no botão Buscar
+            # Isso evita ter que recriar o DataFrame a cada clique na aba
+            df_display = st.session_state.dashboard_data.get('df_display')
+            
+            if df_display is not None and not df_display.empty:
+                st.metric("Total de Artigos", len(df_display))
+                
+                # Exibe Tabela Interativa
+                st.dataframe(
+                    df_display,
+                    use_container_width=True,
+                    height=400,
+                    column_config={
+                        "DOI/URL": st.column_config.LinkColumn(
+                            "🔗 Link",
+                            help="Acesse o artigo original",
+                            display_text="Abrir Artigo"
+                        ),
+                        "Citações": st.column_config.NumberColumn(
+                            "Citações",
+                            format="%d ⭐"
+                        )
+                    }
+                )
+            else:
+                st.warning("Nenhum dado para exibir ou busca ainda não realizada.")
 
-            # ✨ TABELA COM COLUNA DOI/URL ✨
-            df_articles = pd.DataFrame([
-                {
-                    'Título': (lambda t: t[:80] + '...' if len(t) > 80 else t)(a.get('title') or 'Sem título'),
-                    'Ano': a.get('year', 'N/A'),
-                    'Conceitos': len(a.get('concepts', [])),
-                    'DOI/URL': a.get('doi', a.get('url', 'N/A'))
-                }
-                for a in articles
-            ])
-
-            # Configurar coluna como link clicável
-            st.dataframe(
-                df_articles,
-                use_container_width=True,
-                height=400,
-                column_config={
-                    "DOI/URL": st.column_config.LinkColumn(
-                        "🔗 DOI/URL",
-                        help="Clique para abrir o artigo",
-                        display_text="Abrir artigo"
-                    )
-                }
-            )
+            # Detalhes do Artigo
     
             if len(articles) > 0:
                 st.divider()
