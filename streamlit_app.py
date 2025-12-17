@@ -3083,7 +3083,7 @@ with tab4:
                 ])
     
                 if not concepts_df.empty:
-                    st.dataframe(concepts_df, use_container_width=True)
+                    st.dataframe(concepts_df, width="stretch")
                 else:
                     st.info("Nenhum conceito encontrado")
     
@@ -3345,7 +3345,7 @@ with tab4:
 
             # Tabela
             st.subheader("📋 Tabela de Frequências")
-            st.dataframe(df_freq, use_container_width=True)
+            st.dataframe(df_freq, width="stretch")
 
             st.divider()
 
@@ -3403,7 +3403,7 @@ with tab4:
                 for (c1, c2), f in pairs.most_common(top_pairs)
             ])
 
-            st.dataframe(df_pairs, use_container_width=True)
+            st.dataframe(df_pairs, width="stretch")
 
             st.divider()
 
