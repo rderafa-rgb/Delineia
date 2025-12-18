@@ -1,0 +1,22 @@
+name: Sync to HuggingFace Spaces
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Push to HuggingFace
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          git remote add huggingface https://RafaelAntunes123:$HF_TOKEN@huggingface.co/spaces/RafaelAntunes123/Delineia
+          git push huggingface main --force
