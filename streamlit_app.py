@@ -1,40 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import streamlit as st
-from datetime import datetime, timezone, timedelta 
-from research_pipeline import ResearchScopePipeline, OpenAlexClient, CooccurrenceAnalyzer, OPENALEX_EMAIL
-from pdf_generator import generate_pdf_report
-import pandas as pd
-import networkx as nx
-from collections import Counter
-import plotly.express as px
-import plotly.graph_objects as go
-import json
-import zipfile
-from io import BytesIO
-import numpy as np
-from scipy import stats
-import gspread
-from google.oauth2.service_account import Credentials
-import uuid
-import time as time_module
-import matplotlib.pyplot as plt
-import export_utils as exp
-from export_utils import generate_excel, generate_bibtex, generate_ris, generate_pajek_net
-import streamlit.components.v1 as components
-import os
-import io
-import tempfile
-try:
-    from pyvis.network import Network
-    PYVIS_AVAILABLE = True
-except ImportError:
-    PYVIS_AVAILABLE = False
-import gc
-
-def limpar_memoria():
-    """Força coleta de lixo"""
-    gc.collect()
 
 # ==================== CONFIGURAÇÃO DA PÁGINA ====================
 st.set_page_config(
@@ -43,6 +9,44 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# ======================== OUTROS IMPORTS ========================
+from datetime import datetime, timezone, timedelta
+import json
+import zipfile
+from io import BytesIO
+import numpy as np
+from scipy import stats
+import pandas as pd
+import networkx as nx
+from collections import Counter
+import plotly.express as px
+import plotly.graph_objects as go
+import matplotlib.pyplot as plt
+import streamlit.components.v1 as components
+import os
+import io
+import tempfile
+import gc
+import time as time_module
+import uuid
+# Imports de módulos locais
+from research_pipeline import ResearchScopePipeline, OpenAlexClient, CooccurrenceAnalyzer, OPENALEX_EMAIL
+from pdf_generator import generate_pdf_report
+import export_utils as exp
+from export_utils import generate_excel, generate_bibtex, generate_ris, generate_pajek_net
+import gspread
+from google.oauth2.service_account import Credentials
+
+try:
+    from pyvis.network import Network
+    PYVIS_AVAILABLE = True
+except ImportError:
+    PYVIS_AVAILABLE = False
+
+def limpar_memoria():
+    """Força coleta de lixo"""
+    gc.collect()
 
 # ==================== FUNÇÕES COM CACHE (OTIMIZAÇÃO DE MEMÓRIA) ====================
 
