@@ -177,10 +177,15 @@ def conectar_google_sheets():
     
     try:
         # Ler credenciais DOS SECRETS
-        google_creds = st.secrets["google_credentials"]
+        # Nova versão compatível com Hugging Face:
+        credenciais = st.secrets["google_credentials"]
+
+        # Verifica se veio como texto (String) e converte para Dicionário
+        if isinstance(credenciais, str):
+            credenciais = json.loads(credenciais)
         
         # Converter para dict
-        creds_dict = dict(google_creds)
+        creds_dict = dict(credenciais)
         
         if "private_key" in creds_dict:
             # Primeiro tenta substituir \\n (escaped)
