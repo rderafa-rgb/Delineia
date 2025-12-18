@@ -36,6 +36,14 @@ def limpar_memoria():
     """Força coleta de lixo"""
     gc.collect()
 
+# ==================== CONFIGURAÇÃO DA PÁGINA ====================
+st.set_page_config(
+    page_title="Delinéia",
+    page_icon="📚",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 # ==================== FUNÇÕES COM CACHE (OTIMIZAÇÃO DE MEMÓRIA) ====================
 
 @st.cache_resource
@@ -556,14 +564,6 @@ def analyze_zipf(frequency_data):
         'quality': quality,
         'slope_interpretation': slope_interpretation
     }
-
-# ==================== CONFIGURAÇÃO DA PÁGINA ====================
-st.set_page_config(
-    page_title="Delinéia",
-    page_icon="📚",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
 
 # ==================== CSS CUSTOMIZADO (BOTÕES VERDES) ====================
 st.markdown("""
