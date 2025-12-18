@@ -1,48 +1,36 @@
 # -*- coding: utf-8 -*-
 
 import streamlit as st
-
-# ==================== CONFIGURAÇÃO DA PÁGINA ====================
-st.set_page_config(
-    page_title="Delinéia",
-    page_icon="📚",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# ======================== OUTROS IMPORTS ========================
-from datetime import datetime, timezone, timedelta
-import json
-import zipfile
-from io import BytesIO
-import numpy as np
-from scipy import stats
+from datetime import datetime, timezone, timedelta 
+from research_pipeline import ResearchScopePipeline, OpenAlexClient, CooccurrenceAnalyzer, OPENALEX_EMAIL
+from pdf_generator import generate_pdf_report
 import pandas as pd
 import networkx as nx
 from collections import Counter
 import plotly.express as px
 import plotly.graph_objects as go
+import json
+import zipfile
+from io import BytesIO
+import numpy as np
+from scipy import stats
+import gspread
+from google.oauth2.service_account import Credentials
+import uuid
+import time as time_module
 import matplotlib.pyplot as plt
+import export_utils as exp
+from export_utils import generate_excel, generate_bibtex, generate_ris, generate_pajek_net
 import streamlit.components.v1 as components
 import os
 import io
 import tempfile
-import gc
-import time as time_module
-import uuid
-# Imports de módulos locais
-from research_pipeline import ResearchScopePipeline, OpenAlexClient, CooccurrenceAnalyzer, OPENALEX_EMAIL
-from pdf_generator import generate_pdf_report
-import export_utils as exp
-from export_utils import generate_excel, generate_bibtex, generate_ris, generate_pajek_net
-import gspread
-from google.oauth2.service_account import Credentials
-
 try:
     from pyvis.network import Network
     PYVIS_AVAILABLE = True
 except ImportError:
     PYVIS_AVAILABLE = False
+import gc
 
 def limpar_memoria():
     """Força coleta de lixo"""
@@ -189,15 +177,10 @@ def conectar_google_sheets():
     
     try:
         # Ler credenciais DOS SECRETS
-        # Nova versão compatível com Hugging Face:
-        credenciais = st.secrets["google_credentials"]
-
-        # Verifica se veio como texto (String) e converte para Dicionário
-        if isinstance(credenciais, str):
-            credenciais = json.loads(credenciais)
+        google_creds = st.secrets["google_credentials"]
         
         # Converter para dict
-        creds_dict = dict(credenciais)
+        creds_dict = dict(google_creds)
         
         if "private_key" in creds_dict:
             # Primeiro tenta substituir \\n (escaped)
@@ -568,6 +551,14 @@ def analyze_zipf(frequency_data):
         'quality': quality,
         'slope_interpretation': slope_interpretation
     }
+
+# ==================== CONFIGURAÇÃO DA PÁGINA ====================
+st.set_page_config(
+    page_title="Delinéia",
+    page_icon="📚",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 # ==================== CSS CUSTOMIZADO (BOTÕES VERDES) ====================
 st.markdown("""
