@@ -1,6 +1,71 @@
 # -*- coding: utf-8 -*-
 
 import streamlit as st
+
+# ==================== CONFIGURAÇÃO DA PÁGINA ====================
+st.set_page_config(
+    page_title="Delinéia",
+    page_icon="📚",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+# Força sidebar visível
+st.markdown("""
+<style>
+    [data-testid="stSidebar"][aria-expanded="false"] {
+        display: block;
+        min-width: 300px;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ==================== CSS CUSTOMIZADO (BOTÕES VERDES) ====================
+st.markdown("""
+<style>
+    /* Centralizar texto de expanders */
+    .streamlit-expanderHeader {
+        justify-content: center;
+        text-align: center;
+        font-weight: bold;
+    }
+    
+    /* Botões primários em verde claro */
+    .stButton > button[kind="primary"] {
+        background-color: #10b981 !important;
+        color: white !important;
+        border: none !important;
+    }
+    
+    .stButton > button[kind="primary"]:hover {
+        background-color: #059669 !important;
+        color: white !important;
+    }
+    
+    .stButton > button[kind="primary"]:active {
+        background-color: #047857 !important;
+    }
+    
+    /* Form submit buttons */
+    .stFormSubmitButton > button {
+        background-color: #10b981 !important;
+        color: white !important;
+        border: none !important;
+    }
+    
+    .stFormSubmitButton > button:hover {
+        background-color: #059669 !important;
+    }
+    
+    /* Download buttons com type="primary" */
+    .stDownloadButton > button[kind="primary"] {
+        background-color: #10b981 !important;
+        color: white !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ======================== OUTROS IMPORTS ========================
 from datetime import datetime, timezone, timedelta 
 from research_pipeline import ResearchScopePipeline, OpenAlexClient, CooccurrenceAnalyzer, OPENALEX_EMAIL
 from pdf_generator import generate_pdf_report
@@ -560,60 +625,6 @@ def analyze_zipf(frequency_data):
         'quality': quality,
         'slope_interpretation': slope_interpretation
     }
-
-# ==================== CONFIGURAÇÃO DA PÁGINA ====================
-st.set_page_config(
-    page_title="Delinéia",
-    page_icon="📚",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# ==================== CSS CUSTOMIZADO (BOTÕES VERDES) ====================
-st.markdown("""
-<style>
-    /* Centralizar texto de expanders */
-    .streamlit-expanderHeader {
-        justify-content: center;
-        text-align: center;
-        font-weight: bold;
-    }
-    
-    /* Botões primários em verde claro */
-    .stButton > button[kind="primary"] {
-        background-color: #10b981 !important;
-        color: white !important;
-        border: none !important;
-    }
-    
-    .stButton > button[kind="primary"]:hover {
-        background-color: #059669 !important;
-        color: white !important;
-    }
-    
-    .stButton > button[kind="primary"]:active {
-        background-color: #047857 !important;
-    }
-    
-    /* Form submit buttons */
-    .stFormSubmitButton > button {
-        background-color: #10b981 !important;
-        color: white !important;
-        border: none !important;
-    }
-    
-    .stFormSubmitButton > button:hover {
-        background-color: #059669 !important;
-    }
-    
-    /* Download buttons com type="primary" */
-    .stDownloadButton > button[kind="primary"] {
-        background-color: #10b981 !important;
-        color: white !important;
-    }
-</style>
-""", unsafe_allow_html=True)
-
 # ==================== ESTADOS DA SESSÃO ====================
 if 'step' not in st.session_state:
     st.session_state.step = 1
@@ -1967,6 +1978,8 @@ with tab1:
 
             # Botão novo projeto
             if st.button("🔄 Iniciar Novo Delineamento", use_container_width=True):
+                # Limpar cache do pipeline
+                run_cached_pipeline.clear()
                 st.session_state.step = 1
                 st.session_state.resultado = None
                 st.session_state.form_data = {}
@@ -2636,6 +2649,8 @@ Que sangre o dedo, mas que estanque o vício.
 """)
 
         if st.button("🔄 Iniciar Novo Delineamento", use_container_width=True):
+            # Limpar cache do pipeline
+            run_cached_pipeline.clear()
             st.session_state.step = 1
             st.session_state.resultado = None
             st.session_state.form_data = {}
@@ -2772,9 +2787,11 @@ with tab3:
                             st.markdown("### 🤖 O que o Delinéia diz sobre sua evolução?")
                                     
                             # Só mostra se houver diferença e se a análise AINDA NÃO foi feita
+                            st.write(f"DEBUG: jaccard = {metrics['jaccard']}")  # TEMPORÁRIO
                             if metrics['jaccard'] < 0.99:
                                         
                                 # 1. MOSTRAR BOTÃO (Se não tiver análise salva)
+                                st.write(f"DEBUG: tem análise salva? {'ultima_analise_historico' in st.session_state}")  # TEMPORÁRIO
                                 if 'ultima_analise_historico' not in st.session_state:
                                     if st.button("✨ Gerar Análise Pedagógica da Mudança", type="primary", use_container_width=True, key="btn_analise_ia_tab8"):
                                                 
