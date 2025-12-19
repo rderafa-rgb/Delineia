@@ -163,12 +163,12 @@ ABA_FORMULARIO_INICIAL = "formulario_inicial"
 ABA_RESULTADOS_PIPELINE = "resultados_pipeline"
 ABA_FORMULARIO_AVALIACAO = "formulario_avaliacao"
 
+
 @st.cache_resource(show_spinner=False)
 def conectar_google_sheets():
     """
-    Conecta ao Google Sheets usando credenciais do Streamlit Secrets
-    CORREÇÃO APLICADA: Tratamento da private_key para converter 
-    \\n literal em quebras de linha reais.
+    Conecta ao Google Sheets usando credenciais do Streamlit Secrets.
+    Compatível com Streamlit Cloud e HuggingFace Spaces.
     """
     SCOPES = [
         'https://www.googleapis.com/auth/spreadsheets',
@@ -176,20 +176,29 @@ def conectar_google_sheets():
     ]
     
     try:
-        # Ler credenciais DOS SECRETS
+        # Ler credenciais dos secrets
         google_creds = st.secrets["google_credentials"]
         
-        # Converter para dict
-        creds_dict = dict(google_creds)
+        # Converter para dict (compatível com Streamlit Cloud e HuggingFace)
+        if isinstance(google_creds, str):
+            # HuggingFace: secret é string JSON
+            import json
+            creds_dict = json.loads(google_creds)
+        elif hasattr(google_creds, 'to_dict'):
+            # Streamlit Cloud: objeto AttrDict
+            creds_dict = google_creds.to_dict()
+        else:
+            # Fallback: tentar converter direto
+            creds_dict = dict(google_creds)
         
+        # Corrigir private_key (\\n → \n)
         if "private_key" in creds_dict:
-            # Primeiro tenta substituir \\n (escaped)
             pk = creds_dict["private_key"]
             if "\\n" in pk:
                 pk = pk.replace("\\n", "\n")
             creds_dict["private_key"] = pk
         
-        # Criar credenciais a partir do dict
+        # Criar credenciais
         creds = Credentials.from_service_account_info(
             creds_dict,
             scopes=SCOPES
