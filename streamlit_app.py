@@ -108,13 +108,7 @@ def get_pipeline_instance():
     """Cache da instância do pipeline para não recriar objetos pesados."""
     return ResearchScopePipeline(OPENALEX_EMAIL)
 
-@st.cache_data(ttl="2h", show_spinner=False)
 def run_cached_pipeline(nome, tema, questao, kws, genero):
-    """
-    Cache do processamento pesado. 
-    Se os inputs forem os mesmos, retorna o resultado da RAM sem reprocessar.
-    TTL de 2h limpa a memória automaticamente após inatividade.
-    """
     pipe = get_pipeline_instance()
     # A função process retorna dicionários e grafos NetworkX, que o Streamlit serializa bem
     return pipe.process(nome, tema, questao, kws, genero=genero)
@@ -1978,8 +1972,6 @@ with tab1:
 
             # Botão novo projeto
             if st.button("🔄 Iniciar Novo Delineamento", use_container_width=True):
-                # Limpar cache do pipeline
-                run_cached_pipeline.clear()
                 st.session_state.step = 1
                 st.session_state.resultado = None
                 st.session_state.form_data = {}
@@ -2649,8 +2641,6 @@ Que sangre o dedo, mas que estanque o vício.
 """)
 
         if st.button("🔄 Iniciar Novo Delineamento", use_container_width=True):
-            # Limpar cache do pipeline
-            run_cached_pipeline.clear()
             st.session_state.step = 1
             st.session_state.resultado = None
             st.session_state.form_data = {}
@@ -2713,128 +2703,124 @@ with tab3:
             # Botão de Ação
             if st.button("🔄 Comparar Delineamentos", type="primary", use_container_width=True):
                 if g1_title == g2_title:
-                    st.warning("⚠️ Selecione dois delineamentos diferentes para ver as diferenças.")
+                    st.warning("⚠️ Selecione dois delineamentos distintos para ver as diferenças.")
                 else:
-                    with st.spinner("⏳ Baixando dados do Google Sheets e calculando similaridade..."):
-                        # Resgata os objetos worksheet correspondentes
+                    with st.spinner("⏳ Baixando dados e calculando similaridade..."):
                         ws1 = next(g['obj'] for g in grafos_salvos if g['title'] == g1_title)
                         ws2 = next(g['obj'] for g in grafos_salvos if g['title'] == g2_title)
-                                
-                        # Carrega os dados usando função do export_utils
+                        
                         df1 = exp.carregar_grafo_do_sheets(ws1)
                         df2 = exp.carregar_grafo_do_sheets(ws2)
-                                
+                        
                         if df1 is not None and df2 is not None:
-                            # Calcula a mágica
-                            metrics = exp.calcular_comparacao(df1, df2)
-                                    
-                            # --- RESULTADOS ---
-                            st.divider()
-                            st.subheader("📊 Resultados da Comparação")
-                                    
-                            # 1. Métricas Principais
-                            col_res1, col_res2, col_res3 = st.columns(3)
-                                    
-                            col_res1.metric(
-                                "Similaridade (Jaccard)", 
-                                f"{metrics['jaccard']*100:.1f}%",
-                                help="Mede o quanto os vocabulários se sobrepõem (0% = totalmente diferentes, 100% = iguais)."
-                            )
-                                    
-                            delta = metrics['qtd_2'] - metrics['qtd_1']
-                            col_res2.metric(
-                                "Tamanho do Vocabulário", 
-                                f"{metrics['qtd_2']} conceitos",
-                                f"{delta:+}",
-                                help="Diferença no número total de conceitos entre B e A."
-                            )
-                                    
-                            col_res3.metric(
-                                "Novos Conceitos", 
-                                len(metrics['exclusivos_novos']),
-                                help="Conceitos que existem em B mas não existiam em A."
-                            )
-                                    
-                            # 2. Detalhamento Semântico
-                            st.markdown("---")
-                            c1, c2 = st.columns(2)
-                                    
-                            with c1:
-                                st.markdown("#### 🆕 O que entrou (Novidades)")
-                                if metrics['exclusivos_novos']:
-                                    # Mostra tags coloridas ou lista
-                                    st.success(", ".join(metrics['exclusivos_novos'][:50]))
-                                    if len(metrics['exclusivos_novos']) > 50:
-                                        st.caption(f"...e mais {len(metrics['exclusivos_novos'])-50} conceitos.")
-                                else:
-                                    st.info("Nenhum conceito novo adicionado.")
-
-                            with c2:
-                                st.markdown("#### 🗑️ O que saiu (Removidos)")
-                                if metrics['exclusivos_antigos']:
-                                    st.error(", ".join(metrics['exclusivos_antigos'][:50]))
-                                    if len(metrics['exclusivos_antigos']) > 50:
-                                        st.caption(f"...e mais {len(metrics['exclusivos_antigos'])-50} conceitos.")
-                                else:
-                                    st.info("Nenhum conceito foi removido.")
-                                            
-                            # 3. Intersecção (O que permaneceu)
-                            with st.expander(f"🤝 Núcleo Estável ({len(metrics['comuns'])} conceitos mantidos)"):
-                                st.write(", ".join(metrics['comuns']))
-
-                            # ================== COMPARAÇÃO 🍒 (Versão com Rerun Forçado) ==================
-                            st.divider()
-                            st.markdown("### 🤖 O que o Delinéia diz sobre sua evolução?")
-                                    
-                            # Só mostra se houver diferença e se a análise AINDA NÃO foi feita
-                            st.write(f"DEBUG: jaccard = {metrics['jaccard']}")  # TEMPORÁRIO
-                            if metrics['jaccard'] < 0.99:
-                                        
-                                # 1. MOSTRAR BOTÃO (Se não tiver análise salva)
-                                st.write(f"DEBUG: tem análise salva? {'ultima_analise_historico' in st.session_state}")  # TEMPORÁRIO
-                                if 'ultima_analise_historico' not in st.session_state:
-                                    if st.button("✨ Gerar Análise Pedagógica da Mudança", type="primary", use_container_width=True, key="btn_analise_ia_tab8"):
-                                                
-                                        nome_aluno = st.session_state.form_data.get('nome', 'Pesquisador').split()[0]
-                                        genero_aluno = st.session_state.form_data.get('genero', 'Neutro')
-                                                
-                                        with st.spinner(f"🧠 O Orientador IA está analisando a trajetória de {nome_aluno}..."):
-                                            try:
-                                                if 'gemini_gen' not in st.session_state:
-                                                    from research_pipeline import GeminiQueryGenerator
-                                                    st.session_state.gemini_gen = GeminiQueryGenerator()
-                                                        
-                                                # Gera
-                                                analise = st.session_state.gemini_gen.generate_evolution_analysis(
-                                                    metrics, 
-                                                    nome_aluno, 
-                                                    genero=genero_aluno 
-                                                )
-                                                        
-                                                # Salva
-                                                st.session_state['ultima_analise_historico'] = analise
-                                                        
-                                                # FORÇA O RECARREGAMENTO PARA EXIBIR IMEDIATAMENTE
-                                                st.rerun()
-                                                        
-                                            except Exception as e:
-                                                st.error(f"Erro na conexão com IA: {str(e)}")
-
-                                # 2. MOSTRAR RESULTADO (Se já tiver análise salva)
-                                else:
-                                    st.markdown("### 📝 Parecer da Orientação Artificial")
-                                    st.info(st.session_state['ultima_analise_historico'], icon="🤖")
-                                            
-                                    # Botão para limpar e fazer de novo
-                                    if st.button("🔄 Refazer Análise / Limpar", key="btn_limpar_analise"):
-                                        del st.session_state['ultima_analise_historico']
-                                        st.rerun()
-                            else:
-                                st.info("Os dois delineamentos são idênticos. Mude a busca e gere um novo grafo para ver a evolução.")    
+                            # Salva no session_state para persistir
+                            st.session_state['comparacao_metrics'] = exp.calcular_comparacao(df1, df2)
+                            st.session_state['comparacao_ativa'] = True
+                            # Limpa análise anterior se houver
+                            if 'ultima_analise_historico' in st.session_state:
+                                del st.session_state['ultima_analise_historico']
                         else:
-                            st.error("Erro ao ler os dados das planilhas. Verifique se as abas contêm dados válidos.")
-    else:
-        st.error("Não foi possível conectar ao Google Sheets.")
+                            st.error("Erro ao ler os dados.")
+                            st.session_state['comparacao_ativa'] = False
+
+            # --- EXIBIR RESULTADOS (fora do if do botão) ---
+            if st.session_state.get('comparacao_ativa', False) and 'comparacao_metrics' in st.session_state:
+                metrics = st.session_state['comparacao_metrics']
+                
+                st.divider()
+                st.subheader("📊 Resultados da Comparação")
+                
+                # 1. Métricas Principais
+                col_res1, col_res2, col_res3 = st.columns(3)
+                
+                col_res1.metric(
+                    "Similaridade (Jaccard)", 
+                    f"{metrics['jaccard']*100:.1f}%",
+                    help="Mede o quanto os vocabulários se sobrepõem."
+                )
+                
+                delta = metrics['qtd_2'] - metrics['qtd_1']
+                col_res2.metric(
+                    "Tamanho do Vocabulário", 
+                    f"{metrics['qtd_2']} conceitos",
+                    f"{delta:+}",
+                    help="Diferença no número total de conceitos."
+                )
+                
+                col_res3.metric(
+                    "Novos Conceitos", 
+                    len(metrics['exclusivos_novos']),
+                    help="Conceitos que existem em B mas não em A."
+                )
+                
+                # 2. Detalhamento Semântico
+                st.markdown("---")
+                c1, c2 = st.columns(2)
+                
+                with c1:
+                    st.markdown("#### 🆕 O que entrou (Novidades)")
+                    if metrics['exclusivos_novos']:
+                        st.success(", ".join(metrics['exclusivos_novos'][:50]))
+                        if len(metrics['exclusivos_novos']) > 50:
+                            st.caption(f"...e mais {len(metrics['exclusivos_novos'])-50} conceitos.")
+                    else:
+                        st.info("Nenhum conceito novo adicionado.")
+
+                with c2:
+                    st.markdown("#### 🗑️ O que saiu (Removidos)")
+                    if metrics['exclusivos_antigos']:
+                        st.error(", ".join(metrics['exclusivos_antigos'][:50]))
+                        if len(metrics['exclusivos_antigos']) > 50:
+                            st.caption(f"...e mais {len(metrics['exclusivos_antigos'])-50} conceitos.")
+                    else:
+                        st.info("Nenhum conceito foi removido.")
+                
+                # 3. Intersecção
+                with st.expander(f"🤝 Núcleo Estável ({len(metrics['comuns'])} conceitos mantidos)"):
+                    conceitos_ordenados = sorted(metrics['comuns'])
+                    num_cols = 4
+                    cols = st.columns(num_cols)
+                    for i, conceito in enumerate(conceitos_ordenados):
+                        cols[i % num_cols].write(f"• {conceito}")
+
+                # ================== ANÁLISE PEDAGÓGICA ==================
+                st.divider()
+                st.markdown("### 🤖 O que o Delinéia diz sobre sua evolução?")
+                
+                if metrics['jaccard'] < 0.99:
+                    # Mostrar resultado se já tiver
+                    if 'ultima_analise_historico' in st.session_state:
+                        st.markdown("### 📝 Parecer da Orientação Artificial")
+                        st.info(st.session_state['ultima_analise_historico'], icon="🤖")
+                        
+                        if st.button("🔄 Refazer Análise / Limpar", key="btn_limpar_analise"):
+                            del st.session_state['ultima_analise_historico']
+                            st.rerun()
+                    else:
+                        # Mostrar botão para gerar
+                        if st.button("✨ Gerar Análise Pedagógica da Mudança", type="primary", use_container_width=True, key="btn_analise_ia_tab8"):
+                            nome_aluno = st.session_state.form_data.get('nome', 'Pesquisador').split()[0]
+                            genero_aluno = st.session_state.form_data.get('genero', 'Neutro')
+                            
+                            with st.spinner(f"🧠 O Orientador Artificial está analisando a trajetória de {nome_aluno}..."):
+                                try:
+                                    if 'gemini_gen' not in st.session_state:
+                                        from research_pipeline import GeminiQueryGenerator
+                                        st.session_state.gemini_gen = GeminiQueryGenerator()
+                                    
+                                    analise = st.session_state.gemini_gen.generate_evolution_analysis(
+                                        metrics, 
+                                        nome_aluno, 
+                                        genero=genero_aluno 
+                                    )
+                                    
+                                    st.session_state['ultima_analise_historico'] = analise
+                                    st.rerun()
+                                    
+                                except Exception as e:
+                                    st.error(f"Erro na conexão com IA: {str(e)}")
+                else:
+                    st.info("Os dois delineamentos são idênticos.")
 
 # ==================== ABA 4: PAINEL DE ANÁLISE ====================
 with tab4:
