@@ -125,7 +125,6 @@ def generate_cached_pdf(form_data, result, selected_concepts, suggested_keywords
         badges=badges
     )
 
-@st.cache_data(show_spinner=False)
 def run_cached_thematic_map(graph_data, concepts_lists, method, min_size):
     """
     Executa a análise de mapa temático e retorna os dados prontos.
@@ -3659,9 +3658,6 @@ with tab4:
         # ========== SUB-ABA 5: MAPA TEMÁTICO =========
         with t5:
             st.header("🗺️ Mapa Temático (Diagrama Estratégico)")
-
-        @st.cache_data
-        def cached_thematic_map(graph_data, concepts_lists, method, min_size):
 
             st.markdown("""
             O **Mapa Temático** organiza os conceitos em clusters e os classifica em quatro quadrantes
