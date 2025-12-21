@@ -7,18 +7,8 @@ st.set_page_config(
     page_title="Delinéia",
     page_icon="📚",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="collapsed"  # Sidebar oculto por padrão (só usado no Painel)
 )
-
-# Força sidebar visível
-st.markdown("""
-<style>
-    [data-testid="stSidebar"][aria-expanded="false"] {
-        display: block;
-        min-width: 300px;
-    }
-</style>
-""", unsafe_allow_html=True)
 
 # ==================== CSS CUSTOMIZADO (BOTÕES VERDES) ====================
 st.markdown("""
@@ -2670,19 +2660,18 @@ with tab3:
         grafos_salvos = []
         user_id_atual = st.session_state.get('id_usuario')
 
-        if user_id_atual:
+        if not user_id_atual:
+            # Se não tem usuário identificado, não mostra nada (Privacidade)
+            st.warning("⚠️ Você precisa preencher o Formulário Inicial (Etapa 1) para acessar seu histórico privado.")
+            # NÃO usar st.stop() aqui - ele para o script inteiro e impede a tab4 de renderizar
+        else:
             # Se temos usuário logado/identificado, filtramos pelo ID dele
             grafos_salvos = exp.listar_grafos_salvos(sheet, user_id_atual)
                     
             if not grafos_salvos:
                 st.info(f"Nenhum histórico encontrado para seu usuário atual. Salve um grafo na aba 'Exportação' primeiro.")
-        else:
-            # Se não tem usuário identificado, não mostra nada (Privacidade)
-            st.warning("⚠️ Você precisa preencher o Formulário Inicial (Etapa 1) para acessar seu histórico privado.")
-            st.stop() # Para a execução desta aba aqui para proteger dados
-                
-        # Se passou daqui, é porque tem grafos e é o usuário certo
 
+        # Se passou daqui, é porque tem grafos e é o usuário certo
         if grafos_salvos:
             st.subheader("1. Selecione os Delineamentos para Comparar")
                     
@@ -2825,7 +2814,7 @@ with tab3:
 with tab4:
     st.title("📊 Painel de Exploração de Dados")
     st.caption("Análise profunda dos dados do OpenAlex")
-
+    
     # Sidebar para configuração
     with st.sidebar:
         st.header("⚙️ Configurar Busca")
@@ -2956,32 +2945,34 @@ with tab4:
             ### Funcionalidades
             - **Delineascópio:** Feedback personalizado sobre projetos de pesquisa        
             - **Interação:** Grafo dinâmico
-              - **Movimentação com física:** Inclusão e exclusão de nós
-              - **Exportação de rede:** Dados em GraphML e CSV
-              - **Construtor de chaves de busca:** Para maior autonomia
+              - **Visualização com física** 
+              - **Inclusão e exclusão de nós**
+              - **Exportação de redes:** Dados em GraphML e CSV
+              - **Construtor de chaves de busca**
             - **Histórico:** Comparação entre grafos
-              - **Análise pedagógica da mudança
+              - **Análise Pedagógica da Mudança**
             - **Painel:** Análise profunda de dados do OpenAlex:
-              - **Artigos:** Contagens de artigos e links de acesso
+              - **Artigos:** Contagens de artigos e dados únicos
               - **Conceitos:** Contagens de conceitos, nuvem de palavras e Lei de Zipf
               - **Coocorrências:** Contagens de associações entre conceitos e matrizes
               - **Grafo:** Visualização aumentada
-              - **Mapa Temático:** Posição do cluster
+              - **Mapa Temático:** Posição estratégica do cluster
               - **Estatísticas:** Resumo breve
               - **Exportação:** Dados em JSON, CSV, GraphML, .net, XLSX, BibTeX e RIS
             
             ### Tecnologias
-            - Python | Streamlit
+            - Python | Streamlit | HuggingFace
             - Google Gemini AI 2.5 Pro | Anthropic Claude Opus 4.5
             - OpenAlex API
             - NetworkX | Plotly | PyVis | ReportLab
+            - JavaScript | CSS
         
             ### Contato
             📧 rafael.antunes@ufrgs.br
             📧 rderafa@gmail.com           
         
             ### Versão
-            Delinéia I - 2025
+            Delinéia I - 2026
 
             ### Agradecimentos
             Ao **Orientador** Eliseo Berni Reategui; Aos **Professores** Alexandra Lorandi, Alexandre Ribas Semeler, Dante Augusto Couto Barone, Elisa Boff, Fernando Becker, Gabriela Trindade Perry, Ida Regina Chitto Stumpf, Leandro Krug Wives, Marcus Vinicius de Azevedo Basso, Maria de Fátima Santos Maia, Milton Antonio Zaro, Patrícia Fernanda da Silva, Rafael Port da Rocha, Regina Helena Van der Laan, Renato Ventura Bayan Henriques, Rosa Maria Vicari, Samile Andréa de Souza Vanz, Sérgio Roberto Kieling Franco, Sonia Elisa Caregnato e Vanessa Soares Maurente. Aos colegas do grupo de pesquisa **GTech.Edu** e à **CAPES**, pela concessão de bolsa de estudos.
@@ -2989,22 +2980,24 @@ with tab4:
     
     # Área principal do painel
     if st.session_state.dashboard_data is None:
-        st.info("👈 Configure os parâmetros na barra lateral e clique em **Buscar** para iniciar a análise")
-
+        st.info("👈 Abra a **barra lateral** (clique em `>` no canto superior esquerdo), configure os parâmetros e clique em **Buscar** para iniciar a análise")
         # Mostrar exemplo
-        with st.expander("💡 Exemplo de uso"):
+        with st.expander("💡 Exemplo de uso", expanded=True):
             st.markdown("""
             **Como usar o Painel:**
 
-            1. **Digite uma chave de busca** (ex: "machine learning" AND education)
-            2. **Ajuste os filtros** conforme necessário
-            3. **Clique em Buscar** para processar
-            4. **Explore as abas** com diferentes análises
-            5. **Exporte os dados** quando necessário
+            1. **Abra a barra lateral** (clique em `>` no canto superior esquerdo)
+            2. **Digite uma chave de busca** (ex: "machine learning" AND education)
+            3. **Ajuste os filtros** conforme necessário
+            4. **Clique em Buscar** para processar
+            5. **Explore as abas** com diferentes análises
+            6. **Exporte os dados** quando necessário
 
             **Dica:** Você pode copiar as chaves de busca do Delineascópio!
             """)
 
+        rodape_institucional()
+    
     else:
         # Recuperar dados
         data = st.session_state.dashboard_data
