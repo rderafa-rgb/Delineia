@@ -1,6 +1,6 @@
 ---
 title: Delineia
-emoji: 📚
+emoji: 🤖
 colorFrom: green
 colorTo: blue
 sdk: streamlit

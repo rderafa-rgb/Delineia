@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 
 import streamlit as st
+import base64
 
 # ==================== CONFIGURAÇÃO DA PÁGINA ====================
 st.set_page_config(
     page_title="Delinéia",
-    page_icon="📚",
+    page_icon="🤖",
     layout="wide",
-    initial_sidebar_state="collapsed"  # Sidebar oculto por padrão (só usado no Painel)
+    initial_sidebar_state="expanded"
 )
 
 # ==================== CSS CUSTOMIZADO (BOTÕES VERDES) ====================
@@ -87,6 +88,16 @@ except ImportError:
     PYVIS_AVAILABLE = False
 import gc
 
+# ========================= BASE64 =============================
+
+def get_base64_image(image_path):
+    """Converte imagem local para string base64 para uso em HTML"""
+    try:
+        with open(image_path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode()
+    except FileNotFoundError:
+        return None
+
 def limpar_memoria():
     """Força coleta de lixo"""
     gc.collect()
@@ -144,6 +155,133 @@ def search_openalex_cached(query, limit, min_score, min_level):
     # Processamento leve dos conceitos (extração) para evitar transportar objetos pesados
     # Se possível, faça a filtragem de score/level aqui e retorne apenas o necessário
     return raw_articles
+
+# ==================== SIDEBAR FIXO ====================
+with st.sidebar:
+    
+    logo_path = "delineia_logo.png"
+    img_base64 = get_base64_image(logo_path)
+    
+    if img_base64:
+        html_logo = f"""
+        <div style="text-align: center; margin-bottom: 20px;">
+            <img src="data:image/png;base64,{img_base64}" style="width: 180px; max-width: 100%;">
+            <h1 style="font-size: 24px; margin-top: 10px; margin-bottom: 0;">📋 Sobre o Delinéia</h1>
+        </div>
+        """
+        st.markdown(html_logo, unsafe_allow_html=True)
+    else:
+        # Fallback se a imagem não for encontrada       
+        
+        st.title("📋 Sobre o Delinéia")
+    
+    st.markdown("---")
+  
+    with st.expander("O que é?"):
+        st.markdown("""
+            ### O que é o Delinéia?
+            O Delinéia é um sistema de apoio ao delineamento do escopo temático de projetos de pesquisa no ensino superior e foi desenvolvido como parte de uma tese de doutorado em Informática na Educação. O sistema combina inteligência artificial generativa (Google Gemini) com análise bibliométrica de coocorrência de palavras (OpenAlex) para auxiliar estudantes de graduação e de pós-graduação no esboço de seus projetos de pesquisa.
+            """)
+    
+    with st.expander("Abordagem Interdisciplinar"):
+        st.markdown("""
+            Este projeto situa-se no diálogo entre Informática na Educação e Ciência da Informação, explorando como tecnologias de IA podem apoiar processos de pesquisa científica no ensino superior.        
+            """)
+    
+    with st.expander("Desenvolvimento"):
+        st.markdown("""
+            ### Desenvolvimento
+            **Autor:** Rafael Antunes dos Santos  
+            
+            **Instituição:**             
+            - Universidade Federal do Rio Grande do Sul (UFRGS) 
+            - Centro Interdisciplinar de Novas Tecnologias na Educação (Cinted)
+            - Programa de Pós-Graduação em Informática na Educação (PPGIE)
+              
+            **Nível:** Doutorado  
+            **Orientador:** Prof. Dr. Eliseo Berni Reategui  
+        
+            **Formação Anterior:**
+            - Mestre em Comunicação e Informação pela UFRGS (PPGCOM)  
+            - Bacharel em Biblioteconomia pela UFRGS (DCI/FABICO) - CRB10/1898
+        
+            **Currículo Lattes:** [http://lattes.cnpq.br/5228660998907867](http://lattes.cnpq.br/5228660998907867)
+
+            **ORCID:** https://orcid.org/0000-0002-1529-9063 
+            
+            ### Contato
+            📧 rafael.antunes@ufrgs.br
+            📧 rderafa@gmail.com        
+            """)
+    
+    with st.expander("Funcionalidades"):
+        st.markdown("""
+            ### Funcionalidades
+            - **Delineascópio:** Feedback personalizado sobre projetos de pesquisa        
+            - **Interação:** Grafo dinâmico
+              - **Visualização com física** 
+              - **Inclusão e exclusão de nós**
+              - **Exportação de redes:** Dados em GraphML e CSV
+              - **Construtor de chaves de busca**
+            - **Histórico:** Comparação entre grafos
+              - **Análise Pedagógica da Mudança**
+            - **Painel:** Análise profunda de dados do OpenAlex:
+              - **Artigos:** Contagens de artigos e dados únicos
+              - **Conceitos:** Contagens de conceitos, nuvem de palavras e Lei de Zipf
+              - **Coocorrências:** Contagens de associações entre conceitos e matrizes
+              - **Grafo:** Visualização aumentada
+              - **Mapa Temático:** Posição estratégica do cluster
+              - **Estatísticas:** Resumo breve
+              - **Exportação:** Dados em JSON, CSV, GraphML, .net, XLSX, BibTeX e RIS        
+            """)
+    
+    with st.expander("Tecnologias"):
+        st.markdown("""
+            ### Tecnologias
+            - Python | Streamlit | HuggingFace
+            - Google Gemini AI 2.5 Pro | Anthropic Claude Opus 4.5
+            - OpenAlex API
+            - JavaScript | CSS | HTML
+            - NetworkX | Plotly | PyVis | ReportLab
+
+            ### Versão
+            Delinéia I - 2025        
+            """)
+    
+    with st.expander("Agradecimentos"):
+        st.markdown("""
+            Ao **Orientador** Eliseo Berni Reategui; Aos **Professores** Alexandra Lorandi, Alexandre Ribas Semeler, Dante Augusto Couto Barone, Elisa Boff, Fernando Becker, Gabriela Trindade Perry, Ida Regina Chitto Stumpf, Leandro Krug Wives, Marcus Vinicius de Azevedo Basso, Maria de Fátima Santos Maia, Milton Antonio Zaro, Patrícia Fernanda da Silva, Rafael Port da Rocha, Regina Helena Van der Laan, Renato Ventura Bayan Henriques, Rosa Maria Vicari, Samile Andréa de Souza Vanz, Sérgio Roberto Kieling Franco, Sonia Elisa Caregnato e Vanessa Soares Maurente. Aos colegas do grupo de pesquisa **GTech.Edu** e à **CAPES**, pela concessão de bolsa de estudos.
+            """)
+
+    with st.expander("Publicações"):
+        st.markdown("""
+            **Artigos relacionados:**
+            - SANTOS, R.A.; REATEGUI, E.B. Uso de inteligência artificial generativa e análise de palavras-chave para apoiar o planejamento de projetos de pesuisa no ensino superior. *RELATEC: Revista Latinoamericana de Tecnología Educativa*, v.24, n.2, p.87–104, 2025. Doi: https://doi.org/10.17398/1695-288X.24.2.87.
+            - SANTOS, R.A.; REATEGUI, E.B.; CAREGNATO, S.E. Análise de coocorrência de palavras na pesquisa brasileira em HIV/AIDS indexada na Web of Science no período 1993-2020. *Informação & Informação*, v.27, n.2, p.248–273, 2022. Doi: https://doi.org/10.5433/1981-8920.2022v27n2p248. Disponível em: https://ojs.uel.br/revistas/uel/index.php/informacao/article/view/45335.        
+            """)
+
+    st.markdown("---") # Linha divisória
+
+    # LICENÇA CREATIVE COMMONS (Formatada em HTML)
+    html_cc = """
+    <div style="text-align: center; font-size: 0.85em; color: #666;">
+        <p>
+            <a href="https://huggingface.co/spaces/RafaelAntunes123/Delineia" target="_blank" style="text-decoration:none; color:#3366cc; font-weight:bold;">Delinéia</a> 
+            © 2025 by 
+            <a href="https://github.com/rderafa-rgb" target="_blank" style="text-decoration:none; color:#3366cc;">Rafael Antunes dos Santos</a>
+        </p>
+        <p>Licensed under: <br>
+        <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" style="text-decoration:none; color:#3366cc;">CC BY-NC-ND 4.0 International</a>
+        </p>
+        <p>
+            <img src="https://mirrors.creativecommons.org/presskit/icons/cc.svg" style="height:22px; margin:2px;">
+            <img src="https://mirrors.creativecommons.org/presskit/icons/by.svg" style="height:22px; margin:2px;">
+            <img src="https://mirrors.creativecommons.org/presskit/icons/nc.svg" style="height:22px; margin:2px;">
+            <img src="https://mirrors.creativecommons.org/presskit/icons/nd.svg" style="height:22px; margin:2px;">
+        </p>
+    </div>
+    """
+    st.markdown(html_cc, unsafe_allow_html=True)
 
 # ==================== BIBLIOTECA DE GÊNERO ====================
 
@@ -608,6 +746,7 @@ def analyze_zipf(frequency_data):
         'quality': quality,
         'slope_interpretation': slope_interpretation
     }
+
 # ==================== ESTADOS DA SESSÃO ====================
 if 'step' not in st.session_state:
     st.session_state.step = 1
@@ -1385,7 +1524,7 @@ tab1, tab2, tab3, tab4 = st.tabs(["📚 Delineascópio", "🔬 Interação", "�
 
 # ==================== ABA 1: DELINEASCÓPIO ====================
 with tab1:
-    st.title("📚 Delinéia - Delineamento de Escopo Temático")
+    st.title("🤖 Delinéia - Delineamento de Escopo Temático")
     st.caption("Sistema de apoio ao delineamento de projetos de pesquisa com IA e Bibliometria")
 
     # Barra de progresso gamificada (5 etapas)
@@ -2814,11 +2953,8 @@ with tab3:
 with tab4:
     st.title("📊 Painel de Exploração de Dados")
     st.caption("Análise profunda dos dados do OpenAlex")
-    
-    # Sidebar para configuração
-    with st.sidebar:
-        st.header("⚙️ Configurar Busca")
 
+    with st.expander("🔍 Configurar Nova Busca", expanded=False):
         # Campo de busca
         query = st.text_input(
             "Chave de Busca:",
@@ -2913,92 +3049,10 @@ with tab4:
                     st.error(f"❌ Erro na busca: {str(e)}")
                     # Dica de debug útil em dev
                     # st.exception(e)
-        
-        st.divider()
-
-        # ========== SEÇÃO SOBRE ==========
-        with st.expander("📋 Sobre o Delinéia"):
-            st.markdown("""
-            ### O que é o Delinéia?
-            O Delinéia é um sistema de apoio ao delineamento do escopo temático de projetos de pesquisa no ensino superior e foi desenvolvido como parte de uma tese de doutorado em Informática na Educação. O sistema combina inteligência artificial generativa (Google Gemini) com análise bibliométrica de coocorrência de palavras (OpenAlex) para auxiliar estudantes de graduação e de pós-graduação no esboço de seus projetos de pesquisa.
-        
-            ### Desenvolvimento
-            **Autor:** Rafael Antunes dos Santos  
-            
-            **Instituição:**             
-            - Universidade Federal do Rio Grande do Sul (UFRGS) 
-            - Centro Interdisciplinar de Novas Tecnologias na Educação (Cinted)
-            - Programa de Pós-Graduação em Informática na Educação (PPGIE)
-              
-            **Nível:** Doutorado  
-            **Orientador:** Prof. Dr. Eliseo Berni Reategui  
-        
-            **Formação Anterior:**
-            - Mestre em Comunicação e Informação pela UFRGS (PPGCOM)  
-            - Bacharel em Biblioteconomia pela UFRGS (DCI/FABICO) - CRB10/1898
-        
-            **Currículo Lattes:** [http://lattes.cnpq.br/5228660998907867](http://lattes.cnpq.br/5228660998907867)
-        
-            ### Abordagem Interdisciplinar
-            Este projeto situa-se no diálogo entre Informática na Educação e Ciência da Informação, explorando como tecnologias de IA podem apoiar processos de pesquisa científica no ensino superior.
-        
-            ### Funcionalidades
-            - **Delineascópio:** Feedback personalizado sobre projetos de pesquisa        
-            - **Interação:** Grafo dinâmico
-              - **Visualização com física** 
-              - **Inclusão e exclusão de nós**
-              - **Exportação de redes:** Dados em GraphML e CSV
-              - **Construtor de chaves de busca**
-            - **Histórico:** Comparação entre grafos
-              - **Análise Pedagógica da Mudança**
-            - **Painel:** Análise profunda de dados do OpenAlex:
-              - **Artigos:** Contagens de artigos e dados únicos
-              - **Conceitos:** Contagens de conceitos, nuvem de palavras e Lei de Zipf
-              - **Coocorrências:** Contagens de associações entre conceitos e matrizes
-              - **Grafo:** Visualização aumentada
-              - **Mapa Temático:** Posição estratégica do cluster
-              - **Estatísticas:** Resumo breve
-              - **Exportação:** Dados em JSON, CSV, GraphML, .net, XLSX, BibTeX e RIS
-            
-            ### Tecnologias
-            - Python | Streamlit | HuggingFace
-            - Google Gemini AI 2.5 Pro | Anthropic Claude Opus 4.5
-            - OpenAlex API
-            - NetworkX | Plotly | PyVis | ReportLab
-            - JavaScript | CSS
-        
-            ### Contato
-            📧 rafael.antunes@ufrgs.br
-            📧 rderafa@gmail.com           
-        
-            ### Versão
-            Delinéia I - 2026
-
-            ### Agradecimentos
-            Ao **Orientador** Eliseo Berni Reategui; Aos **Professores** Alexandra Lorandi, Alexandre Ribas Semeler, Dante Augusto Couto Barone, Elisa Boff, Fernando Becker, Gabriela Trindade Perry, Ida Regina Chitto Stumpf, Leandro Krug Wives, Marcus Vinicius de Azevedo Basso, Maria de Fátima Santos Maia, Milton Antonio Zaro, Patrícia Fernanda da Silva, Rafael Port da Rocha, Regina Helena Van der Laan, Renato Ventura Bayan Henriques, Rosa Maria Vicari, Samile Andréa de Souza Vanz, Sérgio Roberto Kieling Franco, Sonia Elisa Caregnato e Vanessa Soares Maurente. Aos colegas do grupo de pesquisa **GTech.Edu** e à **CAPES**, pela concessão de bolsa de estudos.
-            """)
-    
+   
     # Área principal do painel
-    if st.session_state.dashboard_data is None:
-        st.info("👈 Abra a **barra lateral** (clique em `>` no canto superior esquerdo), configure os parâmetros e clique em **Buscar** para iniciar a análise")
-        # Mostrar exemplo
-        with st.expander("💡 Exemplo de uso", expanded=True):
-            st.markdown("""
-            **Como usar o Painel:**
-
-            1. **Abra a barra lateral** (clique em `>` no canto superior esquerdo)
-            2. **Digite uma chave de busca** (ex: "machine learning" AND education)
-            3. **Ajuste os filtros** conforme necessário
-            4. **Clique em Buscar** para processar
-            5. **Explore as abas** com diferentes análises
-            6. **Exporte os dados** quando necessário
-
-            **Dica:** Você pode copiar as chaves de busca do Delineascópio!
-            """)
-
-        rodape_institucional()
-    
-    else:
+    # Verifica se TEM dados antes de tentar ler
+    if st.session_state.dashboard_data is not None:
         # Recuperar dados
         data = st.session_state.dashboard_data
         articles = data['articles']
@@ -4206,5 +4260,22 @@ Total de Artigos: {len(articles)}
                         "application/zip",
                         use_container_width=True
                     )
-        
-    rodape_institucional()
+
+    else:
+    # O que mostrar se não tiver dados
+        st.info("☝️ Realize uma busca para visualizar o painel.")
+        # Mostrar exemplo
+        with st.expander("💡 Exemplo de uso", expanded=True):
+            st.markdown("""
+            **Como usar o Painel:**
+                        
+            1. **Digite uma chave de busca** (ex: "machine learning" AND education)
+            2. **Ajuste os filtros** conforme necessário
+            3. **Clique em Buscar** para processar
+            4. **Explore as abas** com diferentes análises
+            5. **Exporte os dados** quando necessário
+            
+            **Dica:** Você pode copiar as chaves de busca do Delineascópio ou do Construtor de Chaves!
+            """)
+
+        rodape_institucional()
