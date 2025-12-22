@@ -159,7 +159,7 @@ def search_openalex_cached(query, limit, min_score, min_level):
 # ==================== SIDEBAR FIXO ====================
 with st.sidebar:
     
-    logo_path = "delineia_logo.png"
+    logo_path = "assets/delineia_logo.png"
     img_base64 = get_base64_image(logo_path)
     
     if img_base64:
@@ -179,7 +179,6 @@ with st.sidebar:
   
     with st.expander("O que é?"):
         st.markdown("""
-            ### O que é o Delinéia?
             O Delinéia é um sistema de apoio ao delineamento do escopo temático de projetos de pesquisa no ensino superior e foi desenvolvido como parte de uma tese de doutorado em Informática na Educação. O sistema combina inteligência artificial generativa (Google Gemini) com análise bibliométrica de coocorrência de palavras (OpenAlex) para auxiliar estudantes de graduação e de pós-graduação no esboço de seus projetos de pesquisa.
             """)
     
@@ -190,7 +189,6 @@ with st.sidebar:
     
     with st.expander("Desenvolvimento"):
         st.markdown("""
-            ### Desenvolvimento
             **Autor:** Rafael Antunes dos Santos  
             
             **Instituição:**             
@@ -205,46 +203,48 @@ with st.sidebar:
             - Mestre em Comunicação e Informação pela UFRGS (PPGCOM)  
             - Bacharel em Biblioteconomia pela UFRGS (DCI/FABICO) - CRB10/1898
         
-            **Currículo Lattes:** [http://lattes.cnpq.br/5228660998907867](http://lattes.cnpq.br/5228660998907867)
+            **Lattes:** [http://lattes.cnpq.br/5228660998907867](http://lattes.cnpq.br/5228660998907867)
 
             **ORCID:** https://orcid.org/0000-0002-1529-9063 
             
-            ### Contato
+            **Contato:**
             📧 rafael.antunes@ufrgs.br
             📧 rderafa@gmail.com        
             """)
     
     with st.expander("Funcionalidades"):
         st.markdown("""
-            ### Funcionalidades
-            - **Delineascópio:** Feedback personalizado sobre projetos de pesquisa        
-            - **Interação:** Grafo dinâmico
-              - **Visualização com física** 
-              - **Inclusão e exclusão de nós**
-              - **Exportação de redes:** Dados em GraphML e CSV
-              - **Construtor de chaves de busca**
-            - **Histórico:** Comparação entre grafos
-              - **Análise Pedagógica da Mudança**
-            - **Painel:** Análise profunda de dados do OpenAlex:
-              - **Artigos:** Contagens de artigos e dados únicos
-              - **Conceitos:** Contagens de conceitos, nuvem de palavras e Lei de Zipf
-              - **Coocorrências:** Contagens de associações entre conceitos e matrizes
-              - **Grafo:** Visualização aumentada
-              - **Mapa Temático:** Posição estratégica do cluster
-              - **Estatísticas:** Resumo breve
-              - **Exportação:** Dados em JSON, CSV, GraphML, .net, XLSX, BibTeX e RIS        
+            - **Delineascópio:** 
+              - Feedback personalizado        
+            - **Interação:** 
+              - Grafo completo
+              - Visualização dinâmica 
+              - Inclusão e exclusão de nós
+              - Exportação de redes: dados em GraphML e CSV
+              - Construtor de chaves de busca
+            - **Histórico:** 
+              - Comparação entre grafos
+              - Análise Pedagógica da Mudança
+            - **Painel:** 
+              - Análise profunda de dados do OpenAlex:
+                - Artigos: *contagens de artigos e dados únicos*
+                - Conceitos: *contagens de conceitos, nuvem de palavras e lei de Zipf*
+                - Coocorrências: *contagens de associações entre conceitos e similaridade*
+                - Grafo: *visualização estática e clusterização*
+                - Mapa Temático: *posição estratégica do cluster*
+                - Estatísticas: *resumo breve*
+                - Exportação: *dados em JSON, CSV, GraphML, .net, .xlsx, BibTeX, .ris e Zip File*     
             """)
     
     with st.expander("Tecnologias"):
         st.markdown("""
-            ### Tecnologias
             - Python | Streamlit | HuggingFace
             - Google Gemini AI 2.5 Pro | Anthropic Claude Opus 4.5
             - OpenAlex API
             - JavaScript | CSS | HTML
             - NetworkX | Plotly | PyVis | ReportLab
 
-            ### Versão
+            *Versão*
             Delinéia I - 2025        
             """)
     
@@ -255,9 +255,13 @@ with st.sidebar:
 
     with st.expander("Publicações"):
         st.markdown("""
-            **Artigos relacionados:**
+            *Artigos relacionados:*
             - SANTOS, R.A.; REATEGUI, E.B. Uso de inteligência artificial generativa e análise de palavras-chave para apoiar o planejamento de projetos de pesuisa no ensino superior. *RELATEC: Revista Latinoamericana de Tecnología Educativa*, v.24, n.2, p.87–104, 2025. Doi: https://doi.org/10.17398/1695-288X.24.2.87.
             - SANTOS, R.A.; REATEGUI, E.B.; CAREGNATO, S.E. Análise de coocorrência de palavras na pesquisa brasileira em HIV/AIDS indexada na Web of Science no período 1993-2020. *Informação & Informação*, v.27, n.2, p.248–273, 2022. Doi: https://doi.org/10.5433/1981-8920.2022v27n2p248. Disponível em: https://ojs.uel.br/revistas/uel/index.php/informacao/article/view/45335.        
+            
+            *Colaboração em pesquisas:*
+            - REATEGUI, E.B.; BIGOLIN, M.; CARNIATO, M.; SANTOS, R.A. Evaluating the performance of SOBEK text mining keyword extraction algorithm. In: HOLZINGER, A. et al. (ed.). *Machine Learning and Knowledge Extraction*: CD-MAKE 2022. Cham: Springer, 2022. p.233–243. (Lecture Notes in Computer Science, 13480. Doi: https://doi.org/10.1087/978-3-031-14463-9_15.
+            - SEMELER, A.R.; SANTOS, R.A.; SOARES, K.U. Análise de domínio aplicada aos estudos fronteiriços brasileiros: metadados de publicações científicas de acesso aberto extraídos da plataforma Lattes. In: *ANUÁRIO Unbral das fronteiras brasileiras*: volume 1. Porto Alegre: Instituto de Geociências, 2014. p.37–65.
             """)
 
     st.markdown("---") # Linha divisória
@@ -328,16 +332,28 @@ def rodape_institucional():
     
     # HTML Alinhado à esquerda para evitar bugs de Markdown
     html_code = f"""
-<div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
-<div style="display: flex; gap: 40px; align-items: center; margin-bottom: 15px;">
-<img src="data:image/png;base64,{img_ufrgs}" width="160" style="opacity: 0.9;">
-<img src="data:image/png;base64,{img_cinted}" width="160" style="opacity: 0.9;">
-<img src="data:image/png;base64,{img_ppgie}" width="160" style="opacity: 0.9;">
+<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif;">
+<div style="display: flex; gap: 30px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; justify-content: center;">
+<img src="data:image/png;base64,{img_ufrgs}" style="height: 60px; width: auto; opacity: 0.9;">
+<img src="data:image/png;base64,{img_cinted}" style="height: 60px; width: auto; opacity: 0.9;">
+<img src="data:image/png;base64,{img_ppgie}" style="height: 60px; width: auto; opacity: 0.9;">
 </div>
-<div style="text-align: center; color: #888888; font-size: 0.85rem; line-height: 1.5;">
+<div style="text-align: center; color: #666; font-size: 0.85rem; line-height: 1.6;">
+<p style="margin-bottom: 10px;">
 <b>Delinéia</b> - Sistema de Apoio ao Delineamento de Escopo Temático<br>
-Pesquisa de Doutorado - PPGIE / UFRGS<br>
-2025
+Pesquisa de Doutorado - PPGIE / UFRGS
+</p>
+<hr style="width: 50%; margin: 10px auto; border: 0; border-top: 1px solid #ddd;">
+<p style="font-size: 0.75rem; color: #888;">
+Delinéia © 2025 by Rafael Antunes dos Santos is licensed under 
+<a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" style="color: #555; font-weight: bold; text-decoration: underline;">
+CC BY-NC-ND 4.0
+</a>.<br>
+To view a copy of this license, visit 
+<a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" style="color: #888; text-decoration: none;">
+https://creativecommons.org/licenses/by-nc-nd/4.0/
+</a>
+</p>
 </div>
 </div>
 """
@@ -2541,36 +2557,51 @@ Para prosseguir com o preenchimento deste formulário, assinale a alternativa ma
                 add_badge(badge_final)
 
                 # Feedback visual
+                st.session_state.mostrar_resumo_final = True
                 st.success("✅ Avaliação enviada com sucesso!")
-                st.balloons()
-
-                # Resumo da avaliação
-                continuidade_msg = "Sim ✅" if aceite_continuidade else "Não"
                 
-                st.info(f"""
-                📊 **Resumo da sua avaliação:**
+        if st.session_state.get('mostrar_resumo_final'):
+            
+            # Resumo da avaliação
+            dados = st.session_state.get('avaliacao_data', {})
+            rec_nps = dados.get('nps', 0)
+            rec_cat = dados.get('nps_category', '-')
+            rec_q27 = dados.get('q27', '-')
+            rec_q28 = dados.get('q28', '-')
+            rec_q29 = dados.get('q29', '-')
+            rec_q30 = dados.get('q30', '-')
+            
+            aceite = dados.get('aceite_continuidade', False)
+            msg_continuidade = "Sim ✅" if aceite else "Não"
+               
+            st.info(f"""
+            📊 **Resumo da sua avaliação:**
 
-                • **NPS:** {nps}/10 ({nps_category})
-                • **Nível acadêmico:** {q27}
-                • **Experiência bibliométrica:** {q28}
-                • **Área:** {q29}
-                • **Tempo de uso:** {q30}
-                • **Aceite para continuidade:** {continuidade_msg}
+            • **NPS:** {rec_nps}/10 ({rec_cat})
+            • **Nível acadêmico:** {rec_q27}
+            • **Experiência bibliométrica:** {rec_q28}
+            • **Área:** {rec_q29}
+            • **Tempo de uso:** {rec_q30}
+            • **Aceite para continuidade:** {msg_continuidade}
 
-                🏆 **Badge desbloqueado:** Avaliador
+            🏆 **Badge desbloqueado:** {g("Delineador", "Delineadora")}
 
-                Obrigado por dedicar seu tempo para avaliar o Delinéia!
-                Seu feedback é essencial para o desenvolvimento contínuo do sistema.
-                """)
+            Obrigado por dedicar seu tempo para avaliar o Delinéia!
+            Sua avaliação é essencial para o desenvolvimento contínuo do sistema.
 
-                # Avançar para próxima etapa
+            **Clique abaixo para concluir e visualizar suas conquistas.**
+            """)
+
+            # BOTÃO DE AÇÃO
+            if st.button("🏆 Resgatar Conquistas", type="primary"):
                 st.session_state.step = 4
+                st.session_state.mostrar_resumo_final = False
                 st.rerun()
-
+                    
         rodape_institucional()
     
     # ========== ETAPA 4: CONCLUSÃO ==========
-    elif st.session_state.step == 4:
+    if st.session_state.step == 4:
         st.success("🎉 Parabéns! Você completou todas as etapas!")
         st.markdown(f"### 🏆 Conquista Desbloqueada: {g('Delineador', 'Delineadora')}!")
         st.balloons()
