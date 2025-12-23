@@ -166,12 +166,12 @@ with st.sidebar:
         html_logo = f"""
         <div style="text-align: center; margin-bottom: 20px;">
             <img src="data:image/png;base64,{img_base64}" style="width: 180px; max-width: 100%;">
-            <h1 style="font-size: 24px; margin-top: 10px; margin-bottom: 0;">📋 Sobre o Delinéia</h1>
+            <h1 style="font-size: 24px; margin-top: 10px; margin-bottom: 0;">📋 O que é Delinéia?</h1>
         </div>
         """
         st.markdown(html_logo, unsafe_allow_html=True)
     else:
-        # Fallback se a imagem não for encontrada       
+        # Fallback se a imagem não for encontrada 
         
         st.title("📋 O que é Delinéia?")
     
@@ -4323,5 +4323,3 @@ Total de Artigos: {len(articles)}
             """)
 
     rodape_institucional()
-
-#HF LOUCO
