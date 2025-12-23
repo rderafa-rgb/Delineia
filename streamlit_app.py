@@ -173,30 +173,31 @@ with st.sidebar:
     else:
         # Fallback se a imagem não for encontrada       
         
-        st.title("📋 Sobre o Delinéia")
+        st.title("📋 O que é Delinéia?")
     
     st.markdown("---")
   
-    with st.expander("O que é?"):
+    with st.expander("Sobre o Delinéia"):
         st.markdown("""
-            O Delinéia é um sistema de apoio ao delineamento do escopo temático de projetos de pesquisa no ensino superior e foi desenvolvido como parte de uma tese de doutorado em Informática na Educação. O sistema combina inteligência artificial generativa (Google Gemini) com análise bibliométrica de coocorrência de palavras (OpenAlex) para auxiliar estudantes de graduação e de pós-graduação no esboço de seus projetos de pesquisa.
+            O Delinéia é um sistema de apoio ao delineamento do escopo temático de projetos de pesquisa no ensino superior e foi desenvolvido como parte de uma tese de doutorado em Informática na Educação. O sistema combina Inteligência Artificial Generativa (Gemini Pro) com análise bibliométrica de coocorrência de palavras coma partir de busca contextual na base OpenAlex. O experimento visa auxiliar estudantes de graduação e de pós-graduação no esboço de seus projetos de pesquisa.
             """)
     
     with st.expander("Abordagem Interdisciplinar"):
         st.markdown("""
-            Este projeto situa-se no diálogo entre Informática na Educação e Ciência da Informação, explorando como tecnologias de IA podem apoiar processos de pesquisa científica no ensino superior.        
+            Este projeto situa-se no diálogo entre Informática na Educação e Ciência da Informação, explorando como tecnologias de IA podem apoiar processos de aprendizagem científica no ensino superior.        
             """)
     
-    with st.expander("Desenvolvimento"):
+    with st.expander("Autoria"):
         st.markdown("""
-            **Autor:** Rafael Antunes dos Santos  
+            **Desenvolvimento:** Rafael Antunes dos Santos  
             
             **Instituição:**             
             - Universidade Federal do Rio Grande do Sul (UFRGS) 
             - Centro Interdisciplinar de Novas Tecnologias na Educação (Cinted)
             - Programa de Pós-Graduação em Informática na Educação (PPGIE)
               
-            **Nível:** Doutorado  
+            **Nível:** Doutorado
+                      
             **Orientador:** Prof. Dr. Eliseo Berni Reategui  
         
             **Formação Anterior:**
@@ -212,24 +213,34 @@ with st.sidebar:
             📧 rderafa@gmail.com        
             """)
     
-    with st.expander("Funcionalidades"):
+    with st.expander("Trilha de Aprendizagem"):
         st.markdown("""
-            - **Delineascópio:** 
-              - Feedback personalizado        
+            - **Delineascópio:**
+              - Trilha gamificada
+              - Visualização conceitual
+              - Glossário
+              - Seleção de conceitos
+              - Avaliação do projeto:
+                - Palavras-chave
+                - Questão de pesquisa
+              - Interpretação personalizada
+              - Sugestão de palavras-chave
+              - Sugestão de chaves de busca
+              - Relatório em PDF        
             - **Interação:** 
               - Grafo completo
               - Visualização dinâmica 
               - Inclusão e exclusão de nós
-              - Exportação de redes: dados em GraphML e CSV
+              - Exportação de redes
               - Construtor de chaves de busca
             - **Histórico:** 
               - Comparação entre grafos
               - Análise Pedagógica da Mudança
             - **Painel:** 
-              - Análise profunda de dados do OpenAlex:
-                - Artigos: *contagens de artigos e dados únicos*
-                - Conceitos: *contagens de conceitos, nuvem de palavras e lei de Zipf*
-                - Coocorrências: *contagens de associações entre conceitos e similaridade*
+              - Busca de dados do OpenAlex:
+                - Artigos: *métricas de artigos e metadados únicos*
+                - Conceitos: *métricas de conceitos, nuvem de palavras e lei de Zipf*
+                - Coocorrências: *métricas de pares associados e similaridade*
                 - Grafo: *visualização estática e clusterização*
                 - Mapa Temático: *posição estratégica do cluster*
                 - Estatísticas: *resumo breve*
@@ -256,7 +267,7 @@ with st.sidebar:
     with st.expander("Publicações"):
         st.markdown("""
             *Artigos relacionados:*
-            - SANTOS, R.A.; REATEGUI, E.B. Uso de inteligência artificial generativa e análise de palavras-chave para apoiar o planejamento de projetos de pesuisa no ensino superior. *RELATEC: Revista Latinoamericana de Tecnología Educativa*, v.24, n.2, p.87–104, 2025. Doi: https://doi.org/10.17398/1695-288X.24.2.87.
+            - SANTOS, R.A.; REATEGUI, E.B. Uso de inteligência artificial generativa e análise de palavras-chave para apoiar o planejamento de projetos de pesquisa no ensino superior. *RELATEC: Revista Latinoamericana de Tecnología Educativa*, v.24, n.2, p.87–104, 2025. Doi: https://doi.org/10.17398/1695-288X.24.2.87.
             - SANTOS, R.A.; REATEGUI, E.B.; CAREGNATO, S.E. Análise de coocorrência de palavras na pesquisa brasileira em HIV/AIDS indexada na Web of Science no período 1993-2020. *Informação & Informação*, v.27, n.2, p.248–273, 2022. Doi: https://doi.org/10.5433/1981-8920.2022v27n2p248. Disponível em: https://ojs.uel.br/revistas/uel/index.php/informacao/article/view/45335.        
             
             *Colaboração em pesquisas:*
@@ -272,7 +283,7 @@ with st.sidebar:
         <p>
             <a href="https://huggingface.co/spaces/RafaelAntunes123/Delineia" target="_blank" style="text-decoration:none; color:#3366cc; font-weight:bold;">Delinéia</a> 
             © 2025 by 
-            <a href="https://github.com/rderafa-rgb" target="_blank" style="text-decoration:none; color:#3366cc;">Rafael Antunes dos Santos</a>
+            <a href="https://github.com/rderafa-rgb" target="_blank" style="text-decoration:none; color:#3366cc;">Rafael Antunes</a>
         </p>
         <p>Licensed under: <br>
         <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" style="text-decoration:none; color:#3366cc;">CC BY-NC-ND 4.0 International</a>
@@ -334,9 +345,9 @@ def rodape_institucional():
     html_code = f"""
 <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif;">
 <div style="display: flex; gap: 30px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; justify-content: center;">
-<img src="data:image/png;base64,{img_ufrgs}" style="height: 60px; width: auto; opacity: 0.9;">
-<img src="data:image/png;base64,{img_cinted}" style="height: 60px; width: auto; opacity: 0.9;">
-<img src="data:image/png;base64,{img_ppgie}" style="height: 60px; width: auto; opacity: 0.9;">
+<img src="data:image/png;base64,{img_ufrgs}" style="height: 85px; width: auto; opacity: 0.9;">
+<img src="data:image/png;base64,{img_cinted}" style="height: 85px; width: auto; opacity: 0.9;">
+<img src="data:image/png;base64,{img_ppgie}" style="height: 85px; width: auto; opacity: 0.9;">
 </div>
 <div style="text-align: center; color: #666; font-size: 0.85rem; line-height: 1.6;">
 <p style="margin-bottom: 10px;">
@@ -345,7 +356,7 @@ Pesquisa de Doutorado - PPGIE / UFRGS
 </p>
 <hr style="width: 50%; margin: 10px auto; border: 0; border-top: 1px solid #ddd;">
 <p style="font-size: 0.75rem; color: #888;">
-Delinéia © 2025 by Rafael Antunes dos Santos is licensed under 
+Delinéia © 2025 by Rafael Antunes is licensed under 
 <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" style="color: #555; font-weight: bold; text-decoration: underline;">
 CC BY-NC-ND 4.0
 </a>.<br>
@@ -1536,7 +1547,7 @@ def render_tab3_interacao():
     rodape_institucional()
 
 # ==================== ABAS PRINCIPAIS ====================
-tab1, tab2, tab3, tab4 = st.tabs(["📚 Delineascópio", "🔬 Interação", "📜 Histórico", "📊 Painel"])
+tab1, tab2, tab3, tab4 = st.tabs(["🤖 Delineascópio", "🔬 Interação", "📜 Histórico", "🔎 Painel"])
 
 # ==================== ABA 1: DELINEASCÓPIO ====================
 with tab1:
@@ -2070,7 +2081,7 @@ with tab1:
             # ========== SEÇÃO 8: AÇÕES FINAIS ==========
             st.divider()
 
-            col1, col2, col3 = st.columns(3)
+            col1, col2 = st.columns(2)
 
             with col1:
                 # PDF disponível após completar a trilha
@@ -2096,10 +2107,6 @@ with tab1:
                     st.error(f"Erro ao gerar PDF: {str(e)}")
 
             with col2:
-                if st.button("📊 Ir ao Painel", use_container_width=True):
-                    st.info("💡 Use as chaves de busca sugeridas para explorar mais a literatura no Painel!")
-
-            with col3:
                 if st.button("📝 Avaliar Sistema", type="primary", use_container_width=True):
                     st.session_state.step = 3
                     st.rerun()
@@ -2110,8 +2117,12 @@ with tab1:
 
             Agora você pode:
             - 📥 **Baixar o PDF** com o relatório completo
-            - 📊 **Usar o Painel** para explorar mais a literatura
+            - 🔬 **Usar a Interação** para explorar o grafo
+            - 📋 **Realizar novos delineamentos**
+            - 📜 **Usar o Histórico** para comparar diferentes delineamentos            
+            - 🔎 **Usar o Painel** para analisar a literatura
             - 📝 **Avaliar o sistema** e nos ajudar a melhorar
+            - 
             """)
 
             # Botão novo projeto
@@ -2164,13 +2175,13 @@ Para prosseguir com o preenchimento deste formulário, assinale a alternativa ma
 
         st.markdown("") # Um pequeno espaço
         tcle_aceite = st.checkbox(
-            "📝 **Li, compreendi e CONCORDO em participar da Etapa 1 (formulários online).**",
+            "📝 Li, compreendi e **CONCORDO** em participar da Etapa 1 (formulários online).",
             key="tcle_aceite"
         )
 
         st.markdown("") # Um pequeno espaço
         tcle_rejeita = st.checkbox(
-            "📝 **Li, mas NÃO CONCORDO em participar desta pesquisa.**",
+            "📝 Li, mas **NÃO CONCORDO** em participar desta pesquisa.",
             key="tcle_rejeita"
         )
 
@@ -2478,19 +2489,22 @@ Para prosseguir com o preenchimento deste formulário, assinale a alternativa ma
             """)
 
             aceite_continuidade = st.checkbox(
-                "✅ **CONCORDO em ser convidado(a) para atividades com gravação de áudio e vídeo.**",
+                "✅ **CONCORDO** em ser convidado(a) para atividades com gravação de áudio e vídeo.",
                 key="aceite_continuidade",
                 help="Ao marcar esta opção, você demonstra interesse em contribuir com o desenvolvimento do Delinéia"
             )
 
             rejeita_continuidade = st.checkbox(
-                "✅ **NÃO CONCORDO em participar de atividades qualitativas com gravação.**",
+                "✅ **NÃO CONCORDO** em participar de atividades qualitativas com gravação.",
                 key="rejeita_continuidade",
                 help="Você não será considerado em convites de continuidade da pesquisa."
             )
 
             if aceite_continuidade:
                 st.success("🎉 Obrigado por aceitar continuar conosco! Você receberá um e-mail com mais informações em breve.")
+
+            if rejeita_continuidade:
+                st.success("🚫 Você não será considerado em convites de continuidade da pesquisa.")
 
             st.divider()
 
@@ -2577,19 +2591,19 @@ Para prosseguir com o preenchimento deste formulário, assinale a alternativa ma
             st.info(f"""
             📊 **Resumo da sua avaliação:**
 
-            • **NPS:** {rec_nps}/10 ({rec_cat})
-            • **Nível acadêmico:** {rec_q27}
-            • **Experiência bibliométrica:** {rec_q28}
-            • **Área:** {rec_q29}
-            • **Tempo de uso:** {rec_q30}
-            • **Aceite para continuidade:** {msg_continuidade}
+            - **NPS:** {rec_nps}/10 ({rec_cat})
+            - **Nível acadêmico:** {rec_q27}
+            - **Experiência bibliométrica:** {rec_q28}
+            - **Área:** {rec_q29}
+            - **Tempo de uso:** {rec_q30}
+            - **Aceite para continuidade:** {msg_continuidade}
 
             🏆 **Badge desbloqueado:** {g("Delineador", "Delineadora")}
 
             Obrigado por dedicar seu tempo para avaliar o Delinéia!
             Sua avaliação é essencial para o desenvolvimento contínuo do sistema.
 
-            **Clique abaixo para concluir e visualizar suas conquistas.**
+            **Clique no botão abaixo para concluir e visualizar suas conquistas.**
             """)
 
             # BOTÃO DE AÇÃO
@@ -2604,7 +2618,6 @@ Para prosseguir com o preenchimento deste formulário, assinale a alternativa ma
     if st.session_state.step == 4:
         st.success("🎉 Parabéns! Você completou todas as etapas!")
         st.markdown(f"### 🏆 Conquista Desbloqueada: {g('Delineador', 'Delineadora')}!")
-        st.balloons()
 
         primeiro_nome = st.session_state.form_data['nome'].split()[0]
 
@@ -2650,7 +2663,7 @@ Para prosseguir com o preenchimento deste formulário, assinale a alternativa ma
         )
 
         # Créditos em expander
-        with st.expander("📜 Créditos e Informações"):
+        with st.expander("📜 Créditos e Informações", expanded=True):
             st.markdown("""
             <div style="text-align: center; 
                         background-color: #f8f9fa; 
@@ -2663,9 +2676,7 @@ Para prosseguir com o preenchimento deste formulário, assinale a alternativa ma
             **Álbum:** Os olhos de Borges (Versão musical do livro homônimo)
                         
             **Livro:** BRASIL, J.V. *Os olhos de Borges*. Porto Alegre: WS Editor, 1997.
-                        
-            **Autoria:** Jaime Vaz Brasil
-                        
+                                            
             **Intérprete(s):** Hique Gomez
 
             **Letra:** Jaime Vaz Brasil
@@ -2712,7 +2723,7 @@ O verbo delinear, "[...] traçar as linhas gerais de; esboçar, debuxar",[^8] é
 
 E aqui, uma busca interessante se revela. A palavra delineamento é, em si, um ato da crítica, da análise e da academia, mas é rara dentro da prosa de ficção ou dos versos de poesia. Parece ser uma palavra que usamos para observar a literatura, e não uma palavra que a literatura usa para observar o mundo. Um romancista provavelmente escreveria "o contorno do seu rosto" ou "o traçado do plano", mas raramente "o delineamento do seu rosto". A palavra pertence ao analista, ao pesquisador. A encontramos em textos de crítica literária, operando do mesmo modo como esta tese propõe: o processo de dar forma, traçar perfis e estruturar a descoberta.
 
-Um ensaio sobre Erico Verissimo e Graham Greene menciona o "[...] delineamento de dois perfis de personagens [...]".[^10] Um estudo sobre Machado de Assis foca no "[...] delineamento do percurso da escrita de 'O alienista' [...]",[^11] analisando como Machado de Assis esboçou e refez sua obra. Um crítico, sobre o poeta Demétrio Vieira Diniz, afirma que seu livro "[...] atesta e faz saber o delineamento de uma singular dicção".[^12] É a palavra que usamos para entender a criação, perfeita para descrever o processo de descoberta que o aluno, no centro desta tese, está colocado a realizar.
+Um ensaio sobre Erico Verissimo e Graham Greene menciona o "[...] delineamento de dois perfis de personagens [...]".[^10] Um estudo sobre Machado de Assis foca no "[...] delineamento do percurso da reelaboração de 'O alienista' [...]",[^11] analisando como o escritor esboçou e refez sua obra. Um crítico, sobre o poeta Demétrio Vieira Diniz, afirma que seu livro "[...] atesta e faz saber o delineamento de uma singular dicção".[^12] É a palavra que usamos para entender a criação, perfeita para descrever o processo de descoberta que o aluno, no centro desta tese, está colocado a realizar.
 
 Em um canto esquecido da estante, em um Dicionário de Comunicação, encontramos um artefato. Ao buscar uma remissiva da entrada principal do verbete "Episcópio", lemos: "Aparelho baseado na reflexão de luz, que se destina à projeção de imagens de objetos opacos (tais como fotografias, desenhos etc.). Também chamado de delineascópio ou de projetor opaco".[^13] *Delineascópio*: o-que-projeta-o-delineado [sic].
 
@@ -2980,9 +2991,11 @@ with tab3:
                 else:
                     st.info("Os dois delineamentos são idênticos.")
 
+    rodape_institucional()
+
 # ==================== ABA 4: PAINEL DE ANÁLISE ====================
 with tab4:
-    st.title("📊 Painel de Exploração de Dados")
+    st.title("🔍 Painel de Exploração de Dados")
     st.caption("Análise profunda dos dados do OpenAlex")
 
     with st.expander("🔍 Configurar Nova Busca", expanded=False):
@@ -3099,7 +3112,7 @@ with tab4:
 
         # ========== SUB-ABA 1: ARTIGOS ==========
         with t1:
-            st.header("📚 Artigos Analisados")
+            st.header("📚 Artigos")
             
             # Recupera o DataFrame limpo que geramos no botão Buscar
             # Isso evita ter que recriar o DataFrame a cada clique na aba
@@ -3181,7 +3194,7 @@ with tab4:
 
         # ========== SUB-ABA 2: CONCEITOS ==========
         with t2:
-            st.header("🧩 Análise de Conceitos")
+            st.header("🧩 Conceitos")
 
             # Estatísticas gerais
             all_concepts = [c for cl in concepts_lists for c in cl]
@@ -3460,7 +3473,7 @@ with tab4:
 
         # ========== SUB-ABA 3: COOCORRÊNCIAS ==========
         with t3:
-            st.header("🔗 Análise de Coocorrências")
+            st.header("🔗 Coocorrências")
 
             # Calcular pares
             pairs = Counter()
@@ -3590,7 +3603,7 @@ with tab4:
 
         # ========== SUB-ABA 4: GRAFO ==========
         with t4:
-            st.header("🕸️ Análise do Grafo")
+            st.header("🕸️ Grafo")
 
             # Métricas do grafo
             col1, col2, col3, col4 = st.columns(4)
@@ -3666,7 +3679,7 @@ with tab4:
                 st.divider()
 
                 # Visualização interativa
-                st.subheader("🎨 Visualização Interativa")
+                st.subheader("🎨 Visualização Estática")
 
                 if len(G.nodes()) <= 100:
                     top_viz = st.slider("Nós a visualizar:", 5, min(50, len(G.nodes())), 15, key="viz_nodes")
@@ -3735,7 +3748,7 @@ with tab4:
 
         # ========== SUB-ABA 5: MAPA TEMÁTICO =========
         with t5:
-            st.header("🗺️ Mapa Temático (Diagrama Estratégico)")
+            st.header("🗺️ Mapa Temático")
 
             st.markdown("""
             O **Mapa Temático** organiza os conceitos em clusters e os classifica em quatro quadrantes
@@ -3969,7 +3982,7 @@ with tab4:
 
         # ========== SUB-ABA 6: ESTATÍSTICAS ==========
         with t6:
-            st.header("📊 Estatísticas Completas")
+            st.header("📊 Estatísticas")
 
             st.subheader("📋 Resumo Geral")
 
@@ -4031,7 +4044,7 @@ with tab4:
 
         # ========== SUB-ABA 7: EXPORTAÇÃO (ATUALIZADA) ==========
         with t7:
-            st.header("💾 Exportação de Dados")
+            st.header("💾 Exportação")
 
             col1, col2, col3 = st.columns(3)
 
@@ -4309,4 +4322,4 @@ Total de Artigos: {len(articles)}
             **Dica:** Você pode copiar as chaves de busca do Delineascópio ou do Construtor de Chaves!
             """)
 
-        rodape_institucional()
+    rodape_institucional()
