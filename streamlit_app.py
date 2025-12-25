@@ -14,6 +14,11 @@ st.set_page_config(
 # ==================== CSS CUSTOMIZADO (BOTÕES VERDES) ====================
 st.markdown("""
 <style>
+    /* Força a barra de rolagem a estar sempre presente, evitando pulos laterais */
+    html {
+        overflow-y: scroll;
+    }
+            
     /* Centralizar texto de expanders */
     .streamlit-expanderHeader {
         justify-content: center;
@@ -79,6 +84,8 @@ import export_utils as exp
 from export_utils import generate_excel, generate_bibtex, generate_ris, generate_pajek_net
 import streamlit.components.v1 as components
 import os
+# Adiciona manualmente o caminho do Graphviz ao Python (Ajuste se instalou em outro lugar)
+os.environ["PATH"] += os.pathsep + r'C:\Program Files\Graphviz\bin'
 import io
 import tempfile
 try:
@@ -87,6 +94,44 @@ try:
 except ImportError:
     PYVIS_AVAILABLE = False
 import gc
+
+# ==================== FUNÇÕES AUXILIARES GLOBAIS ====================
+
+def extract_concept_metadata(articles: list) -> dict:
+    """
+    Extrai metadados ricos (Score e Level) dos artigos brutos do OpenAlex.
+    Essencial para o Histórico Rico e o Tesauro Visual.
+    """
+    from collections import defaultdict
+    concept_data = defaultdict(lambda: {'scores': [], 'levels': [], 'count': 0})
+    
+    for article in articles:
+        # Proteção contra artigos sem conceitos
+        for concept in article.get('concepts', []):
+            name = concept.get('display_name', '')
+            if name:
+                try:
+                    score = float(concept.get('score', 0))
+                    level = float(concept.get('level', 0))
+                    
+                    concept_data[name]['scores'].append(score)
+                    concept_data[name]['levels'].append(level)
+                    concept_data[name]['count'] += 1
+                except:
+                    continue
+
+    metadata = {}
+    for name, data in concept_data.items():
+        # Calcula médias
+        avg_score = sum(data['scores']) / len(data['scores']) if data['scores'] else 0
+        avg_level = sum(data['levels']) / len(data['levels']) if data['levels'] else 0
+        
+        metadata[name] = {
+            'freq': data['count'],
+            'score': avg_score,
+            'level': avg_level
+        }
+    return metadata
 
 # ========================= BASE64 =============================
 
@@ -179,12 +224,12 @@ with st.sidebar:
   
     with st.expander("Sobre o Delinéia"):
         st.markdown("""
-            O Delinéia é um sistema de apoio ao delineamento do escopo temático de projetos de pesquisa no ensino superior e foi desenvolvido como parte de uma tese de doutorado em Informática na Educação. O sistema combina Inteligência Artificial Generativa (Gemini Pro) com análise bibliométrica de coocorrência de palavras coma partir de busca contextual na base OpenAlex. O experimento visa auxiliar estudantes de graduação e de pós-graduação no esboço de seus projetos de pesquisa.
+            O Delinéia é um sistema de apoio ao delineamento do escopo temático de projetos de pesquisa no ensino superior e foi desenvolvido como parte de uma tese de doutorado em Informática na Educação. O sistema combina Inteligência Artificial Generativa (Gemini Pro) com análise bibliométrica de coocorrência de palavras a partir de buscas contextuais na base OpenAlex. A proposição visa auxiliar estudantes de graduação e de pós-graduação no esboço de seus projetos de pesquisa.
             """)
     
     with st.expander("Abordagem Interdisciplinar"):
         st.markdown("""
-            Este projeto situa-se no diálogo entre Informática na Educação e Ciência da Informação, explorando como tecnologias de IA podem apoiar processos de aprendizagem científica no ensino superior.        
+            Este projeto situa-se na colaboração entre os campos da Informática na Educação e da Ciência da Informação, explorando como tecnologias de IA podem apoiar processos de aprendizagem científica no ensino superior.        
             """)
     
     with st.expander("Autoria"):
@@ -237,7 +282,7 @@ with st.sidebar:
               - Comparação entre grafos
               - Análise Pedagógica da Mudança
             - **Painel:** 
-              - Busca de dados do OpenAlex:
+              - Busca de dados com OpenAlex:
                 - Artigos: *métricas de artigos e metadados únicos*
                 - Conceitos: *métricas de conceitos, nuvem de palavras e lei de Zipf*
                 - Coocorrências: *métricas de pares associados e similaridade*
@@ -250,7 +295,7 @@ with st.sidebar:
     with st.expander("Tecnologias"):
         st.markdown("""
             - Python | Streamlit | HuggingFace
-            - Google Gemini AI 2.5 Pro | Anthropic Claude Opus 4.5
+            - Google Gemini AI 3 Pro | Anthropic Claude Opus 4.5
             - OpenAlex API
             - JavaScript | CSS | HTML
             - NetworkX | Plotly | PyVis | ReportLab
@@ -431,65 +476,84 @@ def conectar_google_sheets():
         return None
 
 # ==================== HISTÓRICO DE GRAFOS (SHEETS) ====================
-
-def salvar_grafo_historico(id_usuario, query, articles_count, G, freq):
+def salvar_grafo_historico(id_usuario, form_data, result):
     """
-    Salva topologia do grafo em nova aba do Google Sheets.
-    Armazena: arestas (source, target, weight, salton) + metadados.
+    Salva histórico com estrutura CLARA: Metadados, Nós e Arestas separados por cabeçalhos.
     """
     try:
         sheet = conectar_google_sheets()
-        if not sheet:
-            return False
+        if not sheet: return False
         
         timestamp = datetime.now().strftime("%y%m%d_%H%M")
-        safe_id = id_usuario[-8:] if len(id_usuario) > 8 else id_usuario
+        safe_id = id_usuario.split('_')[-1] if '_' in id_usuario else id_usuario[-8:]
         tab_title = f"G_{safe_id}_{timestamp}"
         
-        # Preparar dados das arestas com Salton
+        G = result.get('graph')
+        freq = result.get('concept_freq', {})
+        
+        # Recupera metadados ricos (Score/Level) usando a função global
+        raw_articles = result.get('raw_articles', [])
+        if 'extract_concept_metadata' in globals():
+            concept_meta = extract_concept_metadata(raw_articles)
+        else:
+            # Fallback seguro caso a função não esteja no topo
+            concept_meta = {} 
+        
+        # 1. BLOCO DE METADADOS
+        context_data = [
+            ["---METADATA---", "Valor", "", ""],
+            ["id_usuario", id_usuario, "", ""],
+            ["timestamp", datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "", ""],
+            ["aluno_nome", form_data.get('nome', ''), "", ""],
+            ["aluno_tema", form_data.get('tema', ''), "", ""],
+            ["aluno_questao", form_data.get('questao', ''), "", ""],
+            ["aluno_confianca_ini", form_data.get('confianca', ''), "", ""],
+            ["pipeline_string", result.get('search_string', ''), "", ""],
+            ["pipeline_artigos_total", result.get('articles_count', 0), "", ""],
+        ]
+        
+        # 2. BLOCO DE NÓS
+        # Marcador de seção + Cabeçalho explícito na linha seguinte
+        nodes_section = [["---NODES---", "", "", ""]] 
+        nodes_header = [["Id", "Freq", "Score", "Level"]]
+        
+        nodes_data = []
+        for node in G.nodes():
+            m = concept_meta.get(node, {})
+            nodes_data.append([
+                node, 
+                freq.get(node, 1), 
+                f"{m.get('score', 0):.4f}", 
+                f"{m.get('level', 0):.1f}"
+            ])
+            
+        # 3. BLOCO DE ARESTAS (GRAFO REAL)
+        # Marcador de seção + Cabeçalho explícito (Source, Target...)
+        edges_section = [["---EDGES---", "", "", ""]]
+        edges_header = [["source", "target", "weight", "salton"]]
+        
         edges_data = []
         for u, v in G.edges():
             weight = G[u][v].get('weight', 1)
+            f_u = freq.get(u, 1)
+            f_v = freq.get(v, 1)
+            salton = weight / np.sqrt(f_u * f_v) if f_u > 0 and f_v > 0 else 0
             
-            # Cálculo do Cosseno de Salton
-            # Fórmula: Weight / sqrt(Freq(A) * Freq(B))
-            freq_u = freq.get(u, 1)
-            freq_v = freq.get(v, 1)
-            
-            if freq_u > 0 and freq_v > 0:
-                salton = weight / np.sqrt(freq_u * freq_v)
-            else:
-                salton = 0
-            
-            # Adiciona com 4 casas decimais
-            edges_data.append([u, v, weight, round(salton, 4)])
+            # Aqui garantimos que source e target estão nas colunas A e B
+            edges_data.append([u, v, weight, f"{salton:.4f}"])
         
-        metadata = [
-            ["id_usuario", id_usuario],
-            ["timestamp", datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
-            ["query", query[:100]],
-            ["articles_count", articles_count],
-            ["nodes_count", len(G.nodes())],
-            ["edges_count", len(G.edges())],
-            ["---EDGES---", "", "", ""], # Ajuste para 4 colunas
-            ["source", "target", "weight", "salton"] # Cabeçalho atualizado
-        ]
+        # Montagem Final: Metadata -> Nodes -> Edges
+        full_payload = context_data + nodes_section + nodes_header + nodes_data + edges_section + edges_header + edges_data
         
-        all_data = metadata + edges_data
+        worksheet = sheet.add_worksheet(title=tab_title, rows=len(full_payload)+20, cols=5)
+        worksheet.update(full_payload)
         
-        # Cria aba com 4 colunas (cols=4)
-        worksheet = sheet.add_worksheet(
-            title=tab_title, 
-            rows=len(all_data) + 10, 
-            cols=4 
-        )
-        worksheet.update(all_data)
-        
-        print(f"✅ Grafo salvo no Sheets: {tab_title} ({len(edges_data)} arestas)")
+        print(f"✅ Grafo salvo corretamente: {tab_title}")
         return True
-        
+
     except Exception as e:
-        print(f"❌ Erro ao salvar histórico: {e}")
+        st.error(f"❌ Erro ao salvar histórico: {str(e)}")
+        print(f"Erro log: {e}")
         return False
 
 def enviar_formulario_inicial(form_data, existing_id=None):
@@ -826,34 +890,6 @@ def add_badge(badge_name: str) -> bool:
     st.session_state.badges.append(badge_name)
     return True
 
-# ==================== FUNÇÕES DE INTERAÇÃO (MOVIDAS DO FINAL) ====================
-
-def extract_concept_metadata(articles: list) -> dict:
-    """
-    Extrai metadados agregados (frequência, score médio, level médio) de cada conceito.
-    """
-    from collections import defaultdict
-    
-    concept_data = defaultdict(lambda: {'scores': [], 'levels': [], 'count': 0})
-    
-    for article in articles:
-        for concept in article.get('concepts', []):
-            name = concept.get('display_name', '')
-            if name:
-                concept_data[name]['scores'].append(concept.get('score', 0))
-                concept_data[name]['levels'].append(concept.get('level', 0))
-                concept_data[name]['count'] += 1
-    
-    metadata = {}
-    for name, data in concept_data.items():
-        metadata[name] = {
-            'freq': data['count'],
-            'score': sum(data['scores']) / len(data['scores']) if data['scores'] else 0,
-            'level': sum(data['levels']) / len(data['levels']) if data['levels'] else 0
-        }
-    
-    return metadata
-
 def process_openalex_dataframe(articles):
     """Transforma a lista bruta de artigos em um DataFrame limpo para exibição."""
     data = []
@@ -1066,8 +1102,8 @@ def render_interactive_graph_pyvis(G: nx.Graph, selected_concepts: list = None,
     try:
         with open(temp_path, 'r', encoding='utf-8') as f:
             html_content = f.read()
-        
-        components.html(html_content, height=int(height.replace('px', '')) + 50, scrolling=False)
+        h_val = int(height.replace('px', ''))
+        components.html(html_content, height=h_val + 50, scrolling=False)
     finally:
         try:
             os.unlink(temp_path)
@@ -1701,6 +1737,16 @@ with tab1:
                 if not all([nome, email, tema, questao, palavras_chave]):
                     st.error("⚠️ Por favor, preencha todos os campos obrigatórios (*)")
                 else:
+                    # Força o reinício da trilha na etapa de visualização (a)
+                    st.session_state.sub_step = 'a'
+                    
+                    # Limpa seleções e sugestões anteriores para não misturar projetos
+                    st.session_state.selected_concepts = []
+                    st.session_state.suggested_keywords = []
+                    st.session_state.suggested_strings = {}
+                    st.session_state.interpretation_generated = False
+                    st.session_state.personalized_interpretation = None
+
                     # Salvar dados do formulário
                     st.session_state.form_data = {
                         'nome': nome,
@@ -1729,6 +1775,7 @@ with tab1:
 
                     with st.spinner("🔄 Processando... (aguarde 2-3 minutos)"):
                         try:
+                            limpar_memoria()
                             # Inicializar pipeline
                             pipe = ResearchScopePipeline(OPENALEX_EMAIL)
 
@@ -1737,6 +1784,7 @@ with tab1:
 
                             # Executar pipeline
                             tempo_inicio = time_module.time()
+                            
                             # Usa a função cacheada
                             st.session_state.resultado = run_cached_pipeline(nome, tema, questao, kws, genero)
                             tempo_fim = time_module.time()
@@ -1752,16 +1800,15 @@ with tab1:
                             # Salvar grafo no Google Sheets (histórico)
                             if 'id_usuario' in st.session_state:
                                 try:
-                                    resultado = st.session_state.resultado
+                                    # CORREÇÃO CRÍTICA: Passando os objetos completos conforme a nova definição
                                     salvar_grafo_historico(
-                                        id_usuario=st.session_state.id_usuario,
-                                        query=resultado.get('search_string', ''),
-                                        articles_count=resultado.get('articles_count', 0),
-                                        G=resultado.get('graph'),
-                                        freq=resultado.get('concept_freq', {})
+                                        st.session_state.id_usuario,
+                                        st.session_state.form_data,
+                                        st.session_state.resultado
                                     )
                                 except Exception as e:
-                                    print(f"⚠️ Erro ao salvar histórico: {e}")
+                                    st.error(f"⚠️ Erro visual ao salvar histórico: {e}")
+                                    print(f"⚠️ Erro log: {e}")
 
                             st.session_state.step = 2
                             st.rerun()
@@ -2835,9 +2882,7 @@ with tab3:
     sheet = conectar_google_sheets()
             
     if sheet:
-        # ========================================================
         # 🔒 LÓGICA DE PRIVACIDADE E FILTRO DE USUÁRIO
-        # ========================================================
         grafos_salvos = []
         user_id_atual = st.session_state.get('id_usuario')
 
@@ -2855,19 +2900,31 @@ with tab3:
         # Se passou daqui, é porque tem grafos e é o usuário certo
         if grafos_salvos:
             st.subheader("1. Selecione os Delineamentos para Comparar")
-                    
+            
+            # 1. Cria a lista de opções com segurança antes de usar
+            opcoes = [g['title'] for g in grafos_salvos]
+            
             # Layout de seleção
             col_sel1, col_sel2 = st.columns(2)
-            opcoes = [g['title'] for g in grafos_salvos]
-                    
+            
             with col_sel1:
-                # Padrão: Penúltimo grafo (se existir) ou o mesmo
+                # Lógica segura para o índice: se tiver lista, pega o penúltimo, senão 0
                 idx_a = len(opcoes)-1 if len(opcoes) > 1 else 0
-                g1_title = st.selectbox("Delineamento A (Referência/Antigo):", options=opcoes, index=idx_a)
-                    
+                g1_title = st.selectbox(
+                    "Delineamento A (Referência/Antigo):", 
+                    options=opcoes, 
+                    index=idx_a,
+                    key="sel_del_a" # Key única para evitar conflitos
+                )
+                
             with col_sel2:
-                # Padrão: Grafo mais recente (primeiro da lista)
-                g2_title = st.selectbox("Delineamento B (Atual/Recente):", options=opcoes, index=0)
+                # Pega o primeiro (mais recente)
+                g2_title = st.selectbox(
+                    "Delineamento B (Atual/Recente):", 
+                    options=opcoes, 
+                    index=0,
+                    key="sel_del_b" # Key única
+                )
 
             # Botão de Ação
             if st.button("🔄 Comparar Delineamentos", type="primary", use_container_width=True):
@@ -2882,7 +2939,8 @@ with tab3:
                         df2 = exp.carregar_grafo_do_sheets(ws2)
                         
                         if df1 is not None and df2 is not None:
-                            # Salva no session_state para persistir
+                            st.session_state['df1_rico'] = df1
+                            st.session_state['df2_rico'] = df2
                             st.session_state['comparacao_metrics'] = exp.calcular_comparacao(df1, df2)
                             st.session_state['comparacao_ativa'] = True
                             # Limpa análise anterior se houver
@@ -2944,13 +3002,140 @@ with tab3:
                     else:
                         st.info("Nenhum conceito foi removido.")
                 
-                # 3. Intersecção
-                with st.expander(f"🤝 Núcleo Estável ({len(metrics['comuns'])} conceitos mantidos)"):
-                    conceitos_ordenados = sorted(metrics['comuns'])
-                    num_cols = 4
-                    cols = st.columns(num_cols)
-                    for i, conceito in enumerate(conceitos_ordenados):
-                        cols[i % num_cols].write(f"• {conceito}")
+                # 3. NÚCLEO ESTÁVEL (TESAURO VISUAL HIERÁRQUICO)
+                comuns = metrics['comuns']
+                
+                with st.container(border=True):
+                    st.subheader(f"🌳 Núcleo Estável ({len(comuns)} conceitos)")
+                    st.caption("Conceitos que permaneceram na sua estrutura, organizados por nível de abstração.")
+
+                    if len(comuns) > 0:
+                        # TENTATIVA DE RECUPERAÇÃO SEGURA DOS METADADOS (LEVELS)
+                        nodes_info = {}
+                        
+                        # 1. Tenta pegar do DF1 salvo na memória
+                        if 'df1_rico' in st.session_state and st.session_state['df1_rico'] is not None:
+                            nodes_info = getattr(st.session_state['df1_rico'], 'attrs', {}).get('nodes_dict', {})
+                        
+                        # 2. Se falhar, tenta pegar do DF2
+                        if not nodes_info and 'df2_rico' in st.session_state and st.session_state['df2_rico'] is not None:
+                            nodes_info = getattr(st.session_state['df2_rico'], 'attrs', {}).get('nodes_dict', {})
+
+                        # SEPARAÇÃO POR NÍVEIS
+                        levels = {
+                            'raiz': [],   # Nível 0-1 (Grandes Áreas) - AZUL
+                            'tronco': [], # Nível 2-3 (Tópicos) - VERDE
+                            'folhas': [], # Nível 4-5 (Específicos) - AMARELO/LARANJA
+                            'indef': []   # Sem dados
+                        }
+                        
+                        # Classifica cada conceito comum
+                        for c in comuns:
+                            if c in nodes_info:
+                                try:
+                                    lvl = float(nodes_info[c].get('level', -1))
+                                    if 0 <= lvl <= 1.5: levels['raiz'].append(c)
+                                    elif 1.5 < lvl <= 3.5: levels['tronco'].append(c)
+                                    elif lvl > 3.5: levels['folhas'].append(c)
+                                    else: levels['indef'].append(c)
+                                except:
+                                    levels['indef'].append(c)
+                            else:
+                                levels['indef'].append(c)
+
+                        # EXIBIÇÃO (MAPA OU LISTA)
+                        tab_vis, tab_list = st.tabs(["🗺️ Mapa Hierárquico", "🔤 Lista Alfabética"])
+                        
+                        with tab_vis:
+                            # Se a maioria não tem nível (dados antigos), avisa e não desenha o mapa
+                            if len(levels['indef']) > len(comuns) * 0.8:
+                                st.warning("⚠️ Os dados históricos deste gráfico não possuem níveis hierárquicos suficientes para gerar o mapa visual.")
+                                st.info("Use a aba 'Lista Alfabética' ao lado.")
+                            else:
+                                # Construtor do Graphviz (DOT)
+                                graph_code = """
+                                digraph {
+                                    rankdir=TB;
+                                    node [shape=box, style="filled,rounded", fontname="Arial", fontsize=10, margin="0.1,0.1"];
+                                    splines=ortho;
+                                    nodesep=0.2;
+                                    ranksep=0.6;
+                                    bgcolor="transparent";
+                                    
+                                    /* Legenda Visual (Invisível na estrutura, visível no plot) */
+                                    node [width=2.5];
+                                    { rank=same; 
+                                      leg_1 [label="BASES TEÓRICAS (Geral)", fillcolor="#e0f2fe", color="#0284c7", fontcolor="#0369a1"];
+                                      leg_2 [label="TÓPICOS CENTRAIS (Médio)", fillcolor="#dcfce7", color="#16a34a", fontcolor="#15803d"];
+                                      leg_3 [label="OBJETOS ESPECÍFICOS (Foco)", fillcolor="#fef3c7", color="#d97706", fontcolor="#b45309"];
+                                    }
+                                    leg_1 -> leg_2 -> leg_3 [style=invis];
+                                """
+                                
+                                # Função para limpar strings (aspas quebram o DOT)
+                                def clean(s): return '"' + s.replace('"', "'") + '"'
+
+                                # Adiciona os nós em seus ranks
+                                if levels['raiz']:
+                                    graph_code += f'{{ rank=same; { " ".join([clean(c) for c in levels["raiz"]]) } }}\n'
+                                    # Conexão fantasma para alinhar com a legenda
+                                    graph_code += f'leg_1 -> {clean(levels["raiz"][0])} [style=invis];\n'
+
+                                if levels['tronco']:
+                                    graph_code += f'{{ rank=same; { " ".join([clean(c) for c in levels["tronco"]]) } }}\n'
+                                    graph_code += f'leg_2 -> {clean(levels["tronco"][0])} [style=invis];\n'
+
+                                if levels['folhas']:
+                                    graph_code += f'{{ rank=same; { " ".join([clean(c) for c in levels["folhas"]]) } }}\n'
+                                    graph_code += f'leg_3 -> {clean(levels["folhas"][0])} [style=invis];\n'
+
+                                # Conexões visuais suaves (Cinza) para dar ideia de fluxo vertical
+                                if levels['raiz'] and levels['tronco']:
+                                    for r in levels['raiz']:
+                                        # Liga cada raiz ao primeiro tronco (apenas estético)
+                                        graph_code += f'{clean(r)} -> {clean(levels["tronco"][0])} [color="#cbd5e1", constraint=false, style=dashed, penwidth=0.5];\n'
+                                
+                                if levels['tronco'] and levels['folhas']:
+                                     graph_code += f'{clean(levels["tronco"][0])} -> {clean(levels["folhas"][0])} [color="#cbd5e1", constraint=false, style=dashed, penwidth=0.5];\n'
+
+                                graph_code += "}"
+                                
+                                try:
+                                    # Tenta renderizar
+                                    # Atualização para nova sintaxe do Streamlit e limpeza de logs
+                                    st.graphviz_chart(graph_code, use_container_width=True) 
+                                    # Nota: Se o Streamlit for muito novo, ele pede width="stretch". 
+                                    # Mas para garantir compatibilidade agora, manter assim ou remover o argumento se der erro.
+                                    st.caption("Organização baseada na taxonomia científica (OpenAlex Level 0-5).")
+                                except Exception as e:
+                                    # Se falhar (ex: falta o software Graphviz no Windows), mostra aviso amigável
+                                    st.warning("⚠️ Não foi possível renderizar o mapa visual.")
+                                    st.info("Dica: Para ver o gráfico rodando localmente no Windows, você precisa instalar o software 'Graphviz' e adicioná-lo ao PATH do sistema.")
+                                    with st.expander("Ver erro técnico"):
+                                        st.write(e)
+                                    # Fallback: mostra a lista simples aqui também
+                                    st.write(", ".join(sorted(comuns)))
+
+                        with tab_list:
+                            conceitos_ordenados = sorted(comuns)
+                            if conceitos_ordenados:
+                                # Cálculo para fluxo vertical (Estilo Estante)
+                                # Divide a lista em 4 fatias iguais
+                                num_colunas = 4
+                                tamanho_fatia = -(-len(conceitos_ordenados) // num_colunas) # Divisão arredondando para cima
+                                
+                                cols = st.columns(num_colunas)
+                                for i in range(num_colunas):
+                                    with cols[i]:
+                                        inicio = i * tamanho_fatia
+                                        fim = inicio + tamanho_fatia
+                                        # Pega a fatia correspondente a esta coluna
+                                        sublista = conceitos_ordenados[inicio:fim]
+                                        
+                                        for conceito in sublista:
+                                            st.markdown(f"<div style='margin-bottom:2px;'>• {conceito}</div>", unsafe_allow_html=True)
+                            else:
+                                st.write("A lista está vazia.")
 
                 # ================== ANÁLISE PEDAGÓGICA ==================
                 st.divider()
@@ -2967,27 +3152,40 @@ with tab3:
                             st.rerun()
                     else:
                         # Mostrar botão para gerar
-                        if st.button("✨ Gerar Análise Pedagógica da Mudança", type="primary", use_container_width=True, key="btn_analise_ia_tab8"):
+                        if st.button("✨ Gerar Análise Pedagógica da Mudança", type="primary", use_container_width=True, key="btn_analise_ia_tab3"):
+                            # Preparação de variáveis básicas
                             nome_aluno = st.session_state.form_data.get('nome', 'Pesquisador').split()[0]
                             genero_aluno = st.session_state.form_data.get('genero', 'Neutro')
                             
                             with st.spinner(f"🧠 O Orientador Artificial está analisando a trajetória de {nome_aluno}..."):
                                 try:
+                                    # Garante que a instância do gerador existe
                                     if 'gemini_gen' not in st.session_state:
                                         from research_pipeline import GeminiQueryGenerator
                                         st.session_state.gemini_gen = GeminiQueryGenerator()
                                     
-                                    analise = st.session_state.gemini_gen.generate_evolution_analysis(
-                                        metrics, 
-                                        nome_aluno, 
-                                        genero=genero_aluno 
+                                    # 1. EXTRAÇÃO DO CONTEXTO HISTÓRICO
+                                    safe_df1 = st.session_state.get('df1_rico')
+                                    safe_df2 = st.session_state.get('df2_rico')
+                                    
+                                    meta_antigo = getattr(safe_df1, 'attrs', {}).get('metadata', {}) if safe_df1 is not None else {}
+                                    meta_novo = getattr(safe_df2, 'attrs', {}).get('metadata', {}) if safe_df2 is not None else {}
+
+                                    # 2. CHAMADA DA NOVA FUNÇÃO CONTEXTUAL                                    
+                                    analise = st.session_state.gemini_gen.generate_contextual_evolution_analysis(
+                                        metrics=metrics,
+                                        meta_antigo=meta_antigo,
+                                        meta_novo=meta_novo,
+                                        genero=genero_aluno
                                     )
                                     
+                                    # 3. Salva e recarrega
                                     st.session_state['ultima_analise_historico'] = analise
                                     st.rerun()
                                     
                                 except Exception as e:
                                     st.error(f"Erro na conexão com IA: {str(e)}")
+                                    # Dica de debug: st.write(e)
                 else:
                     st.info("Os dois delineamentos são idênticos.")
 
@@ -3911,6 +4109,41 @@ with tab4:
                                     plot_bgcolor="white",
                                     xaxis=dict(gridcolor="lightgray"),
                                     yaxis=dict(gridcolor="lightgray"),
+                                )
+
+                                annot_font = dict(size=13, family="Arial Black")
+
+                                # Q1: Motor (Topo Direito)
+                                fig_mapa.add_annotation(
+                                    x=0.98, y=0.98, xref="paper", yref="paper",
+                                    text="<b>MOTOR THEMES</b><br><span style='font-size:10px; font-weight:normal'>(Central + Desenvolvido)</span>",
+                                    showarrow=False, xanchor="right", yanchor="top",
+                                    font=dict(color="#2ecc71", **annot_font),
+                                    bgcolor="rgba(255,255,255,0.7)"
+                                )
+                                # Q2: Basic (Base Direita)
+                                fig_mapa.add_annotation(
+                                    x=0.98, y=0.02, xref="paper", yref="paper",
+                                    text="<b>BASIC THEMES</b><br><span style='font-size:10px; font-weight:normal'>(Central + Não-desenvolvido)</span>",
+                                    showarrow=False, xanchor="right", yanchor="bottom",
+                                    font=dict(color="#f39c12", **annot_font),
+                                    bgcolor="rgba(255,255,255,0.7)"
+                                )
+                                # Q3: Niche (Topo Esquerdo)
+                                fig_mapa.add_annotation(
+                                    x=0.02, y=0.98, xref="paper", yref="paper",
+                                    text="<b>NICHE THEMES</b><br><span style='font-size:10px; font-weight:normal'>(Periférico + Desenvolvido)</span>",
+                                    showarrow=False, xanchor="left", yanchor="top",
+                                    font=dict(color="#3498db", **annot_font),
+                                    bgcolor="rgba(255,255,255,0.7)"
+                                )
+                                # Q4: Emerging (Base Esquerda)
+                                fig_mapa.add_annotation(
+                                    x=0.02, y=0.02, xref="paper", yref="paper",
+                                    text="<b>EMERGING/DECLINING</b><br><span style='font-size:10px; font-weight:normal'>(Periférico + Não-desenvolvido)</span>",
+                                    showarrow=False, xanchor="left", yanchor="bottom",
+                                    font=dict(color="#e74c3c", **annot_font),
+                                    bgcolor="rgba(255,255,255,0.7)"
                                 )
 
                                 st.plotly_chart(fig_mapa, use_container_width=True)

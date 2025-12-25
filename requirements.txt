@@ -20,3 +20,4 @@ xlsxwriter
 fpdf
 bibtexparser
 pyvis>=0.3.0
+graphviz

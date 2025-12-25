@@ -876,46 +876,60 @@ Sugira exatamente 5 palavras-chave complementares que:
 
     # Comparação entre grafos
     
-    def generate_evolution_analysis(self, metrics: dict, nome_aluno: str, genero: str = "Neutro") -> str:
-        """Gera análise pedagógica da evolução entre dois grafos (com gênero)."""
-        
-        # Obtém instrução de gênero
+    def generate_contextual_evolution_analysis(self, metrics: dict, meta_antigo: dict, meta_novo: dict, genero: str = "Neutro") -> str:
+        """
+        Gera análise pedagógica com tom ACADÊMICO E METODOLÓGICO (Orientador Sênior).
+        Sem adjetivos valorativos ou metáforas excessivas.
+        """
         gender_instruction = self._get_gender_instruction(genero)
         
-        # Prepara listas
-        abandonados = ", ".join(metrics['exclusivos_antigos'][:40])
-        novos = ", ".join(metrics['exclusivos_novos'][:40])
-        mantidos = ", ".join(metrics['comuns'][:30])
-        jaccard = f"{metrics['jaccard']*100:.1f}%"
-        delta = metrics['qtd_2'] - metrics['qtd_1']
-        sinal = "cresceu" if delta > 0 else "diminuiu"
+        # Preparação dos dados
+        exclusivos_antigos = ", ".join(metrics.get('exclusivos_antigos', [])[:10])
+        exclusivos_novos = ", ".join(metrics.get('exclusivos_novos', [])[:10])
+        nucleo_estavel = ", ".join(metrics.get('comuns', [])[:10])
+        jaccard = metrics.get('jaccard', 0)
 
-        prompt = f"""Atue como um Orientador Acadêmico Sênior em Metodologia Científica.
+        tema_old = meta_antigo.get('aluno_tema', 'Não informado')
+        tema_new = meta_novo.get('aluno_tema', 'Não informado')
+        questao_old = meta_antigo.get('aluno_questao', 'Não informado')
+        questao_new = meta_novo.get('aluno_questao', 'Não informado')
+        
+        prompt = f"""
+Atue como um Orientador Metodológico Sênior em nível de Doutorado.
 {gender_instruction}
 
-CONTEXTO:
-Estudante: {nome_aluno}
-Ação: Realizou dois delineamentos (buscas bibliográficas) em momentos diferentes.
-Tarefa: Analise a EVOLUÇÃO do pensamento baseando-se na mudança do vocabulário.
+**CONTEXTO DA ANÁLISE:**
+O pesquisador realizou dois delineamentos bibliométricos (Busca A e Busca B). Compare a evolução conceitual.
 
-DADOS:
-- Similaridade (Jaccard): {jaccard}.
-- Vocabulário: {sinal} em {abs(delta)} conceitos.
+**DADOS:**
+- **Momento A (Anterior):**
+  - Tema declarado: "{tema_old}"
+  - Questão: "{questao_old}"
+  - Foco conceitual (exclusivos A): {exclusivos_antigos}...
+  
+- **Momento B (Atual):**
+  - Tema declarado: "{tema_new}"
+  - Questão: "{questao_new}"
+  - Foco conceitual (exclusivos B): {exclusivos_novos}...
 
-MUDANÇA SEMÂNTICA:
-- ABANDONOU: {abandonados}
-- ADOTOU: {novos}
-- MANTEVE: {mantidos}
+- **Intersecção (Estabilidade):**
+  - Conceitos mantidos: {nucleo_estavel}...
+  - Índice de Similaridade (Jaccard): {jaccard:.2f}
 
-ANÁLISE SOLICITADA (Seja direto e analítico):
-1. **Diagnóstico:** O escopo afunilou? Expandiu? Mudou de área?
-2. **Análise dos Termos:** Cite exemplos da troca de termos.
-3. **Maturidade:** A pesquisa ficou mais técnica/metodológica?
-4. **Veredito:** Uma frase definindo a trajetória.
+**DIRETRIZES DE ESTILO (Rigor Acadêmico):**
+1.  **Tom:** Sobrio, analítico, neutro e objetivo.
+2.  **Proibições:** NÃO use adjetivos como "brilhante", "incrível", "coração", "metamorfose", "corajoso". Evite exclamações.
+3.  **Foco:** Analise a coerência epistemológica, o recorte do objeto e a precisão terminológica.
 
-Use Markdown."""
+**ROTEIRO DE RESPOSTA (3 parágrafos):**
 
-        return self._safe_generate(prompt, "Não foi possível gerar a análise no momento.")
+1.  **Análise da Intencionalidade:** Compare a mudança no texto da Questão/Tema. A alteração na pergunta refletiu-se nos conceitos? Houve especificação ou alargamento do escopo?
+2.  **Análise da Estrutura Conceitual:** Observe os termos novos versus os antigos. Houve transição de termos genéricos para termos técnicos específicos? O vocabulário indica uma aproximação com qual campo teórico?
+3.  **Parecer Metodológico:** Com base no índice de similaridade e no núcleo estável, avalie se houve uma ruptura paradigmática ou um refinamento incremental. Recomende o próximo passo lógico para consolidar o novo recorte.
+
+Use markdown para formatação. Seja breve e direto.
+"""
+        return self._safe_generate(prompt, "Análise indisponível no momento.")
 
     def _generate_fallback_glossary(self, concepts: List[str], tema: str) -> str:
         """Gera glossário fallback"""

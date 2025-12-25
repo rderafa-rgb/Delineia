@@ -268,3 +268,85 @@ def calcular_comparacao(df1, df2):
         "qtd_1": len(nodes1),
         "qtd_2": len(nodes2)
     }
+
+def parse_history_data(all_values):
+    """
+    Parser robusto para o formato híbrido (Metadata -> Nodes -> Edges).
+    Ignora marcadores e cabeçalhos repetidos.
+    """
+    data = {
+        "meta": {},
+        "nodes": {},
+        "edges": []
+    }
+    
+    current_section = None
+    
+    for row in all_values:
+        if not row: continue
+        first_cell = str(row[0]).strip()
+        
+        # 1. Detecta mudança de seção
+        if first_cell == "---METADATA---":
+            current_section = "meta"
+            continue # Pula a linha do marcador
+        elif first_cell == "---NODES---":
+            current_section = "nodes"
+            continue
+        elif first_cell == "---EDGES---":
+            current_section = "edges"
+            continue
+            
+        # 2. Ignora cabeçalhos das colunas (se a linha for "Id", "source", etc)
+        if first_cell.lower() in ["id", "source", "valor"]:
+            continue
+            
+        # 3. Processa dados
+        if current_section == "meta":
+            if len(row) >= 2:
+                data["meta"][first_cell] = row[1]
+                
+        elif current_section == "nodes":
+            # Esperado: [Id, Freq, Score, Level]
+            if len(row) >= 4:
+                try:
+                    name = row[0]
+                    data["nodes"][name] = {
+                        "freq": int(row[1]),
+                        "score": float(row[2].replace(',', '.')),
+                        "level": float(row[3].replace(',', '.'))
+                    }
+                except: pass
+                
+        elif current_section == "edges":
+            # Esperado: [source, target, weight, salton]
+            # Importante: só adiciona se tiver origem e destino
+            if len(row) >= 3 and row[1].strip():
+                data["edges"].append(row)
+
+    return data
+
+def carregar_grafo_do_sheets(worksheet):
+    """
+    Carrega o grafo e anexa os metadados ricos ao objeto DataFrame.
+    """
+    try:
+        all_values = worksheet.get_all_values()
+        parsed = parse_history_data(all_values)
+        
+        # Cria DataFrame de arestas (compatibilidade com código antigo)
+        if parsed["edges"]:
+            df = pd.DataFrame(parsed["edges"], columns=['source', 'target', 'weight', 'salton'])
+            # Tratamento de números
+            df['weight'] = pd.to_numeric(df['weight'], errors='coerce').fillna(1)
+            
+            # ANEXA OS DADOS RICOS AO DATAFRAME
+            # Isso permite que a gente acesse df.attrs['metadata']['aluno_tema'] na Tab 3!
+            df.attrs['nodes_dict'] = parsed['nodes']
+            df.attrs['metadata'] = parsed['meta']
+            
+            return df
+        return None
+    except Exception as e:
+        st.error(f"Erro ao ler aba {worksheet.title}: {e}")
+        return None
