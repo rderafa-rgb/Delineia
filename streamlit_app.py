@@ -392,7 +392,7 @@ def rodape_institucional():
 <div style="display: flex; gap: 30px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; justify-content: center;">
 <img src="data:image/png;base64,{img_ufrgs}" style="height: 85px; width: auto; opacity: 0.9;">
 <img src="data:image/png;base64,{img_cinted}" style="height: 85px; width: auto; opacity: 0.9;">
-<img src="data:image/png;base64,{img_ppgie}" style="height: 85px; width: auto; opacity: 0.9;">
+<img src="data:image/png;base64,{img_ppgie}" style="height: 95px; width: auto; opacity: 0.9;">
 </div>
 <div style="text-align: center; color: #666; font-size: 0.85rem; line-height: 1.6;">
 <p style="margin-bottom: 10px;">
@@ -2954,6 +2954,13 @@ with tab3:
             if st.session_state.get('comparacao_ativa', False) and 'comparacao_metrics' in st.session_state:
                 metrics = st.session_state['comparacao_metrics']
                 
+                # RECUPERA METADADOS DOS NÓS (para usar em todas as listas)
+                nodes_info = {}
+                if 'df2_rico' in st.session_state and st.session_state['df2_rico'] is not None:
+                    nodes_info = getattr(st.session_state['df2_rico'], 'attrs', {}).get('nodes_dict', {})
+                if not nodes_info and 'df1_rico' in st.session_state and st.session_state['df1_rico'] is not None:
+                    nodes_info = getattr(st.session_state['df1_rico'], 'attrs', {}).get('nodes_dict', {})
+                
                 st.divider()
                 st.subheader("📊 Resultados da Comparação")
                 
@@ -2980,25 +2987,170 @@ with tab3:
                     help="Conceitos que existem em B mas não em A."
                 )
                 
-                # 2. Detalhamento Semântico
+                # 2. Detalhamento Semântico (UM ABAIXO DO OUTRO)
                 st.markdown("---")
-                c1, c2 = st.columns(2)
                 
-                with c1:
-                    st.markdown("#### 🆕 O que entrou (Novidades)")
-                    if metrics['exclusivos_novos']:
-                        st.success(", ".join(metrics['exclusivos_novos'][:50]))
-                        if len(metrics['exclusivos_novos']) > 50:
-                            st.caption(f"...e mais {len(metrics['exclusivos_novos'])-50} conceitos.")
+                # LEGENDA DOS NÍVEIS (similar ao Mapa Temático)
+                with st.expander("📖 Legenda: Níveis de Abstração (OpenAlex)", expanded=False):
+                    st.markdown("""
+                    O **OpenAlex** organiza conceitos científicos em 6 níveis hierárquicos de abstração:
+                    
+                    - 🔵 **L0 - Raiz:** Grandes áreas do conhecimento (ex: Medicine, Science)
+                    - 🔵 **L1 - Área:** Disciplinas amplas (ex: Biology, Psychology)
+                    - 🔵 **L2 - Campo:** Campos de estudo (ex: Genetics, Neuroscience)
+                    - 🔵 **L3 - Subcampo:** Especializações (ex: Molecular biology)
+                    - 🔵 **L4 - Tópico:** Tópicos específicos (ex: Gene expression)
+                    - 🔵 **L5 - Específico:** Termos muito específicos (ex: CRISPR)
+                    
+                    **Interpretação:** Conceitos de nível baixo (L0-L1) são mais abrangentes. Conceitos de nível alto (L4-L5) indicam maior especificidade e foco na pesquisa.
+                    """)
+                
+                # === O QUE ENTROU (NOVIDADES) ===
+                with st.container(border=True):
+                    novos = metrics['exclusivos_novos']
+                    st.markdown(f"#### 🆕 O que entrou ({len(novos)} novidades)")
+                    
+                    if novos:
+                        tab_nov_map, tab_nov_list = st.tabs(["🗺️ Mapa Hierárquico", "🔤 Lista Alfabética"])
+                        
+                        with tab_nov_map:
+                            # Classifica por level
+                            novos_por_level = {i: [] for i in range(6)}
+                            for c in novos:
+                                if c in nodes_info:
+                                    try:
+                                        lvl = int(float(nodes_info[c].get('level', 5)))
+                                        lvl = min(max(lvl, 0), 5)
+                                        novos_por_level[lvl].append(c)
+                                    except:
+                                        novos_por_level[5].append(c)
+                                else:
+                                    novos_por_level[5].append(c)
+                            
+                            def top_by_score_nov(lista, n=5):
+                                scored = [(c, nodes_info.get(c, {}).get('score', 0)) for c in lista]
+                                scored.sort(key=lambda x: x[1], reverse=True)
+                                return [c for c, _ in scored[:n]]
+                            
+                            def clean(s): return '"' + s.replace('"', "'").replace('\n', ' ') + '"'
+                            
+                            cores_nov = ["#dcfce7", "#bbf7d0", "#86efac", "#4ade80", "#22c55e", "#16a34a"]
+                            font_nov = ["#14532d", "#14532d", "#14532d", "#14532d", "#ffffff", "#ffffff"]
+                            labels = ["L0: Raiz", "L1: Área", "L2: Campo", "L3: Subcampo", "L4: Tópico", "L5: Específico"]
+                            
+                            graph_nov = '''digraph {
+    rankdir=TB;
+    node [shape=box, style="filled,rounded", fontname="Arial", fontsize=10, margin="0.15,0.08"];
+    nodesep=0.3; ranksep=0.6; bgcolor="transparent";
+'''
+                            total_nov = 0
+                            niveis_nov = []
+                            
+                            for lvl in range(6):
+                                top = top_by_score_nov(novos_por_level[lvl])
+                                if top:
+                                    niveis_nov.append(lvl)
+                                    for c in top:
+                                        label_n = f"{c}\\n({labels[lvl]})"
+                                        graph_nov += f'    {clean(c)} [fillcolor="{cores_nov[lvl]}", fontcolor="{font_nov[lvl]}", label="{label_n}"];\n'
+                                    graph_nov += f'    {{ rank=same; {" ".join([clean(c) for c in top])} }}\n'
+                                    total_nov += len(top)
+                            
+                            for i in range(len(niveis_nov) - 1):
+                                t1 = top_by_score_nov(novos_por_level[niveis_nov[i]], 1)
+                                t2 = top_by_score_nov(novos_por_level[niveis_nov[i+1]], 1)
+                                if t1 and t2:
+                                    graph_nov += f'    {clean(t1[0])} -> {clean(t2[0])} [color="#86efac", style=dashed, arrowhead=none];\n'
+                            
+                            graph_nov += "}"
+                            
+                            try:
+                                st.graphviz_chart(graph_nov, use_container_width=True)
+                                st.caption(f"Top {total_nov} conceitos de {len(novos)} novidades, por relevância.")
+                            except:
+                                st.success(", ".join(sorted(novos)[:50]))
+                        
+                        with tab_nov_list:
+                            conceitos_nov = sorted(novos)
+                            num_cols = 4
+                            tam_fatia = -(-len(conceitos_nov) // num_cols)
+                            cols = st.columns(num_cols)
+                            for i in range(num_cols):
+                                with cols[i]:
+                                    for c in conceitos_nov[i*tam_fatia:(i+1)*tam_fatia]:
+                                        st.markdown(f"<div style='margin-bottom:2px; color:#16a34a;'>• {c}</div>", unsafe_allow_html=True)
                     else:
                         st.info("Nenhum conceito novo adicionado.")
 
-                with c2:
-                    st.markdown("#### 🗑️ O que saiu (Removidos)")
-                    if metrics['exclusivos_antigos']:
-                        st.error(", ".join(metrics['exclusivos_antigos'][:50]))
-                        if len(metrics['exclusivos_antigos']) > 50:
-                            st.caption(f"...e mais {len(metrics['exclusivos_antigos'])-50} conceitos.")
+                # === O QUE SAIU (REMOVIDOS) ===
+                with st.container(border=True):
+                    antigos = metrics['exclusivos_antigos']
+                    st.markdown(f"#### 🗑️ O que saiu ({len(antigos)} removidos)")
+                    
+                    if antigos:
+                        tab_ant_map, tab_ant_list = st.tabs(["🗺️ Mapa Hierárquico", "🔤 Lista Alfabética"])
+                        
+                        with tab_ant_map:
+                            antigos_por_level = {i: [] for i in range(6)}
+                            for c in antigos:
+                                if c in nodes_info:
+                                    try:
+                                        lvl = int(float(nodes_info[c].get('level', 5)))
+                                        lvl = min(max(lvl, 0), 5)
+                                        antigos_por_level[lvl].append(c)
+                                    except:
+                                        antigos_por_level[5].append(c)
+                                else:
+                                    antigos_por_level[5].append(c)
+                            
+                            def top_by_score_ant(lista, n=5):
+                                scored = [(c, nodes_info.get(c, {}).get('score', 0)) for c in lista]
+                                scored.sort(key=lambda x: x[1], reverse=True)
+                                return [c for c, _ in scored[:n]]
+                            
+                            cores_ant = ["#fee2e2", "#fecaca", "#fca5a5", "#f87171", "#ef4444", "#dc2626"]
+                            font_ant = ["#7f1d1d", "#7f1d1d", "#7f1d1d", "#ffffff", "#ffffff", "#ffffff"]
+                            
+                            graph_ant = '''digraph {
+    rankdir=TB;
+    node [shape=box, style="filled,rounded", fontname="Arial", fontsize=10, margin="0.15,0.08"];
+    nodesep=0.3; ranksep=0.6; bgcolor="transparent";
+'''
+                            total_ant = 0
+                            niveis_ant = []
+                            
+                            for lvl in range(6):
+                                top = top_by_score_ant(antigos_por_level[lvl])
+                                if top:
+                                    niveis_ant.append(lvl)
+                                    for c in top:
+                                        label_a = f"{c}\\n({labels[lvl]})"
+                                        graph_ant += f'    {clean(c)} [fillcolor="{cores_ant[lvl]}", fontcolor="{font_ant[lvl]}", label="{label_a}"];\n'
+                                    graph_ant += f'    {{ rank=same; {" ".join([clean(c) for c in top])} }}\n'
+                                    total_ant += len(top)
+                            
+                            for i in range(len(niveis_ant) - 1):
+                                t1 = top_by_score_ant(antigos_por_level[niveis_ant[i]], 1)
+                                t2 = top_by_score_ant(antigos_por_level[niveis_ant[i+1]], 1)
+                                if t1 and t2:
+                                    graph_ant += f'    {clean(t1[0])} -> {clean(t2[0])} [color="#fca5a5", style=dashed, arrowhead=none];\n'
+                            
+                            graph_ant += "}"
+                            
+                            try:
+                                st.graphviz_chart(graph_ant, use_container_width=True)
+                                st.caption(f"Top {total_ant} conceitos de {len(antigos)} removidos, por relevância.")
+                            except:
+                                st.error(", ".join(sorted(antigos)[:50]))
+                        
+                        with tab_ant_list:
+                            conceitos_ant = sorted(antigos)
+                            cols = st.columns(4)
+                            tam = -(-len(conceitos_ant) // 4)
+                            for i in range(4):
+                                with cols[i]:
+                                    for c in conceitos_ant[i*tam:(i+1)*tam]:
+                                        st.markdown(f"<div style='margin-bottom:2px; color:#dc2626;'>• {c}</div>", unsafe_allow_html=True)
                     else:
                         st.info("Nenhum conceito foi removido.")
                 
@@ -3010,126 +3162,95 @@ with tab3:
                     st.caption("Conceitos que permaneceram na sua estrutura, organizados por nível de abstração.")
 
                     if len(comuns) > 0:
-                        # TENTATIVA DE RECUPERAÇÃO SEGURA DOS METADADOS (LEVELS)
-                        nodes_info = {}
+                        # SEPARAÇÃO POR 6 NÍVEIS NATIVOS DO OPENALEX
+                        levels_6 = {i: [] for i in range(6)}
+                        indef = []
                         
-                        # 1. Tenta pegar do DF1 salvo na memória
-                        if 'df1_rico' in st.session_state and st.session_state['df1_rico'] is not None:
-                            nodes_info = getattr(st.session_state['df1_rico'], 'attrs', {}).get('nodes_dict', {})
-                        
-                        # 2. Se falhar, tenta pegar do DF2
-                        if not nodes_info and 'df2_rico' in st.session_state and st.session_state['df2_rico'] is not None:
-                            nodes_info = getattr(st.session_state['df2_rico'], 'attrs', {}).get('nodes_dict', {})
-
-                        # SEPARAÇÃO POR NÍVEIS
-                        levels = {
-                            'raiz': [],   # Nível 0-1 (Grandes Áreas) - AZUL
-                            'tronco': [], # Nível 2-3 (Tópicos) - VERDE
-                            'folhas': [], # Nível 4-5 (Específicos) - AMARELO/LARANJA
-                            'indef': []   # Sem dados
-                        }
-                        
-                        # Classifica cada conceito comum
                         for c in comuns:
                             if c in nodes_info:
                                 try:
-                                    lvl = float(nodes_info[c].get('level', -1))
-                                    if 0 <= lvl <= 1.5: levels['raiz'].append(c)
-                                    elif 1.5 < lvl <= 3.5: levels['tronco'].append(c)
-                                    elif lvl > 3.5: levels['folhas'].append(c)
-                                    else: levels['indef'].append(c)
+                                    lvl = int(float(nodes_info[c].get('level', -1)))
+                                    if 0 <= lvl <= 5:
+                                        levels_6[lvl].append(c)
+                                    else:
+                                        indef.append(c)
                                 except:
-                                    levels['indef'].append(c)
+                                    indef.append(c)
                             else:
-                                levels['indef'].append(c)
+                                indef.append(c)
 
                         # EXIBIÇÃO (MAPA OU LISTA)
                         tab_vis, tab_list = st.tabs(["🗺️ Mapa Hierárquico", "🔤 Lista Alfabética"])
                         
                         with tab_vis:
-                            # Se a maioria não tem nível (dados antigos), avisa e não desenha o mapa
-                            if len(levels['indef']) > len(comuns) * 0.8:
-                                st.warning("⚠️ Os dados históricos deste gráfico não possuem níveis hierárquicos suficientes para gerar o mapa visual.")
+                            if len(indef) > len(comuns) * 0.8:
+                                st.warning("⚠️ Dados históricos sem níveis hierárquicos suficientes.")
                                 st.info("Use a aba 'Lista Alfabética' ao lado.")
                             else:
-                                # Construtor do Graphviz (DOT)
-                                graph_code = """
-                                digraph {
-                                    rankdir=TB;
-                                    node [shape=box, style="filled,rounded", fontname="Arial", fontsize=10, margin="0.1,0.1"];
-                                    splines=ortho;
-                                    nodesep=0.2;
-                                    ranksep=0.6;
-                                    bgcolor="transparent";
-                                    
-                                    /* Legenda Visual (Invisível na estrutura, visível no plot) */
-                                    node [width=2.5];
-                                    { rank=same; 
-                                      leg_1 [label="BASES TEÓRICAS (Geral)", fillcolor="#e0f2fe", color="#0284c7", fontcolor="#0369a1"];
-                                      leg_2 [label="TÓPICOS CENTRAIS (Médio)", fillcolor="#dcfce7", color="#16a34a", fontcolor="#15803d"];
-                                      leg_3 [label="OBJETOS ESPECÍFICOS (Foco)", fillcolor="#fef3c7", color="#d97706", fontcolor="#b45309"];
-                                    }
-                                    leg_1 -> leg_2 -> leg_3 [style=invis];
-                                """
+                                # Top N por nível (ordenados por score)
+                                def top_by_score(lista, n=6):
+                                    scored = [(c, nodes_info.get(c, {}).get('score', 0)) for c in lista]
+                                    scored.sort(key=lambda x: x[1], reverse=True)
+                                    return [c for c, _ in scored[:n]]
                                 
-                                # Função para limpar strings (aspas quebram o DOT)
-                                def clean(s): return '"' + s.replace('"', "'") + '"'
-
-                                # Adiciona os nós em seus ranks
-                                if levels['raiz']:
-                                    graph_code += f'{{ rank=same; { " ".join([clean(c) for c in levels["raiz"]]) } }}\n'
-                                    # Conexão fantasma para alinhar com a legenda
-                                    graph_code += f'leg_1 -> {clean(levels["raiz"][0])} [style=invis];\n'
-
-                                if levels['tronco']:
-                                    graph_code += f'{{ rank=same; { " ".join([clean(c) for c in levels["tronco"]]) } }}\n'
-                                    graph_code += f'leg_2 -> {clean(levels["tronco"][0])} [style=invis];\n'
-
-                                if levels['folhas']:
-                                    graph_code += f'{{ rank=same; { " ".join([clean(c) for c in levels["folhas"]]) } }}\n'
-                                    graph_code += f'leg_3 -> {clean(levels["folhas"][0])} [style=invis];\n'
-
-                                # Conexões visuais suaves (Cinza) para dar ideia de fluxo vertical
-                                if levels['raiz'] and levels['tronco']:
-                                    for r in levels['raiz']:
-                                        # Liga cada raiz ao primeiro tronco (apenas estético)
-                                        graph_code += f'{clean(r)} -> {clean(levels["tronco"][0])} [color="#cbd5e1", constraint=false, style=dashed, penwidth=0.5];\n'
+                                def clean(s): return '"' + s.replace('"', "'").replace('\n', ' ') + '"'
                                 
-                                if levels['tronco'] and levels['folhas']:
-                                     graph_code += f'{clean(levels["tronco"][0])} -> {clean(levels["folhas"][0])} [color="#cbd5e1", constraint=false, style=dashed, penwidth=0.5];\n'
-
+                                # Cores e labels para 6 níveis (gradiente azul)
+                                cores = ["#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa", "#3b82f6", "#2563eb"]
+                                font_cores = ["#1e3a5f", "#1e3a5f", "#1e3a5f", "#ffffff", "#ffffff", "#ffffff"]
+                                labels = ["L0: Raiz", "L1: Área", "L2: Campo", "L3: Subcampo", "L4: Tópico", "L5: Específico"]
+                                
+                                graph_code = '''digraph {
+    rankdir=TB;
+    node [shape=box, style="filled,rounded", fontname="Arial", fontsize=10, margin="0.15,0.08"];
+    nodesep=0.3;
+    ranksep=0.6;
+    bgcolor="transparent";
+'''
+                                total_mostrado = 0
+                                niveis_com_dados = []
+                                
+                                for lvl in range(6):
+                                    top = top_by_score(levels_6[lvl])
+                                    if top:
+                                        niveis_com_dados.append(lvl)
+                                        for c in top:
+                                            label_node = f"{c}\\n({labels[lvl]})"
+                                            graph_code += f'    {clean(c)} [fillcolor="{cores[lvl]}", fontcolor="{font_cores[lvl]}", label="{label_node}"];\n'
+                                        graph_code += f'    {{ rank=same; {" ".join([clean(c) for c in top])} }}\n'
+                                        total_mostrado += len(top)
+                                
+                                # Conexões entre níveis adjacentes que têm dados
+                                for i in range(len(niveis_com_dados) - 1):
+                                    lvl_atual = niveis_com_dados[i]
+                                    lvl_prox = niveis_com_dados[i + 1]
+                                    top_atual = top_by_score(levels_6[lvl_atual], 1)
+                                    top_prox = top_by_score(levels_6[lvl_prox], 1)
+                                    if top_atual and top_prox:
+                                        graph_code += f'    {clean(top_atual[0])} -> {clean(top_prox[0])} [color="#94a3b8", style=dashed, arrowhead=none];\n'
+                                
                                 graph_code += "}"
                                 
                                 try:
-                                    # Tenta renderizar
-                                    # Atualização para nova sintaxe do Streamlit e limpeza de logs
-                                    st.graphviz_chart(graph_code, use_container_width=True) 
-                                    # Nota: Se o Streamlit for muito novo, ele pede width="stretch". 
-                                    # Mas para garantir compatibilidade agora, manter assim ou remover o argumento se der erro.
-                                    st.caption("Organização baseada na taxonomia científica (OpenAlex Level 0-5).")
+                                    st.graphviz_chart(graph_code, use_container_width=True)
+                                    st.caption(f"Exibindo top {total_mostrado} conceitos (de {len(comuns)}) por relevância. OpenAlex Level 0-5.")
                                 except Exception as e:
-                                    # Se falhar (ex: falta o software Graphviz no Windows), mostra aviso amigável
-                                    st.warning("⚠️ Não foi possível renderizar o mapa visual.")
-                                    st.info("Dica: Para ver o gráfico rodando localmente no Windows, você precisa instalar o software 'Graphviz' e adicioná-lo ao PATH do sistema.")
-                                    with st.expander("Ver erro técnico"):
+                                    st.warning("⚠️ Não foi possível renderizar o mapa.")
+                                    with st.expander("Erro técnico"):
                                         st.write(e)
-                                    # Fallback: mostra a lista simples aqui também
-                                    st.write(", ".join(sorted(comuns)))
+                                    st.write(", ".join(sorted(comuns)[:30]) + "...")
 
                         with tab_list:
                             conceitos_ordenados = sorted(comuns)
                             if conceitos_ordenados:
-                                # Cálculo para fluxo vertical (Estilo Estante)
-                                # Divide a lista em 4 fatias iguais
                                 num_colunas = 4
-                                tamanho_fatia = -(-len(conceitos_ordenados) // num_colunas) # Divisão arredondando para cima
+                                tamanho_fatia = -(-len(conceitos_ordenados) // num_colunas)
                                 
                                 cols = st.columns(num_colunas)
                                 for i in range(num_colunas):
                                     with cols[i]:
                                         inicio = i * tamanho_fatia
                                         fim = inicio + tamanho_fatia
-                                        # Pega a fatia correspondente a esta coluna
                                         sublista = conceitos_ordenados[inicio:fim]
                                         
                                         for conceito in sublista:
@@ -3147,9 +3268,53 @@ with tab3:
                         st.markdown("### 📝 Parecer da Orientação Artificial")
                         st.info(st.session_state['ultima_analise_historico'], icon="🤖")
                         
-                        if st.button("🔄 Refazer Análise / Limpar", key="btn_limpar_analise"):
-                            del st.session_state['ultima_analise_historico']
-                            st.rerun()
+                        # Botões de ação
+                        col_pdf, col_novo, col_limpar = st.columns([2, 2, 1])
+                        
+                        with col_pdf:
+                            try:
+                                from pdf_generator import generate_comparison_pdf
+                                
+                                safe_df1 = st.session_state.get('df1_rico')
+                                safe_df2 = st.session_state.get('df2_rico')
+                                meta_antigo = getattr(safe_df1, 'attrs', {}).get('metadata', {}) if safe_df1 is not None else {}
+                                meta_novo = getattr(safe_df2, 'attrs', {}).get('metadata', {}) if safe_df2 is not None else {}
+                                
+                                pdf_bytes = generate_comparison_pdf(
+                                    form_data=st.session_state.get('form_data', {}),
+                                    metrics=metrics,
+                                    meta_antigo=meta_antigo,
+                                    meta_novo=meta_novo,
+                                    analise_ia=st.session_state['ultima_analise_historico']
+                                )
+                                
+                                nome_aluno_limpo = st.session_state.get('form_data', {}).get('nome', 'aluno').split()[0]
+                                nome_arquivo = f"compara_grafos_{nome_aluno_limpo}.pdf"
+                                
+                                st.download_button(
+                                    label="📥 Baixar Relatório PDF",
+                                    data=pdf_bytes,
+                                    file_name=nome_arquivo,
+                                    mime="application/pdf",
+                                    use_container_width=True
+                                )
+                            except Exception as e:
+                                st.warning(f"PDF indisponível: {e}")
+                        
+                        with col_novo:
+                            if st.button("🔄 Novo Delineamento", key="btn_novo_delin", use_container_width=True, type="primary"):
+                                # Limpa dados e volta ao formulário
+                                st.session_state.resultado = None
+                                st.session_state.form_data = {}
+                                st.session_state.comparacao_ativa = False
+                                if 'ultima_analise_historico' in st.session_state:
+                                    del st.session_state['ultima_analise_historico']
+                                st.rerun()
+                        
+                        with col_limpar:
+                            if st.button("🔁 Refazer", key="btn_limpar_analise", use_container_width=True):
+                                del st.session_state['ultima_analise_historico']
+                                st.rerun()
                     else:
                         # Mostrar botão para gerar
                         if st.button("✨ Gerar Análise Pedagógica da Mudança", type="primary", use_container_width=True, key="btn_analise_ia_tab3"):

@@ -878,56 +878,69 @@ Sugira exatamente 5 palavras-chave complementares que:
     
     def generate_contextual_evolution_analysis(self, metrics: dict, meta_antigo: dict, meta_novo: dict, genero: str = "Neutro") -> str:
         """
-        Gera análise pedagógica com tom ACADÊMICO E METODOLÓGICO (Orientador Sênior).
-        Sem adjetivos valorativos ou metáforas excessivas.
+        Gera análise pedagógica focada em palavras-chave com tom acadêmico sóbrio.
         """
         gender_instruction = self._get_gender_instruction(genero)
         
-        # Preparação dos dados
-        exclusivos_antigos = ", ".join(metrics.get('exclusivos_antigos', [])[:10])
-        exclusivos_novos = ", ".join(metrics.get('exclusivos_novos', [])[:10])
-        nucleo_estavel = ", ".join(metrics.get('comuns', [])[:10])
+        # Dados quantitativos
         jaccard = metrics.get('jaccard', 0)
-
-        tema_old = meta_antigo.get('aluno_tema', 'Não informado')
-        tema_new = meta_novo.get('aluno_tema', 'Não informado')
-        questao_old = meta_antigo.get('aluno_questao', 'Não informado')
-        questao_new = meta_novo.get('aluno_questao', 'Não informado')
+        qtd_novos = len(metrics.get('exclusivos_novos', []))
+        qtd_antigos = len(metrics.get('exclusivos_antigos', []))
+        qtd_comuns = len(metrics.get('comuns', []))
+        
+        # Amostra de conceitos (top 8 de cada)
+        novos_sample = ", ".join(metrics.get('exclusivos_novos', [])[:8])
+        antigos_sample = ", ".join(metrics.get('exclusivos_antigos', [])[:8])
+        comuns_sample = ", ".join(metrics.get('comuns', [])[:8])
+        
+        # Dados declarados pelo aluno
+        tema_A = meta_antigo.get('aluno_tema', 'Não informado')
+        tema_B = meta_novo.get('aluno_tema', 'Não informado')
+        questao_A = meta_antigo.get('aluno_questao', 'Não informado')
+        questao_B = meta_novo.get('aluno_questao', 'Não informado')
+        confianca_A = meta_antigo.get('aluno_confianca_ini', 'Não informado')
+        confianca_B = meta_novo.get('aluno_confianca_ini', 'Não informado')
+        string_A = meta_antigo.get('pipeline_string', 'Não informado')
+        string_B = meta_novo.get('pipeline_string', 'Não informado')
         
         prompt = f"""
-Atue como um Orientador Metodológico Sênior em nível de Doutorado.
+Você é um orientador de pesquisa experiente. Analise a evolução entre dois delineamentos bibliométricos.
 {gender_instruction}
 
-**CONTEXTO DA ANÁLISE:**
-O pesquisador realizou dois delineamentos bibliométricos (Busca A e Busca B). Compare a evolução conceitual.
+## DADOS DO DELINEAMENTO A (Anterior)
+- **Tema declarado:** {tema_A}
+- **Questão de pesquisa:** {questao_A}
+- **Nível de confiança inicial:** {confianca_A}
+- **String de busca gerada:** {string_A}
+- **Conceitos exclusivos (amostra):** {antigos_sample}
 
-**DADOS:**
-- **Momento A (Anterior):**
-  - Tema declarado: "{tema_old}"
-  - Questão: "{questao_old}"
-  - Foco conceitual (exclusivos A): {exclusivos_antigos}...
-  
-- **Momento B (Atual):**
-  - Tema declarado: "{tema_new}"
-  - Questão: "{questao_new}"
-  - Foco conceitual (exclusivos B): {exclusivos_novos}...
+## DADOS DO DELINEAMENTO B (Atual)
+- **Tema declarado:** {tema_B}
+- **Questão de pesquisa:** {questao_B}
+- **Nível de confiança inicial:** {confianca_B}
+- **String de busca gerada:** {string_B}
+- **Conceitos exclusivos (amostra):** {novos_sample}
 
-- **Intersecção (Estabilidade):**
-  - Conceitos mantidos: {nucleo_estavel}...
-  - Índice de Similaridade (Jaccard): {jaccard:.2f}
+## MÉTRICAS DA COMPARAÇÃO
+- Similaridade (Jaccard): {jaccard:.2f} ({jaccard*100:.0f}%)
+- Conceitos que entraram: {qtd_novos}
+- Conceitos que saíram: {qtd_antigos}
+- Conceitos mantidos (núcleo estável): {qtd_comuns}
+- Amostra do núcleo estável: {comuns_sample}
 
-**DIRETRIZES DE ESTILO (Rigor Acadêmico):**
-1.  **Tom:** Sobrio, analítico, neutro e objetivo.
-2.  **Proibições:** NÃO use adjetivos como "brilhante", "incrível", "coração", "metamorfose", "corajoso". Evite exclamações.
-3.  **Foco:** Analise a coerência epistemológica, o recorte do objeto e a precisão terminológica.
+## INSTRUÇÕES
+Escreva uma análise em 3 parágrafos com tom acadêmico sóbrio (sem superlativos, sem adjetivos valorativos como "brilhante", "excelente", "incrível"):
 
-**ROTEIRO DE RESPOSTA (3 parágrafos):**
+**Parágrafo 1 - Evolução da intencionalidade:**
+Compare as questões de pesquisa A e B. A mudança indica especificação, ampliação ou redirecionamento? A alteração foi coerente com os conceitos recuperados?
 
-1.  **Análise da Intencionalidade:** Compare a mudança no texto da Questão/Tema. A alteração na pergunta refletiu-se nos conceitos? Houve especificação ou alargamento do escopo?
-2.  **Análise da Estrutura Conceitual:** Observe os termos novos versus os antigos. Houve transição de termos genéricos para termos técnicos específicos? O vocabulário indica uma aproximação com qual campo teórico?
-3.  **Parecer Metodológico:** Com base no índice de similaridade e no núcleo estável, avalie se houve uma ruptura paradigmática ou um refinamento incremental. Recomende o próximo passo lógico para consolidar o novo recorte.
+**Parágrafo 2 - Análise das palavras-chave:**
+Compare os conceitos exclusivos de A versus B. Os termos de B indicam maior precisão terminológica? Houve aproximação com algum campo teórico específico? Use exemplos concretos dos dados fornecidos.
 
-Use markdown para formatação. Seja breve e direto.
+**Parágrafo 3 - Recomendação prática:**
+Com base no índice de similaridade ({jaccard:.2f}), avalie se houve ruptura ou refinamento. Sugira o próximo passo concreto para consolidar o recorte: revisar a string de busca? Explorar conceitos do núcleo estável? Investigar os novos termos?
+
+Seja direto e útil. Máximo 600 palavras.
 """
         return self._safe_generate(prompt, "Análise indisponível no momento.")
 
