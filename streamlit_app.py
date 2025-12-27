@@ -262,7 +262,7 @@ with st.sidebar:
         st.markdown("""
             - **Delineascópio:**
               - Trilha gamificada
-              - Visualização conceitual
+              - Visualização de conceitos
               - Glossário
               - Seleção de conceitos
               - Avaliação do projeto:
@@ -280,7 +280,12 @@ with st.sidebar:
               - Construtor de chaves de busca
             - **Histórico:** 
               - Comparação entre grafos
+              - Abstração hierárquica
+                - Conceitos incluídos
+                - Conceitos excluídos
+                - Núcleo estável
               - Análise Pedagógica da Mudança
+              - Relatório em PDF
             - **Painel:** 
               - Busca de dados com OpenAlex:
                 - Artigos: *métricas de artigos e metadados únicos*
@@ -299,9 +304,10 @@ with st.sidebar:
             - OpenAlex API
             - JavaScript | CSS | HTML
             - NetworkX | Plotly | PyVis | ReportLab
+            - GraphViz
 
             *Versão*
-            Delinéia I - 2025        
+            - Delinéia I (17 de novembro de 2025)        
             """)
     
     with st.expander("Agradecimentos"):
@@ -2653,11 +2659,36 @@ Para prosseguir com o preenchimento deste formulário, assinale a alternativa ma
             **Clique no botão abaixo para concluir e visualizar suas conquistas.**
             """)
 
-            # BOTÃO DE AÇÃO
-            if st.button("🏆 Resgatar Conquistas", type="primary"):
-                st.session_state.step = 4
-                st.session_state.mostrar_resumo_final = False
-                st.rerun()
+            # BOTÕES DE AÇÃO
+            col_pdf_aval, col_resgatar = st.columns([1, 1])
+            
+            with col_pdf_aval:
+                try:
+                    from pdf_generator import generate_evaluation_pdf
+                    
+                    pdf_aval = generate_evaluation_pdf(
+                        form_data=st.session_state.get('form_data', {}),
+                        avaliacao_data=st.session_state.get('avaliacao_data', {})
+                    )
+                    
+                    nome_aluno = st.session_state.get('form_data', {}).get('nome', 'aluno').split()[0]
+                    nome_arquivo = f"avaliacao_{nome_aluno}.pdf"
+                    
+                    st.download_button(
+                        label="📥 Salvar Avaliação (PDF)",
+                        data=pdf_aval,
+                        file_name=nome_arquivo,
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+                except Exception as e:
+                    st.warning(f"PDF indisponível: {e}")
+            
+            with col_resgatar:
+                if st.button("🏆 Resgatar Conquistas", type="primary", use_container_width=True):
+                    st.session_state.step = 4
+                    st.session_state.mostrar_resumo_final = False
+                    st.rerun()
                     
         rodape_institucional()
     
@@ -3285,7 +3316,8 @@ with tab3:
                                     metrics=metrics,
                                     meta_antigo=meta_antigo,
                                     meta_novo=meta_novo,
-                                    analise_ia=st.session_state['ultima_analise_historico']
+                                    analise_ia=st.session_state['ultima_analise_historico'],
+                                    nodes_info=nodes_info
                                 )
                                 
                                 nome_aluno_limpo = st.session_state.get('form_data', {}).get('nome', 'aluno').split()[0]

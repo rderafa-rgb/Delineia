@@ -95,7 +95,6 @@ def split_glossary_entries(glossary_text: str) -> list:
     
     return entries if entries else [glossary_text]
 
-
 def format_badge_for_pdf(badge: str) -> str:
     """
     Formata badge para exibição no PDF.
@@ -123,6 +122,55 @@ def format_badge_for_pdf(badge: str) -> str:
     badge_lower = badge.lower().strip()
     emoji = badge_emojis.get(badge_lower, '🏅')
     return f"{emoji} {badge}"
+
+def create_institutional_footer(styles) -> list:
+    """
+    Cria rodapé institucional com licença CC para os PDFs.
+    Retorna lista de elementos para adicionar ao story.
+    """
+    import os
+    
+    footer_elements = []
+    footer_elements.append(Spacer(1, 0.5*cm))
+    footer_elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor('#d1d5db')))
+    footer_elements.append(Spacer(1, 0.2*cm))
+    
+    # Tenta carregar imagem CC
+    cc_path = "assets/cc_by_nc_nd.png"
+    
+    try:
+        if os.path.exists(cc_path):
+            cc_img = Image(cc_path, width=2.2*cm, height=0.77*cm)
+            
+            footer_text = Paragraph(
+                "<b>Delinéia</b> - Sistema de Apoio ao Delineamento de Escopo Temático<br/>"
+                "Pesquisa de Doutorado - PPGIE / UFRGS<br/>"
+                "<font size='7'>© 2025 Rafael Antunes dos Santos - Licenciado sob CC BY-NC-ND 4.0</font>",
+                styles['footer']
+            )
+            
+            footer_table = Table(
+                [[cc_img, footer_text]],
+                colWidths=[2.5*cm, 14.5*cm]
+            )
+            footer_table.setStyle(TableStyle([
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+                ('ALIGN', (1, 0), (1, 0), 'LEFT'),
+                ('LEFTPADDING', (1, 0), (1, 0), 10),
+            ]))
+            footer_elements.append(footer_table)
+        else:
+            raise FileNotFoundError()
+    except:
+        footer_elements.append(Paragraph(
+            "<b>Delinéia</b> - Sistema de Apoio ao Delineamento de Escopo Temático<br/>"
+            "Pesquisa de Doutorado - PPGIE / UFRGS<br/>"
+            "<font size='8'>© 2025 Rafael Antunes dos Santos - CC BY-NC-ND 4.0</font>",
+            styles['footer']
+        ))
+    
+    return footer_elements
 
 # ==================== ESTILOS ====================
 
@@ -557,24 +605,7 @@ def generate_pdf_report(
         story.append(Paragraph(f"<b>Objetivo:</b> {obj_clean}", styles['body']))
     
     # ==================== 12. RODAPÉ ====================
-    story.append(Spacer(1, 1*cm))
-    
-    story.append(HRFlowable(
-        width="80%",
-        thickness=1,
-        color=colors.HexColor('#d1d5db'),
-        spaceBefore=10,
-        spaceAfter=10
-    ))
-    
-    story.append(Paragraph(
-        "Relatório gerado pelo Sistema Delinéia",
-        styles['footer']
-    ))
-    story.append(Paragraph(
-        "https://delineia.streamlit.app",
-        styles['footer']
-    ))
+    story.extend(create_institutional_footer(styles))
         
     # ==================== BUILD ====================
     try:
@@ -602,16 +633,17 @@ def generate_comparison_pdf(
     metrics: dict,
     meta_antigo: dict,
     meta_novo: dict,
-    analise_ia: str = None
+    analise_ia: str = None,
+    nodes_info: dict = None
 ) -> bytes:
     """
     Gera PDF do relatório de comparação de delineamentos com mapas hierárquicos.
     """
-    import graphviz
     import tempfile
     import os
     
     buffer = BytesIO()
+    nodes_info = nodes_info or {}
     
     doc = SimpleDocTemplate(
         buffer,
@@ -624,21 +656,32 @@ def generate_comparison_pdf(
     
     styles = create_styles()
     story = []
+
+    # Variáveis para arquivos temporários
+    mapa_novos = None
+    mapa_antigos = None
+    mapa_comuns = None
     
-    # ==================== FUNÇÃO AUXILIAR: GERAR MAPA GRAPHVIZ ====================
-    def create_hierarchical_map_image(concepts: list, nodes_info: dict, color_scheme: str = "blue") -> str:
-        """Gera imagem PNG do mapa hierárquico e retorna o caminho do arquivo."""
-        if not concepts:
+    # ==================== FUNÇÃO: GERAR MAPA HIERÁRQUICO ====================
+    def create_hierarchical_map(concepts: list, color_scheme: str = "blue") -> str:
+        """Gera imagem PNG do mapa hierárquico usando Graphviz."""
+        if not concepts or len(concepts) == 0:
+            return None
+        
+        try:
+            import graphviz
+        except ImportError:
             return None
         
         # Classificar por nível
         levels_6 = {i: [] for i in range(6)}
-        for c in concepts[:100]:  # Limita a 100 conceitos
+        for c in concepts:
             if c in nodes_info:
                 try:
                     lvl = int(float(nodes_info[c].get('level', 5)))
                     lvl = min(max(lvl, 0), 5)
-                    levels_6[lvl].append((c, nodes_info[c].get('score', 0)))
+                    score = nodes_info[c].get('score', 0)
+                    levels_6[lvl].append((c, score))
                 except:
                     levels_6[5].append((c, 0))
             else:
@@ -656,11 +699,11 @@ def generate_comparison_pdf(
         else:  # blue
             cores = ["#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa", "#3b82f6", "#2563eb"]
         
-        labels = ["L0: Raiz", "L1: Área", "L2: Campo", "L3: Subcampo", "L4: Tópico", "L5: Específico"]
+        labels = ["L0", "L1", "L2", "L3", "L4", "L5"]
         
         # Criar grafo
         dot = graphviz.Digraph(format='png')
-        dot.attr(rankdir='TB', bgcolor='white', dpi='150')
+        dot.attr(rankdir='TB', bgcolor='white', dpi='120', size='7,5')
         dot.attr('node', shape='box', style='filled,rounded', fontname='Arial', fontsize='9', margin='0.1,0.05')
         
         total = 0
@@ -672,7 +715,8 @@ def generate_comparison_pdf(
                 with dot.subgraph() as s:
                     s.attr(rank='same')
                     for c, _ in levels_6[lvl]:
-                        node_label = f"{c}\n({labels[lvl]})"
+                        node_label = f"{c[:25]}..." if len(c) > 25 else c
+                        node_label = f"{node_label}\n({labels[lvl]})"
                         s.node(c, label=node_label, fillcolor=cores[lvl])
                         total += 1
         
@@ -686,23 +730,21 @@ def generate_comparison_pdf(
             return None
         
         # Salvar como PNG temporário
-        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
-            temp_path = f.name
-        
-        dot.render(temp_path.replace('.png', ''), format='png', cleanup=True)
-        return temp_path
-    
-    # ==================== RECUPERAR NODES_INFO ====================
-    nodes_info = {}
-    # Tenta recuperar de meta_novo ou meta_antigo
-    # (Os nodes_info não estão nos metadados do Google Sheets, então usamos um dicionário vazio)
-    # TODO: Passar nodes_info como parâmetro da função se disponível
+        try:
+            with tempfile.NamedTemporaryFile(suffix='', delete=False) as f:
+                temp_path = f.name
+            
+            dot.render(temp_path, format='png', cleanup=True)
+            return temp_path + '.png'
+        except Exception as e:
+            print(f"Erro ao gerar mapa: {e}")
+            return None
     
     # ==================== 1. CAPA ====================
-    story.append(Spacer(1, 0.8*cm))
+    story.append(Spacer(1, 0.5*cm))
     story.append(Paragraph("Delinéia", styles['title']))
     story.append(Paragraph("Relatório de Comparação de Delineamentos", styles['subtitle']))
-    story.append(Spacer(1, 0.4*cm))
+    story.append(Spacer(1, 0.3*cm))
     
     # Info do aluno
     info_data = [
@@ -720,10 +762,9 @@ def generate_comparison_pdf(
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('PADDING', (0, 0), (-1, -1), 6),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d1d5db')),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
     ]))
     story.append(info_table)
-    story.append(Spacer(1, 0.5*cm))
+    story.append(Spacer(1, 0.4*cm))
     
     # ==================== 2. MÉTRICAS ====================
     story.append(Paragraph("Resultados da Comparação", styles['heading']))
@@ -755,54 +796,81 @@ def generate_comparison_pdf(
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f3f4f6')])
     ]))
     story.append(metricas_table)
-    story.append(Spacer(1, 0.4*cm))
+    story.append(Spacer(1, 0.3*cm))
     
-    # ==================== 3. CONTEXTO DOS DELINEAMENTOS ====================
+    # ==================== 3. CONTEXTO ====================
     story.append(Paragraph("Contexto dos Delineamentos", styles['heading']))
     
     story.append(Paragraph("<b>Delineamento A (Anterior)</b>", styles['body_left']))
     story.append(Paragraph(f"Tema: {clean_text(meta_antigo.get('aluno_tema', 'N/A'))}", styles['body_left']))
-    story.append(Paragraph(f"Questão: {clean_text(meta_antigo.get('aluno_questao', 'N/A'))}", styles['body_left']))
-    story.append(Spacer(1, 0.2*cm))
+    story.append(Paragraph(f"Questão de pesquisa: {clean_text(meta_antigo.get('aluno_questao', 'N/A'))}", styles['body_left']))
+    story.append(Spacer(1, 0.15*cm))
     
     story.append(Paragraph("<b>Delineamento B (Atual)</b>", styles['body_left']))
     story.append(Paragraph(f"Tema: {clean_text(meta_novo.get('aluno_tema', 'N/A'))}", styles['body_left']))
-    story.append(Paragraph(f"Questão: {clean_text(meta_novo.get('aluno_questao', 'N/A'))}", styles['body_left']))
-    story.append(Spacer(1, 0.4*cm))
+    story.append(Paragraph(f"Questão de pesquisa: {clean_text(meta_novo.get('aluno_questao', 'N/A'))}", styles['body_left']))
+    story.append(Spacer(1, 0.3*cm))
     
-    # ==================== 4. CONCEITOS NOVOS ====================
+    # ==================== 4. LEGENDA ====================
+    story.append(Paragraph("Legenda: Níveis de Abstração (OpenAlex)", styles['heading']))
+    
+    legenda_texto = """
+    <b>L0 (Raiz):</b> Grandes áreas do conhecimento (ex: Medicine, Psychology)<br/>
+    <b>L1 (Area):</b> Disciplinas amplas (ex: Biology, Education)<br/>
+    <b>L2 (Campo):</b> Campos de estudo (ex: Genetics, Pedagogy)<br/>
+    <b>L3 (Subcampo):</b> Especializações (ex: Molecular biology)<br/>
+    <b>L4 (Topico):</b> Tópicos específicos (ex: Gene expression)<br/>
+    <b>L5 (Especifico):</b> Termos muito específicos (ex: CRISPR, PCR)<br/><br/>
+    <i>Niveis baixos (L0-L2) = conceitos abrangentes | Níveis altos (L4-L5) = conceitos específicos</i>
+    <i>Conceitos presentes nos gráficos dos mapas hierárquicos são introduzidos segundo a declaração de Score (Relevância) sobre cada conceito no OpenAlex</i>
+    """
+    story.append(Paragraph(legenda_texto, styles['body_left']))
+    story.append(Spacer(1, 0.3*cm))
+    
+    # ==================== 5. CONCEITOS NOVOS ====================
     novos = metrics.get('exclusivos_novos', [])
     if novos:
         story.append(Paragraph(f"Conceitos Novos ({len(novos)} termos)", styles['heading']))
-        novos_text = ", ".join(novos[:40])
-        if len(novos) > 40:
-            novos_text += f"... e mais {len(novos)-40} conceitos."
-        story.append(Paragraph(clean_text(novos_text), styles['body']))
-        story.append(Spacer(1, 0.3*cm))
+        
+        mapa_novos = create_hierarchical_map(novos, "green")
+        if mapa_novos and os.path.exists(mapa_novos):
+            try:
+                story.append(Image(mapa_novos, width=16*cm, height=10*cm, kind='proportional'))
+                story.append(Paragraph(f"<i>Top 5 conceitos de {len(novos)} novidades, por nível de abstração.</i>", styles['footer']))
+            except:
+                pass
+        story.append(Spacer(1, 0.2*cm))
     
-    # ==================== 5. CONCEITOS REMOVIDOS ====================
+    # ==================== 6. CONCEITOS REMOVIDOS ====================
     antigos = metrics.get('exclusivos_antigos', [])
     if antigos:
         story.append(Paragraph(f"Conceitos Removidos ({len(antigos)} termos)", styles['heading']))
-        antigos_text = ", ".join(antigos[:40])
-        if len(antigos) > 40:
-            antigos_text += f"... e mais {len(antigos)-40} conceitos."
-        story.append(Paragraph(clean_text(antigos_text), styles['body']))
-        story.append(Spacer(1, 0.3*cm))
+        
+        mapa_antigos = create_hierarchical_map(antigos, "red")
+        if mapa_antigos and os.path.exists(mapa_antigos):
+            try:
+                story.append(Image(mapa_antigos, width=16*cm, height=10*cm, kind='proportional'))
+                story.append(Paragraph(f"<i>Top 5 conceitos de {len(antigos)} removidos, por nível de abstração.</i>", styles['footer']))
+            except:
+                pass
+        story.append(Spacer(1, 0.2*cm))
     
-    # ==================== 6. NÚCLEO ESTÁVEL ====================
+    # ==================== 7. NÚCLEO ESTÁVEL ====================
     comuns = metrics.get('comuns', [])
     if comuns:
-        story.append(Paragraph(f"Núcleo Estável ({len(comuns)} termos)", styles['heading']))
-        comuns_text = ", ".join(comuns[:40])
-        if len(comuns) > 40:
-            comuns_text += f"... e mais {len(comuns)-40} conceitos."
-        story.append(Paragraph(clean_text(comuns_text), styles['body']))
-        story.append(Spacer(1, 0.3*cm))
+        story.append(Paragraph(f"Núcleo Estavel ({len(comuns)} termos)", styles['heading']))
+        
+        mapa_comuns = create_hierarchical_map(comuns, "blue")
+        if mapa_comuns and os.path.exists(mapa_comuns):
+            try:
+                story.append(Image(mapa_comuns, width=16*cm, height=10*cm, kind='proportional'))
+                story.append(Paragraph(f"<i>Top 5 conceitos de {len(comuns)} do núcleo estável, por nível de abstração.</i>", styles['footer']))
+            except:
+                pass
+        story.append(Spacer(1, 0.2*cm))
     
     # ==================== 7. PARECER DA IA ====================
     if analise_ia:
-        story.append(PageBreak())
         story.append(Paragraph("Parecer da Orientação Artificial", styles['heading']))
         
         analise_limpa = clean_markdown_for_pdf(analise_ia)
@@ -810,47 +878,182 @@ def generate_comparison_pdf(
         for p in paragrafos:
             p = p.strip()
             if p:
-                if re.match(r'^\d+\.', p):
-                    story.append(Paragraph(clean_text(p), styles['body_left']))
-                else:
-                    story.append(Paragraph(clean_text(p), styles['body']))
-                story.append(Spacer(1, 0.15*cm))
+                story.append(Paragraph(clean_text(p), styles['body']))
+                story.append(Spacer(1, 0.1*cm))
     
-    # ==================== 8. RODAPÉ INSTITUCIONAL COM CC ====================
-    story.append(Spacer(1, 0.8*cm))
-    story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor('#d1d5db')))
-    story.append(Spacer(1, 0.2*cm))
+    # ==================== 8. RODAPÉ ====================
+    story.extend(create_institutional_footer(styles))
     
-    # Tenta incluir imagem CC
-    cc_image_path = "assets/cc_by_nc_nd.png"
-    try:
-        if os.path.exists(cc_image_path):
-            cc_img = Image(cc_image_path, width=2.5*cm, height=0.9*cm)
-            
-            rodape_data = [
-                [cc_img, Paragraph(
-                    "<b>Delinéia</b> - Sistema de Apoio ao Delineamento de Escopo Temático<br/>"
-                    "Pesquisa de Doutorado - PPGIE / UFRGS<br/>"
-                    "<font size='7'>© 2025 Rafael Antunes dos Santos - Licenciado sob CC BY-NC-ND 4.0</font>",
-                    styles['footer']
-                )]
-            ]
-            rodape_table = Table(rodape_data, colWidths=[3*cm, 14*cm])
-            rodape_table.setStyle(TableStyle([
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('ALIGN', (0, 0), (0, 0), 'CENTER'),
-                ('ALIGN', (1, 0), (1, 0), 'LEFT'),
-            ]))
-            story.append(rodape_table)
-        else:
-            raise FileNotFoundError("CC image not found")
-    except:
-        rodape_text = """
-        <b>Delinéia</b> - Sistema de Apoio ao Delineamento de Escopo Temático<br/>
-        Pesquisa de Doutorado - PPGIE / UFRGS<br/>
-        <font size="8">Delinéia © 2025 by Rafael Antunes dos Santos is licensed under CC BY-NC-ND 4.0</font>
-        """
-        story.append(Paragraph(rodape_text, styles['footer']))
+    # Build PDF
+    doc.build(story)
+
+    # Limpar arquivos temporários após o build
+    for temp_file in [mapa_novos, mapa_antigos, mapa_comuns]:
+        try:
+            if temp_file and os.path.exists(temp_file):
+                os.unlink(temp_file)
+        except:
+            pass
+    
+    buffer.seek(0)
+    return buffer.getvalue()
+
+def generate_evaluation_pdf(form_data: dict, avaliacao_data: dict) -> bytes:
+    """
+    Gera PDF com as respostas do formulário de avaliação.
+    Medida de transparência e ética.
+    """
+    buffer = BytesIO()
+    
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=2*cm,
+        leftMargin=2*cm,
+        topMargin=1.5*cm,
+        bottomMargin=1.5*cm
+    )
+    
+    styles = create_styles()
+    story = []
+    
+    # ==================== 1. CAPA ====================
+    story.append(Spacer(1, 0.5*cm))
+    story.append(Paragraph("Delinéia", styles['title']))
+    story.append(Paragraph("Comprovante de Avaliação", styles['subtitle']))
+    story.append(Spacer(1, 0.3*cm))
+    
+    # Info do participante
+    info_data = [
+        ['Participante:', clean_text(form_data.get('nome', 'N/A'))],
+        ['E-mail:', clean_text(form_data.get('email', 'N/A'))],
+        ['Data:', avaliacao_data.get('timestamp', 'N/A')[:19].replace('T', ' ')]
+    ]
+    
+    info_table = Table(info_data, colWidths=[3.5*cm, 13.5*cm])
+    info_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#e5e7eb')),
+        ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+        ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('PADDING', (0, 0), (-1, -1), 6),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d1d5db')),
+    ]))
+    story.append(info_table)
+    story.append(Spacer(1, 0.4*cm))
+    
+    # ==================== 2. PERGUNTAS LIKERT ====================
+    story.append(Paragraph("Respostas do Formulário de Avaliação", styles['heading']))
+    
+    # Mapeamento das perguntas
+    perguntas_likert = {
+        'q1': "F2.1. Usar o Delinéia melhora a minha capacidade de escolha de palavras-chave",
+        'q2': "F2.2. Usar o Delinéia aumenta minha produtividade na definição do projeto",
+        'q3': "F2.3. O Delinéia é útil para delimitar meu projeto de pesquisa",
+        'q4': "F2.4. O Delinéia me ajuda a posicionar meu projeto na literatura",
+        'q5': "F2.5. O Delinéia é fácil de usar",
+        'q6': "F2.6. A interação com o Delinéia é clara e compreensível",
+        'q7': "F2.7. A navegação entre as funcionalidades é intuitiva",
+        'q8': "F2.8. As análises e sugestões são relevantes para meu projeto",
+        'q9': "F2.9. A avaliação gerada pela IA é construtiva",
+        'q10': "F2.10. As chaves de busca oferecidas são precisas para o meu tema",
+        'q11': "F2.11. O grafo de coocorrências me ajudou a visualizar relações",
+        'q12': "F2.12. O Delinéia me ajudou a formular perguntas mais precisas",
+        'q13': "F2.13. O relatório em PDF é adequado para apresentar ao orientador",
+        'q14': "F2.14. O tempo gasto compensa os resultados obtidos",
+        'q15': "F2.15. Eu pretendo usar o Delinéia em projetos futuros",
+        'q16': "F2.16. Eu usaria o Delinéia em diferentes fases da pesquisa",
+        'q17': "F2.17. Eu confio nas análises geradas pelo Delinéia",
+        'q18': "F2.18. Eu me sinto confortável em basear decisões com os resultados",
+        'q19': "F2.19. O design da interface é agradável",
+        'q20': "F2.20. O tempo de processamento do relatório foi adequado",
+    }
+    
+    # Tabela de respostas Likert
+    likert_data = [['Pergunta', 'Resposta']]
+    for key, pergunta in perguntas_likert.items():
+        resposta = avaliacao_data.get(key, '-')
+        likert_data.append([pergunta, resposta])
+    
+    likert_table = Table(likert_data, colWidths=[13*cm, 4*cm])
+    likert_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a5f')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+        ('ALIGN', (1, 0), (1, -1), 'CENTER'),
+        ('PADDING', (0, 0), (-1, -1), 5),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d1d5db')),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f9fafb')]),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    story.append(likert_table)
+    story.append(Spacer(1, 0.4*cm))
+    
+    # ==================== 3. NPS ====================
+    story.append(Paragraph("Net Promoter Score (NPS)", styles['heading']))
+    nps = avaliacao_data.get('nps', 0)
+    nps_cat = avaliacao_data.get('nps_category', '-')
+    story.append(Paragraph(f"<b>F2.21. Recomendação:</b> {nps}/10 ({nps_cat})", styles['body_left']))
+    story.append(Spacer(1, 0.3*cm))
+    
+    # ==================== 4. AUTOAVALIAÇÃO ====================
+    story.append(Paragraph("Autoavaliação de Segurança", styles['heading']))
+    q26 = avaliacao_data.get('q26', '-')
+    story.append(Paragraph(f"<b>F2.26. Nível de segurança após o uso:</b> {q26}", styles['body_left']))
+    story.append(Spacer(1, 0.3*cm))
+    
+    # ==================== 5. PERFIL ====================
+    story.append(Paragraph("Perfil do Participante", styles['heading']))
+    
+    perfil_data = [
+        ['F2.27. Nível acadêmico:', avaliacao_data.get('q27', '-')],
+        ['F2.28. Experiência com bibliometria:', avaliacao_data.get('q28', '-')],
+        ['F2.29. Área do conhecimento:', avaliacao_data.get('q29', '-')],
+        ['F2.30. Tempo de uso:', avaliacao_data.get('q30', '-')],
+    ]
+    
+    perfil_table = Table(perfil_data, colWidths=[7*cm, 10*cm])
+    perfil_table.setStyle(TableStyle([
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('PADDING', (0, 0), (-1, -1), 5),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d1d5db')),
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f3f4f6')),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+    ]))
+    story.append(perfil_table)
+    story.append(Spacer(1, 0.3*cm))
+    
+    # ==================== 6. RESPOSTAS ABERTAS ====================
+    story.append(Paragraph("Respostas Abertas", styles['heading']))
+    
+    abertas = {
+        'q22': "F2.22. O que você mais gostou no Delinéia?",
+        'q23': "F2.23. O que poderia ser melhorado?",
+        'q24': "F2.24. Funcionalidades que gostaria de ver no futuro:",
+        'q25': "F2.25. Como usou/pretende usar os resultados na pesquisa?",
+    }
+    
+    for key, pergunta in abertas.items():
+        resposta = avaliacao_data.get(key, '-') or '-'
+        story.append(Paragraph(f"<b>{pergunta}</b>", styles['body_left']))
+        story.append(Paragraph(clean_text(resposta), styles['body']))
+        story.append(Spacer(1, 0.2*cm))
+    
+    # ==================== 7. CONSENTIMENTO ====================
+    story.append(Spacer(1, 0.3*cm))
+    story.append(Paragraph("Consentimento", styles['heading']))
+    
+    tcle = "Aceito" if avaliacao_data.get('tcle_aceite', False) else "Não aceito"
+    continuidade = "Sim" if avaliacao_data.get('aceite_continuidade', False) else "Não"
+    
+    story.append(Paragraph(f"<b>TCLE:</b> {tcle}", styles['body_left']))
+    story.append(Paragraph(f"<b>Aceite para continuidade da pesquisa:</b> {continuidade}", styles['body_left']))
+    
+    # ==================== 8. RODAPÉ ====================
+    story.extend(create_institutional_footer(styles))
     
     # Build PDF
     doc.build(story)
