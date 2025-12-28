@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import streamlit as st
+from streamlit import fragment
 import base64
 
 # ==================== CONFIGURAÇÃO DA PÁGINA ====================
@@ -1350,7 +1351,7 @@ def render_tab3_interacao():
                     data=graphml_buffer.getvalue(),
                     file_name="grafo_interativo.graphml",
                     mime="application/xml",
-                    use_container_width=True,
+                    width="stretch",
                     help="Para Gephi ou Cytoscape"
                 )
             except Exception as e:
@@ -1369,7 +1370,7 @@ def render_tab3_interacao():
                 data=csv_content,
                 file_name="grafo_arestas.csv",
                 mime="text/csv",
-                use_container_width=True,
+                width="stretch",
                 help="Lista de conexões"
             )
         
@@ -1390,7 +1391,7 @@ def render_tab3_interacao():
                 data=csv_nodes,
                 file_name="grafo_nos.csv",
                 mime="text/csv",
-                use_container_width=True,
+                width="stretch",
                 help="Lista de conceitos com métricas"
             )
     
@@ -1457,7 +1458,7 @@ def render_tab3_interacao():
             formatted_preview = format_term(selected_concept, use_truncation, use_quotes)
             st.code(formatted_preview, language=None)
             
-            if st.button("➕ Colecionar termo", use_container_width=True, type="primary"):
+            if st.button("➕ Colecionar termo", width="stretch", type="primary"):
                 if formatted_preview not in st.session_state.collected_terms:
                     st.session_state.collected_terms.append(formatted_preview)
                 st.rerun()
@@ -1477,27 +1478,27 @@ def render_tab3_interacao():
             col_and, col_or, col_not, col_abre, col_fecha = st.columns(5)
             
             with col_and:
-                if st.button("AND", use_container_width=True, help="Interseção: retorna resultados que contenham TODOS os termos"):
+                if st.button("AND", width="stretch", help="Interseção: retorna resultados que contenham TODOS os termos"):
                     st.session_state.search_key_text += " AND "
                     st.rerun()
             
             with col_or:
-                if st.button("OR", use_container_width=True, help="União: retorna resultados que contenham QUALQUER um dos termos"):
+                if st.button("OR", width="stretch", help="União: retorna resultados que contenham QUALQUER um dos termos"):
                     st.session_state.search_key_text += " OR "
                     st.rerun()
             
             with col_not:
-                if st.button("NOT", use_container_width=True, help="Exclusão: remove resultados que contenham o termo seguinte"):
+                if st.button("NOT", width="stretch", help="Exclusão: remove resultados que contenham o termo seguinte"):
                     st.session_state.search_key_text += " NOT "
                     st.rerun()
             
             with col_abre:
-                if st.button("(", use_container_width=True, help="Abre parênteses para agrupar termos"):
+                if st.button("(", width="stretch", help="Abre parênteses para agrupar termos"):
                     st.session_state.search_key_text += "("
                     st.rerun()
             
             with col_fecha:
-                if st.button(")", use_container_width=True, help="Fecha parênteses"):
+                if st.button(")", width="stretch", help="Fecha parênteses"):
                     st.session_state.search_key_text += ")"
                     st.rerun()
             
@@ -1513,17 +1514,17 @@ def render_tab3_interacao():
                             term = st.session_state.collected_terms[idx]
                             display_label = term[:20] + "..." if len(term) > 20 else term
                             with col:
-                                if st.button(display_label, key=f"term_btn_{idx}", use_container_width=True):
+                                if st.button(display_label, key=f"term_btn_{idx}", width="stretch"):
                                     st.session_state.search_key_text += term
                                     st.rerun()
             
             col_limpar, col_limpar_termos = st.columns(2)
             with col_limpar:
-                if st.button("🗑️ Limpar chave", use_container_width=True):
+                if st.button("🗑️ Limpar chave", width="stretch"):
                     st.session_state.search_key_text = ""
                     st.rerun()
             with col_limpar_termos:
-                if st.button("🗑️ Limpar termos coletados", use_container_width=True):
+                if st.button("🗑️ Limpar termos coletados", width="stretch"):
                     st.session_state.collected_terms = []
                     st.rerun()
             
@@ -1581,7 +1582,7 @@ def render_tab3_interacao():
             
             st.divider()
             
-            if st.button("📋 Copiar para o Painel", use_container_width=True, type="primary"):
+            if st.button("📋 Copiar para o Painel", width="stretch", type="primary"):
                 st.session_state.dashboard_query = edited_key.strip()
                 st.session_state.dashboard_query_source = "construtor"
                 st.success("✅ Chave copiada!")     
@@ -1593,6 +1594,10 @@ tab1, tab2, tab3, tab4 = st.tabs(["🤖 Delineascópio", "🔬 Interação", "�
 
 # ==================== ABA 1: DELINEASCÓPIO ====================
 with tab1:
+    # DEBUG - remover depois
+    import time
+    st.caption(f"🔄 Render: {time.time():.2f}")
+    
     st.title("🤖 Delinéia - Delineamento de Escopo Temático")
     st.caption("Sistema de apoio ao delineamento de projetos de pesquisa com IA e Bibliometria")
 
@@ -1736,7 +1741,7 @@ with tab1:
             submitted = st.form_submit_button(
                 "🚀 Gerar Relatório de Delineamento",
                 type="primary",
-                use_container_width=True
+                width="stretch"
             )
 
             if submitted:
@@ -1859,7 +1864,7 @@ with tab1:
             with col_grafo:
                 st.subheader("🕸️ Grafo de Coocorrências")
                 if r.get('visualization_path'):
-                    st.image(r['visualization_path'], use_container_width=True)
+                    st.image(r['visualization_path'], width="stretch")
                 else:
                     st.warning("⚠️ Visualização não disponível")
 
@@ -1877,7 +1882,7 @@ with tab1:
             """)
 
             # Botão avançar
-            if st.button("Continuar para Seleção de Conceitos ▶️", type="primary", use_container_width=True):
+            if st.button("Continuar para Seleção de Conceitos ▶️", type="primary", width="stretch"):
                 st.session_state.sub_step = 'b'
                 st.rerun()
 
@@ -1909,7 +1914,7 @@ with tab1:
             # Mostrar grafo como referência (menor)
             with st.expander("🕸️ Ver grafo novamente", expanded=False):
                 if r.get('visualization_path'):
-                    st.image(r['visualization_path'], use_container_width=True)
+                    st.image(r['visualization_path'], width="stretch")
 
             # Seleção de conceitos com checkboxes
             st.subheader("📋 Conceitos Identificados na Rede")
@@ -1945,7 +1950,7 @@ with tab1:
 
             with col2:
                 if num_selected >= 1:
-                    if st.button("Gerar Relatório de Delineamento ▶️", type="primary", use_container_width=True):
+                    if st.button("Gerar Relatório de Delineamento ▶️", type="primary", width="stretch"):
                         with st.spinner("🔄 Gerando relatório... (aguarde 1-2 minutos)"):
                             # Gerar conteúdo personalizado
                             from research_pipeline import GeminiQueryGenerator
@@ -1985,12 +1990,17 @@ with tab1:
                         st.session_state.sub_step = 'c'
                         st.rerun()
                 else:
-                    st.button("Gerar Interpretação Personalizada ▶️", disabled=True, use_container_width=True)
+                    st.button("Gerar Interpretação Personalizada ▶️", disabled=True, width="stretch")
 
             rodape_institucional()
 
         # ========== SUB-ETAPA 2c: INTERPRETAÇÃO PERSONALIZADA ==========
         elif sub_step == 'c':
+            @st.fragment
+            def render_relatorio():
+                selected = st.session_state.get('selected_concepts', [])
+                d = st.session_state.form_data
+                r = st.session_state.resultado
             selected = st.session_state.get('selected_concepts', [])
 
             st.header("📋 4. Relatório")
@@ -2038,7 +2048,7 @@ with tab1:
             # ========== SEÇÃO 3: GRAFO ==========
             st.subheader("🕸️ Grafo de Coocorrências")
             if r.get('visualization_path'):
-                st.image(r['visualization_path'], use_container_width=True)
+                st.image(r['visualization_path'], width="stretch")
 
             # ========== SEÇÃO 4: GLOSSÁRIO ==========
             st.subheader("📖 Glossário de Conceitos")
@@ -2080,7 +2090,7 @@ with tab1:
                             st.code(data.get('string', ''), language='text')
 
                         with col_btn:
-                            if st.button("📋 Copiar", key=f"copy_{key}", use_container_width=True):
+                            if st.button("📋 Copiar", key=f"copy_{key}", width="stretch"):
                                 st.session_state.dashboard_query = data.get('string', '')
                                 st.session_state.dashboard_query_source = "delineascópio"
                                 st.toast(f"✅ Chave de busca copiada para o Painel!")
@@ -2093,7 +2103,7 @@ with tab1:
                     with col_str:
                         st.code(search_string, language='text')
                     with col_btn:
-                        if st.button("📋 Copiar", key="copy_original", use_container_width=True):
+                        if st.button("📋 Copiar", key="copy_original", width="stretch"):
                             st.session_state.dashboard_query = search_string
                             st.session_state.dashboard_query_source = "delineascópio"
                             st.toast("✅ Chave de busca copiada para o Painel!")
@@ -2119,7 +2129,7 @@ with tab1:
                     st.code(search_string, language='text')
                 
                 with col_btn:
-                    if st.button("📋 Copiar", key="copy_transparency", use_container_width=True):
+                    if st.button("📋 Copiar", key="copy_transparency", width="stretch"):
                         st.session_state.dashboard_query = search_string
                         st.session_state.dashboard_query_source = "delineascópio"
                         st.toast("✅ Chave de busca copiada para o Painel!")
@@ -2166,14 +2176,14 @@ with tab1:
                         pdf_bytes,
                         f"delineamento_{d['nome'].replace(' ', '_')}.pdf",
                         "application/pdf",
-                        use_container_width=True,
+                        width="stretch",
                         type="primary"
                     )
                 except Exception as e:
                     st.error(f"Erro ao gerar PDF: {str(e)}")
 
             with col2:
-                if st.button("📝 Avaliar Sistema", type="primary", use_container_width=True):
+                if st.button("📝 Avaliar Sistema", type="primary", width="stretch"):
                     st.session_state.step = 3
                     st.rerun()
 
@@ -2192,7 +2202,7 @@ with tab1:
             """)
 
             # Botão novo projeto
-            if st.button("🔄 Iniciar Novo Delineamento", use_container_width=True):
+            if st.button("🔄 Iniciar Novo Delineamento", width="stretch"):
                 st.session_state.step = 1
                 st.session_state.resultado = None
                 st.session_state.form_data = {}
@@ -2210,7 +2220,9 @@ with tab1:
 
             rodape_institucional()
 
-# ========== ETAPA 3: AVALIAÇÃO EXPANDIDA ==========
+            render_relatorio()
+
+    # ========== ETAPA 3: AVALIAÇÃO EXPANDIDA ==========
     elif st.session_state.step == 3:
         st.header("⭐ 5. Avaliação")
         st.caption("Suas respostas são fundamentais para aprimorarmos o sistema!")
@@ -2578,7 +2590,7 @@ Para prosseguir com o preenchimento deste formulário, assinale a alternativa ma
             submitted = st.form_submit_button(
                 "📤 Enviar Avaliação",
                 type="primary",
-                use_container_width=True
+                width="stretch"
             )
 
             if submitted:
@@ -2692,13 +2704,13 @@ Para prosseguir com o preenchimento deste formulário, assinale a alternativa ma
                         data=pdf_aval,
                         file_name=nome_arquivo,
                         mime="application/pdf",
-                        use_container_width=True
+                        width="stretch"
                     )
                 except Exception as e:
                     st.warning(f"PDF indisponível: {e}")
             
             with col_resgatar:
-                if st.button("🏆 Resgatar Conquistas", type="primary", use_container_width=True):
+                if st.button("🏆 Resgatar Conquistas", type="primary", width="stretch"):
                     st.session_state.step = 4
                     st.session_state.mostrar_resumo_final = False
                     st.rerun()
@@ -2795,7 +2807,7 @@ Para prosseguir com o preenchimento deste formulário, assinale a alternativa ma
         col1, col2, col3 = st.columns([1, 2, 1])
 
         with col2:
-            if st.button("📜 Leia o prólogo da tese", use_container_width=True):
+            if st.button("📜 Leia o prólogo da tese", width="stretch"):
                 st.session_state.open_prologo = True
                 st.info("""
                 **O Delineascópio**
@@ -2901,7 +2913,7 @@ Que sangre o dedo, mas que estanque o vício.
                         
 """)
 
-        if st.button("🔄 Iniciar Novo Delineamento", use_container_width=True):
+        if st.button("🔄 Iniciar Novo Delineamento", width="stretch"):
             st.session_state.step = 1
             st.session_state.resultado = None
             st.session_state.form_data = {}
@@ -2971,7 +2983,7 @@ with tab3:
                 )
 
             # Botão de Ação
-            if st.button("🔄 Comparar Delineamentos", type="primary", use_container_width=True):
+            if st.button("🔄 Comparar Delineamentos", type="primary", width="stretch"):
                 if g1_title == g2_title:
                     st.warning("⚠️ Selecione dois delineamentos distintos para ver as diferenças.")
                 else:
@@ -3109,7 +3121,7 @@ with tab3:
                             graph_nov += "}"
                             
                             try:
-                                st.graphviz_chart(graph_nov, use_container_width=True)
+                                st.graphviz_chart(graph_nov, width="stretch")
                                 st.caption(f"Top {total_nov} conceitos de {len(novos)} novidades, por relevância.")
                             except:
                                 st.success(", ".join(sorted(novos)[:50]))
@@ -3182,7 +3194,7 @@ with tab3:
                             graph_ant += "}"
                             
                             try:
-                                st.graphviz_chart(graph_ant, use_container_width=True)
+                                st.graphviz_chart(graph_ant, width="stretch")
                                 st.caption(f"Top {total_ant} conceitos de {len(antigos)} removidos, por relevância.")
                             except:
                                 st.error(", ".join(sorted(antigos)[:50]))
@@ -3276,7 +3288,7 @@ with tab3:
                                 graph_code += "}"
                                 
                                 try:
-                                    st.graphviz_chart(graph_code, use_container_width=True)
+                                    st.graphviz_chart(graph_code, width="stretch")
                                     st.caption(f"Exibindo top {total_mostrado} conceitos (de {len(comuns)}) por relevância. OpenAlex Level 0-5.")
                                 except Exception as e:
                                     st.warning("⚠️ Não foi possível renderizar o mapa.")
@@ -3341,13 +3353,13 @@ with tab3:
                                     data=pdf_bytes,
                                     file_name=nome_arquivo,
                                     mime="application/pdf",
-                                    use_container_width=True
+                                    width="stretch"
                                 )
                             except Exception as e:
                                 st.warning(f"PDF indisponível: {e}")
                         
                         with col_novo:
-                            if st.button("🔄 Novo Delineamento", key="btn_novo_delin", use_container_width=True, type="primary"):
+                            if st.button("🔄 Novo Delineamento", key="btn_novo_delin", width="stretch", type="primary"):
                                 # Limpa dados e volta ao formulário
                                 st.session_state.resultado = None
                                 st.session_state.form_data = {}
@@ -3357,12 +3369,12 @@ with tab3:
                                 st.rerun()
                         
                         with col_limpar:
-                            if st.button("🔁 Refazer", key="btn_limpar_analise", use_container_width=True):
+                            if st.button("🔁 Refazer", key="btn_limpar_analise", width="stretch"):
                                 del st.session_state['ultima_analise_historico']
                                 st.rerun()
                     else:
                         # Mostrar botão para gerar
-                        if st.button("✨ Gerar Análise Pedagógica da Mudança", type="primary", use_container_width=True, key="btn_analise_ia_tab3"):
+                        if st.button("✨ Gerar Análise Pedagógica da Mudança", type="primary", width="stretch", key="btn_analise_ia_tab3"):
                             # Preparação de variáveis básicas
                             nome_aluno = st.session_state.form_data.get('nome', 'Pesquisador').split()[0]
                             genero_aluno = st.session_state.form_data.get('genero', 'Neutro')
@@ -3447,7 +3459,7 @@ with tab4:
         st.divider()
 
         # Botão de buscar
-        if st.button("🔍 Buscar", type="primary", use_container_width=True):
+        if st.button("🔍 Buscar", type="primary", width="stretch"):
             limpar_memoria()
             with st.spinner("🔄 Em processamento... confira no Painel   "):
                 try:
@@ -3532,7 +3544,7 @@ with tab4:
                 # Exibe Tabela Interativa
                 st.dataframe(
                     df_display,
-                    use_container_width=True,
+                    width="stretch",
                     height=400,
                     column_config={
                         "DOI/URL": st.column_config.LinkColumn(
@@ -3672,7 +3684,7 @@ with tab4:
                     plot_bgcolor='white'
                 )
                 
-                st.plotly_chart(fig_cloud, use_container_width=True)
+                st.plotly_chart(fig_cloud, width="stretch")
             else:
                 st.info("Sem dados suficientes para gerar nuvem de palavras")
             
@@ -3703,7 +3715,7 @@ with tab4:
                 yaxis={'categoryorder': 'total ascending'}
             )
 
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
             # Análise de Zipf
             @st.cache_data
@@ -3835,7 +3847,7 @@ with tab4:
                     hovermode='closest'
                 )
 
-                st.plotly_chart(fig_zipf, use_container_width=True)
+                st.plotly_chart(fig_zipf, width="stretch")
 
                 # Explicação adicional
                 with st.expander("ℹ️ Como interpretar"):
@@ -3871,7 +3883,7 @@ with tab4:
                 title="Distribuição de Conceitos por Artigo"
             )
 
-            st.plotly_chart(fig2, use_container_width=True)
+            st.plotly_chart(fig2, width="stretch")
 
             if len(concepts_per_article) > 0:
                 col1, col2, col3 = st.columns(3)
@@ -3940,7 +3952,7 @@ with tab4:
             )
             fig.update_layout(height=600)
 
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
             st.divider()
 
@@ -3969,7 +3981,7 @@ with tab4:
             )
             fig_salton.update_layout(height=600)
             
-            st.plotly_chart(fig_salton, use_container_width=True)
+            st.plotly_chart(fig_salton, width="stretch")
             
             # Botão para baixar matriz completa
             with st.expander("💾 Baixar Matriz Completa de Salton"):
@@ -3990,7 +4002,7 @@ with tab4:
                     data=csv_salton,
                     file_name="matriz_salton_completa.csv",
                     mime="text/csv",
-                    use_container_width=True
+                    width="stretch"
                 )
                 
                 st.metric("Dimensão da matriz", f"{len(all_concepts)} x {len(all_concepts)}")
@@ -4007,7 +4019,7 @@ with tab4:
                 title="Distribuição das Frequências"
             )
 
-            st.plotly_chart(fig3, use_container_width=True)
+            st.plotly_chart(fig3, width="stretch")
 
         # ========== SUB-ABA 4: GRAFO ==========
         with t4:
@@ -4061,7 +4073,7 @@ with tab4:
                     yaxis={'categoryorder': 'total ascending'}
                 )
 
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
                 st.divider()
 
@@ -4149,7 +4161,7 @@ with tab4:
                         )
                     )
 
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
 
                 else:
                     st.warning("⚠️ Grafo muito grande (>100 nós). Use filtros para reduzir o tamanho.")
@@ -4356,7 +4368,7 @@ with tab4:
                                     bgcolor="rgba(255,255,255,0.7)"
                                 )
 
-                                st.plotly_chart(fig_mapa, use_container_width=True)
+                                st.plotly_chart(fig_mapa, width="stretch")
 
                                 # ---------- Detalhamento dos clusters ----------
                                 st.markdown("### 📋 Detalhamento dos Clusters")
@@ -4470,7 +4482,7 @@ with tab4:
                         title="Distribuição de Graus"
                     )
 
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
 
             with col2:
                 if len(G.edges()) > 0:
@@ -4483,7 +4495,7 @@ with tab4:
                         title="Distribuição dos Pesos das Arestas"
                     )
 
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
 
         # ========== SUB-ABA 7: EXPORTAÇÃO (ATUALIZADA) ==========
         with t7:
@@ -4501,7 +4513,7 @@ with tab4:
                     "articles.json",
                     "application/json",
                     help="Dados brutos completos (ideal para mineração).",
-                    use_container_width=True
+                    width="stretch"
                 )
 
                 st.download_button(
@@ -4509,7 +4521,7 @@ with tab4:
                     json.dumps(concepts_lists, indent=2, ensure_ascii=False),
                     "concepts.json",
                     "application/json",
-                    use_container_width=True
+                    width="stretch"
                 )
 
                 cooc_json = [
@@ -4522,7 +4534,7 @@ with tab4:
                     json.dumps(cooc_json, indent=2, ensure_ascii=False),
                     "cooccurrences.json",
                     "application/json",
-                    use_container_width=True
+                    width="stretch"
                 )
 
             # --- COLUNA 2: CSV ---
@@ -4543,7 +4555,7 @@ with tab4:
                     df_articles_export.to_csv(index=False),
                     "articles.csv",
                     "text/csv",
-                    use_container_width=True
+                    width="stretch"
                 )
 
                 df_concepts = pd.DataFrame(
@@ -4556,7 +4568,7 @@ with tab4:
                     df_concepts.to_csv(index=False),
                     "concepts.csv",
                     "text/csv",
-                    use_container_width=True
+                    width="stretch"
                 )
 
                 edges_list = [[u, v, d['weight']] for u, v, d in G.edges(data=True)]
@@ -4567,7 +4579,7 @@ with tab4:
                     df_cooc.to_csv(index=False),
                     "cooccurrences.csv",
                     "text/csv",
-                    use_container_width=True
+                    width="stretch"
                 )
 
             # --- COLUNA 3: OUTROS FORMATOS (GraphML e .net) ---
@@ -4589,7 +4601,7 @@ with tab4:
                         "graph.graphml",
                         "application/xml",
                         help="Para Gephi ou Cytoscape",
-                        use_container_width=True
+                        width="stretch"
                     )
                 except Exception as e:
                     st.error(f"Erro GraphML: {e}")
@@ -4604,7 +4616,7 @@ with tab4:
                         "graph.net", 
                         "text/plain",
                         help="Para VOSviewer ou Pajek",
-                        use_container_width=True
+                        width="stretch"
                     )
                 except Exception as e:
                     st.error(f"Erro Pajek: {e}")
@@ -4627,7 +4639,7 @@ with tab4:
                         file_name="delineia_resultados.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         help="Planilha formatada com conceitos, score e level.",
-                        use_container_width=True
+                        width="stretch"
                     )
             except Exception as e:
                 st.error(f"Erro Excel: {e}")
@@ -4642,7 +4654,7 @@ with tab4:
                         file_name="delineia_referencias.bib",
                         mime="text/plain",
                         help="Para LaTeX/Overleaf.",
-                        use_container_width=True
+                        width="stretch"
                     )
             except Exception as e:
                 st.error(f"Erro BibTeX: {e}")
@@ -4657,7 +4669,7 @@ with tab4:
                         file_name="delineia_referencias.ris",
                         mime="application/x-research-info-systems",
                         help="Para Zotero, Mendeley, EndNote.",
-                        use_container_width=True
+                        width="stretch"
                     )
             except Exception as e:
                 st.error(f"Erro RIS: {e}")
@@ -4665,7 +4677,7 @@ with tab4:
             # --- PACOTE ZIP ---
             st.subheader("📦 Pacote Completo")
 
-            if st.button("🎁 Gerar ZIP com Todos os Dados", use_container_width=True):
+            if st.button("🎁 Gerar ZIP com Todos os Dados", width="stretch"):
                 with st.spinner("📦 Gerando arquivo ZIP..."):
                     import zipfile
                     from io import BytesIO
@@ -4745,7 +4757,7 @@ Total de Artigos: {len(articles)}
                         zip_buffer.getvalue(),
                         "painel_completo.zip",
                         "application/zip",
-                        use_container_width=True
+                        width="stretch"
                     )
 
     else:
