@@ -1847,7 +1847,7 @@ with tab1:
                 st.rerun()
 
             # Informações do projeto (resumido)
-            with st.expander("📋 Dados do Projeto", expanded=False, key="expander_dados_projeto"):
+            with st.expander("📋 Dados do Projeto", expanded=False):
                 st.write(f"**Tema:** {d['tema']}")
                 st.write(f"**Questão:** {d['questao']}")
                 st.write(f"**Palavras-chave:** {d['palavras_chave']}")
@@ -1912,7 +1912,7 @@ with tab1:
             """)
 
             # Mostrar grafo como referência (menor)
-            with st.expander("🕸️ Ver grafo novamente", expanded=False, key="expander_grafo_selecao"):
+            with st.expander("🕸️ Ver grafo novamente", expanded=False):
                 if r.get('visualization_path'):
                     st.image(r['visualization_path'], width="stretch")
 
