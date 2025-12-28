@@ -8,7 +8,7 @@ st.set_page_config(
     page_title="Delinéia",
     page_icon="🤖",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 # ==================== CSS CUSTOMIZADO (BOTÕES VERDES) ====================
@@ -1926,8 +1926,9 @@ with tab1:
                     if st.checkbox(concept, value=default_value, key=f"concept_{i}"):
                         selected.append(concept)
 
-            # Atualizar session_state
-            st.session_state.selected_concepts = selected
+            # Atualizar session_state apenas se houver mudança
+            if selected != st.session_state.get('selected_concepts', []):
+                st.session_state.selected_concepts = selected
 
             # Contador
             st.divider()
@@ -2050,8 +2051,8 @@ with tab1:
             suggested_kws = st.session_state.get('suggested_keywords', [])
 
             if suggested_kws:
-                for kw in suggested_kws:
-                    with st.container(border=True):
+                for idx, kw in enumerate(suggested_kws):
+                    with st.container(border=True, key=f"kw_container_{idx}"):
                         col1, col2 = st.columns([1, 3])
                         with col1:
                             st.markdown(f"**{kw.get('term_en', 'N/A')}**")
@@ -2069,7 +2070,7 @@ with tab1:
 
             if suggested_strings:
                 for key, data in suggested_strings.items():
-                    with st.container(border=True):
+                    with st.container(border=True, key=f"string_container_{key}"):
                         st.markdown(f"**{data.get('titulo', key)}**")
                         st.caption(data.get('descricao', ''))
 
@@ -2139,8 +2140,19 @@ with tab1:
             with col1:
                 # PDF disponível após completar a trilha
                 try:
-                    # Gerar PDF com todos os dados da trilha
-                    pdf_bytes = generate_pdf_report(
+                    # Gerar PDF apenas uma vez (cachear no session_state)
+                    if 'cached_pdf_bytes' not in st.session_state or st.session_state.get('pdf_needs_refresh', False):
+                        st.session_state.cached_pdf_bytes = generate_pdf_report(
+                            form_data=d,
+                            result=r,
+                            selected_concepts=selected,
+                            suggested_keywords=st.session_state.get('suggested_keywords', []),
+                            suggested_strings=st.session_state.get('suggested_strings', {}),
+                            badges=st.session_state.get('badges', [])
+                        )
+                        st.session_state.pdf_needs_refresh = False
+                    
+                    pdf_bytes = st.session_state.cached_pdf_bytes(
                         form_data=d,
                         result=r,
                         selected_concepts=selected,
@@ -2148,6 +2160,7 @@ with tab1:
                         suggested_strings=st.session_state.get('suggested_strings', {}),
                         badges=st.session_state.get('badges', [])
                     )
+                    
                     st.download_button(
                         "📥 Baixar PDF Completo",
                         pdf_bytes,
