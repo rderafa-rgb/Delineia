@@ -1847,7 +1847,7 @@ with tab1:
                 st.rerun()
 
             # Informações do projeto (resumido)
-            with st.expander("📋 Dados do Projeto", expanded=False):
+            with st.expander("📋 Dados do Projeto", expanded=False, key="expander_dados_projeto"):
                 st.write(f"**Tema:** {d['tema']}")
                 st.write(f"**Questão:** {d['questao']}")
                 st.write(f"**Palavras-chave:** {d['palavras_chave']}")
@@ -1912,7 +1912,7 @@ with tab1:
             """)
 
             # Mostrar grafo como referência (menor)
-            with st.expander("🕸️ Ver grafo novamente", expanded=False):
+            with st.expander("🕸️ Ver grafo novamente", expanded=False, key="expander_grafo_selecao"):
                 if r.get('visualization_path'):
                     st.image(r['visualization_path'], width="stretch")
 
@@ -2151,7 +2151,8 @@ with tab1:
                 # PDF disponível após completar a trilha
                 try:
                     # Gerar PDF apenas uma vez (cachear no session_state)
-                    if 'cached_pdf_bytes' not in st.session_state or st.session_state.get('pdf_needs_refresh', False):
+                    cache_key = f"pdf_{d.get('nome', '')}_{d.get('timestamp', '')}"
+                    if st.session_state.get('pdf_cache_key') != cache_key:
                         st.session_state.cached_pdf_bytes = generate_pdf_report(
                             form_data=d,
                             result=r,
@@ -2160,23 +2161,16 @@ with tab1:
                             suggested_strings=st.session_state.get('suggested_strings', {}),
                             badges=st.session_state.get('badges', [])
                         )
-                        st.session_state.pdf_needs_refresh = False
+                        st.session_state.pdf_cache_key = cache_key
                     
-                    pdf_bytes = st.session_state.cached_pdf_bytes(
-                        form_data=d,
-                        result=r,
-                        selected_concepts=selected,
-                        suggested_keywords=st.session_state.get('suggested_keywords', []),
-                        suggested_strings=st.session_state.get('suggested_strings', {}),
-                        badges=st.session_state.get('badges', [])
-                    )
+                    pdf_bytes = st.session_state.cached_pdf_bytes
                     
                     st.download_button(
                         "📥 Baixar PDF Completo",
-                        pdf_bytes,
-                        f"delineamento_{d['nome'].replace(' ', '_')}.pdf",
-                        "application/pdf",
-                        width="stretch",
+                        data=pdf_bytes,
+                        file_name=f"delineamento_{d['nome'].replace(' ', '_')}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True,
                         type="primary"
                     )
                 except Exception as e:
