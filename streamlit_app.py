@@ -1847,10 +1847,9 @@ with tab1:
                 st.rerun()
 
             # Informações do projeto (resumido)
-            with st.expander("📋 Dados do Projeto", expanded=False):
-                st.write(f"**Tema:** {d['tema']}")
-                st.write(f"**Questão:** {d['questao']}")
-                st.write(f"**Palavras-chave:** {d['palavras_chave']}")
+            with st.container(border=True):
+                st.caption("📋 **Dados do Projeto**")
+                st.write(f"**Tema:** {d['tema']} | **Questão de pesquisa:** {d['questao']} | **Palavras-chave:** {d['palavras_chave']}")
 
             # Métricas
             col1, col2, col3 = st.columns(3)
@@ -1912,7 +1911,8 @@ with tab1:
             """)
 
             # Mostrar grafo como referência (menor)
-            with st.expander("🕸️ Ver grafo novamente", expanded=False):
+            st.caption("🕸️ **Grafo de Referência** (role para ver)")
+            with st.container(height=250, border=True):
                 if r.get('visualization_path'):
                     st.image(r['visualization_path'], width="stretch")
 
@@ -2052,7 +2052,8 @@ with tab1:
 
             # ========== SEÇÃO 4: GLOSSÁRIO ==========
             st.subheader("📖 Glossário de Conceitos")
-            with st.expander("Ver glossário completo", expanded=False):
+            st.caption("Role para ver todos os conceitos")
+            with st.container(height=300, border=True):
                 st.markdown(r.get('glossary', '⚠️ Glossário não disponível'))
 
             # ========== SEÇÃO 5: SUGESTÕES DE PALAVRAS-CHAVE ==========
