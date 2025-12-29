@@ -231,7 +231,6 @@ def search_openalex_cached(query, limit, min_score, min_level):
 
 # ==================== SIDEBAR FIXO ====================
 with st.sidebar:
-    st.write("Teste")
     
     logo_path = "assets/delineia_logo.png"
     img_base64 = get_base64_image(logo_path)
