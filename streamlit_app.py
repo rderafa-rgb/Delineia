@@ -8,7 +8,7 @@ import base64
 st.set_page_config(
     page_title="Delinéia",
     page_icon="🤖",
-    layout="centered",
+    layout="wide",
     initial_sidebar_state="expanded"
 )
 
@@ -69,22 +69,25 @@ st.markdown("""
         color: white !important;
     }
             
-    /* CORREÇÃO: Estabilizar transições do sidebar */
+    /* CORREÇÃO: Estabilizar layout wide */
     [data-testid="stSidebar"] {
-        transition: none !important;
-    }
-    
-    [data-testid="stSidebarContent"] {
         transition: none !important;
     }
     
     section[data-testid="stMain"] {
         transition: none !important;
+        width: 100% !important;
+        flex: 1 1 auto !important;
     }
     
-    /* Forçar largura mínima do main para evitar recálculo */
     section[data-testid="stMain"] > div {
-        min-width: 0;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    .stMainBlockContainer {
+        max-width: 100% !important;
+        width: 100% !important;
     }        
 </style>
 """, unsafe_allow_html=True)
