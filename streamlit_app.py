@@ -338,7 +338,7 @@ with st.sidebar:
 
     st.markdown("---") # Linha divisória
 
-    # LICENÇA CREATIVE COMMONS (Formatada em HTML)
+    # LICENÇA CREATIVE COMMONS (sem imagens externas para evitar tremores)
     html_cc = """
     <div style="text-align: center; font-size: 0.85em; color: #666;">
         <p>
@@ -346,14 +346,10 @@ with st.sidebar:
             © 2025 by 
             <a href="https://github.com/rderafa-rgb" target="_blank" style="text-decoration:none; color:#3366cc;">Rafael Antunes</a>
         </p>
-        <p>Licensed under: <br>
-        <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" style="text-decoration:none; color:#3366cc;">CC BY-NC-ND 4.0 International</a>
-        </p>
         <p>
-            <img src="https://mirrors.creativecommons.org/presskit/icons/cc.svg" style="height:22px; margin:2px;">
-            <img src="https://mirrors.creativecommons.org/presskit/icons/by.svg" style="height:22px; margin:2px;">
-            <img src="https://mirrors.creativecommons.org/presskit/icons/nc.svg" style="height:22px; margin:2px;">
-            <img src="https://mirrors.creativecommons.org/presskit/icons/nd.svg" style="height:22px; margin:2px;">
+            <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" style="text-decoration:none; color:#3366cc;">
+                CC BY-NC-ND 4.0
+            </a>
         </p>
     </div>
     """
