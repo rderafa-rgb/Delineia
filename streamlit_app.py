@@ -27,6 +27,15 @@ st.markdown("""
         font-weight: bold;
     }
     
+    /* CORREÇÃO: Forçar quebra de palavras longas no sidebar */
+    [data-testid="stSidebar"] .stMarkdown,
+    [data-testid="stSidebar"] .stExpander,
+    [data-testid="stSidebar"] a {
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
+        word-break: break-word !important;
+    }
+
     /* Botões primários em verde claro */
     .stButton > button[kind="primary"] {
         background-color: #10b981 !important;
@@ -1910,11 +1919,10 @@ with tab1:
             *Selecione pelo menos 1 conceito para continuar.*
             """)
 
-            # Mostrar grafo como referência (menor)
-            st.caption("🕸️ **Grafo de Referência** (role para ver)")
-            with st.container(height=250, border=True):
-                if r.get('visualization_path'):
-                    st.image(r['visualization_path'], width="stretch")
+            # Mostrar grafo como referência (apresentação direta como em 2c)
+            st.subheader("🕸️ Grafo de Referência")
+            if r.get('visualization_path'):
+                st.image(r['visualization_path'], width="stretch")
 
             # Seleção de conceitos com checkboxes
             st.subheader("📋 Conceitos Identificados na Rede")
@@ -1996,11 +2004,6 @@ with tab1:
 
         # ========== SUB-ETAPA 2c: INTERPRETAÇÃO PERSONALIZADA ==========
         elif sub_step == 'c':
-            @st.fragment
-            def render_relatorio():
-                selected = st.session_state.get('selected_concepts', [])
-                d = st.session_state.form_data
-                r = st.session_state.resultado
             selected = st.session_state.get('selected_concepts', [])
 
             st.header("📋 4. Relatório")
@@ -2215,8 +2218,6 @@ with tab1:
 
             rodape_institucional()
 
-            render_relatorio()
-
     # ========== ETAPA 3: AVALIAÇÃO EXPANDIDA ==========
     elif st.session_state.step == 3:
         st.header("⭐ 5. Avaliação")
@@ -2257,6 +2258,14 @@ Para prosseguir com o preenchimento deste formulário, assinale a alternativa ma
             "📝 Li, mas **NÃO CONCORDO** em participar desta pesquisa.",
             key="tcle_rejeita"
         )
+
+        # Validação de exclusão mútua do TCLE
+        if tcle_aceite and tcle_rejeita:
+            st.warning("⚠️ Por favor, selecione apenas uma opção: CONCORDO ou NÃO CONCORDO.")
+        elif tcle_aceite:
+            st.success("✅ Obrigado por concordar em participar!")
+        elif tcle_rejeita:
+            st.info("📋 Entendido. Você ainda pode explorar o sistema, mas suas respostas não serão coletadas.")
 
         with st.form("formulario_avaliacao"):
 
@@ -2573,11 +2582,12 @@ Para prosseguir com o preenchimento deste formulário, assinale a alternativa ma
                 help="Você não será considerado em convites de continuidade da pesquisa."
             )
 
-            if aceite_continuidade:
+            if aceite_continuidade and not rejeita_continuidade:
                 st.success("🎉 Obrigado por aceitar continuar conosco! Você receberá um e-mail com mais informações em breve.")
-
-            if rejeita_continuidade:
-                st.success("🚫 Você não será considerado em convites de continuidade da pesquisa.")
+            elif rejeita_continuidade and not aceite_continuidade:
+                st.info("🚫 Você não será considerado em convites de continuidade da pesquisa.")
+            elif aceite_continuidade and rejeita_continuidade:
+                st.warning("⚠️ Por favor, selecione apenas uma opção: CONCORDO ou NÃO CONCORDO.")
 
             st.divider()
 
@@ -3431,9 +3441,11 @@ with tab4:
         st.divider()
         st.subheader("🔧 Filtros")
 
-        # Opção de sincronizar configurações
-        with st.expander("⚙️ Configurações Avançadas"):
-            sync_config = st.checkbox("Usar configuração padrão", value=True)
+        # CORREÇÃO: Substituir expander aninhado por checkbox toggle
+        mostrar_config_avancada = st.checkbox("⚙️ Configurações Avançadas", value=False)
+        
+        if mostrar_config_avancada:
+            sync_config = st.checkbox("Usar configuração padrão", value=True, key="sync_config_painel")
 
             if sync_config:
                 st.info("**Configuração Padrão:**\n- Limite: 500 artigos\n- Score mínimo: 0.35\n- Level mínimo: 0")
@@ -3447,6 +3459,11 @@ with tab4:
                     help="Relevância mínima do conceito (0-1). Valores maiores = conceitos mais relevantes")
                 min_level = st.slider("Level mínimo:", 0, 5, 0, 1,
                     help="Nível hierárquico do conceito (0-5). 0 = geral, 5 = muito específico")
+        else:
+            # Valores padrão quando configuração avançada não está visível
+            limit = 500
+            min_score = 0.35
+            min_level = 0
 
         min_cooc = st.slider("Coocorrência mínima:", 1, 10, 2, 1,
             help="Frequência mínima de coocorrência para formar aresta no grafo")
@@ -3492,15 +3509,16 @@ with tab4:
                         'graph': G
                     }
 
-                    # Resumo no Expander
-                    with st.expander("📋 Detalhes da Busca", expanded=False):
-                        st.write(f"**Chave de busca:** `{query}`")
-                        st.write(f"**Limite:** {limit}")
-                        st.write(f"**Coocorrência mínima:** {min_cooc}")
-                        st.write(f"**Filtros:** Score ≥ {min_score} | Level ≥ {min_level}")
-                        st.write(f"**Artigos recuperados:** {len(raw_articles)}")
-                        st.write(f"**Conceitos extraídos:** {len(filtered_concepts_lists)} listas válidas")
-                        st.write(f"**Nós no grafo:** {len(G.nodes())}")
+                    # CORREÇÃO: Substituir expander aninhado por container simples
+                    with st.container(border=True):
+                        st.caption("📋 **Detalhes da Busca**")
+                        col_d1, col_d2 = st.columns(2)
+                        with col_d1:
+                            st.write(f"**Chave:** `{query}`")
+                            st.write(f"**Artigos:** {len(raw_articles)}")
+                        with col_d2:
+                            st.write(f"**Filtros:** Score ≥ {min_score} | Level ≥ {min_level}")
+                            st.write(f"**Nós no grafo:** {len(G.nodes())}")
 
                     st.success(f"✅ Análise concluída: {len(raw_articles)} artigos | {len(G.nodes())} nós no grafo")
 
