@@ -9,7 +9,7 @@ st.set_page_config(
     page_title="Delinéia",
     page_icon="🤖",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 # ==================== CSS CUSTOMIZADO (BOTÕES VERDES) ====================
@@ -67,28 +67,7 @@ st.markdown("""
     .stDownloadButton > button[kind="primary"] {
         background-color: #10b981 !important;
         color: white !important;
-    }
-            
-    /* CORREÇÃO: Estabilizar layout wide */
-    [data-testid="stSidebar"] {
-        transition: none !important;
-    }
-    
-    section[data-testid="stMain"] {
-        transition: none !important;
-        width: 100% !important;
-        flex: 1 1 auto !important;
-    }
-    
-    section[data-testid="stMain"] > div {
-        width: 100% !important;
-        max-width: 100% !important;
-    }
-    
-    .stMainBlockContainer {
-        max-width: 100% !important;
-        width: 100% !important;
-    }        
+    }  
 </style>
 """, unsafe_allow_html=True)
 
@@ -240,7 +219,8 @@ def render_etapa_2a(d, r):
     st.header("🕸️ 2. Grafo de conceitos")
     st.caption("Etapa 2: Explore o grafo e o glossário antes de selecionar os conceitos")
 
-    with st.expander("📋 Dados do Projeto", expanded=False):
+    with st.container(border=True):
+        st.caption("📋 **Dados do Projeto**")
         st.write(f"**🎯 Tema:** {d['tema']}")
         st.write(f"**❓ Questão:** {d['questao']}")
         st.write(f"**🔑 Palavras-chave:** {d['palavras_chave']}")
@@ -370,152 +350,152 @@ def render_etapa_2c(d, r, selected):
                   f"{graph_stats.get('edges', 0)} coocorrências")
 
 # ==================== SIDEBAR FIXO ====================
-#with st.sidebar:
+with st.sidebar:
     
-#    logo_path = "assets/delineia_logo.png"
-#    img_base64 = get_base64_image(logo_path)
+    logo_path = "assets/delineia_logo.png"
+    img_base64 = get_base64_image(logo_path)
     
-#    if img_base64:
-#        html_logo = f"""
-#        <div style="text-align: center; margin-bottom: 20px;">
-#            <img src="data:image/png;base64,{img_base64}" style="width: 180px; max-width: 100%;">
-#            <h1 style="font-size: 24px; margin-top: 10px; margin-bottom: 0;">📋 O que é Delinéia?</h1>
-#        </div>
-#        """
-#        st.markdown(html_logo, unsafe_allow_html=True)
-#    else:
-#        # Fallback se a imagem não for encontrada 
+    if img_base64:
+        html_logo = f"""
+        <div style="text-align: center; margin-bottom: 20px;">
+            <img src="data:image/png;base64,{img_base64}" style="width: 180px; max-width: 100%;">
+            <h1 style="font-size: 24px; margin-top: 10px; margin-bottom: 0;">📋 O que é Delinéia?</h1>
+        </div>
+        """
+        st.markdown(html_logo, unsafe_allow_html=True)
+    else:
+        # Fallback se a imagem não for encontrada 
         
-#        st.title("📋 O que é Delinéia?")
+        st.title("📋 O que é Delinéia?")
     
-#    st.markdown("---")
+    st.markdown("---")
   
-#    with st.expander("Sobre o Delinéia"):
-#        st.markdown("""
-#           O Delinéia é um sistema de apoio ao delineamento do escopo temático de projetos de pesquisa no ensino superior e foi desenvolvido como parte de uma tese de doutorado em Informática na Educação. O sistema combina Inteligência Artificial Generativa (Gemini Pro) com análise bibliométrica de coocorrência de palavras a partir de buscas contextuais na base OpenAlex. A proposição visa auxiliar estudantes de graduação e de pós-graduação no esboço de seus projetos de pesquisa.
-#            """)
+    with st.expander("Sobre o Delinéia"):
+        st.markdown("""
+           O Delinéia é um sistema de apoio ao delineamento do escopo temático de projetos de pesquisa no ensino superior e foi desenvolvido como parte de uma tese de doutorado em Informática na Educação. O sistema combina Inteligência Artificial Generativa (Gemini Pro) com análise bibliométrica de coocorrência de palavras a partir de buscas contextuais na base OpenAlex. A proposição visa auxiliar estudantes de graduação e de pós-graduação no esboço de seus projetos de pesquisa.
+            """)
     
-#    with st.expander("Abordagem Interdisciplinar"):
-#        st.markdown("""
-#            Este projeto situa-se na colaboração entre os campos da Informática na Educação e da Ciência da Informação, explorando como tecnologias de IA podem apoiar processos de aprendizagem científica no ensino superior.        
-#        """)
+    with st.expander("Abordagem Interdisciplinar"):
+        st.markdown("""
+            Este projeto situa-se na colaboração entre os campos da Informática na Educação e da Ciência da Informação, explorando como tecnologias de IA podem apoiar processos de aprendizagem científica no ensino superior.        
+        """)
  
-#    with st.expander("Autoria"):
-#        st.markdown("""
-#            **Desenvolvimento:** Rafael Antunes dos Santos  
+    with st.expander("Autoria"):
+        st.markdown("""
+            **Desenvolvimento:** Rafael Antunes dos Santos  
             
-#            **Instituição:**             
-#            - Universidade Federal do Rio Grande do Sul (UFRGS) 
-#            - Centro Interdisciplinar de Novas Tecnologias na Educação (Cinted)
-#            - Programa de Pós-Graduação em Informática na Educação (PPGIE)
+            **Instituição:**             
+            - Universidade Federal do Rio Grande do Sul (UFRGS) 
+            - Centro Interdisciplinar de Novas Tecnologias na Educação (Cinted)
+            - Programa de Pós-Graduação em Informática na Educação (PPGIE)
               
-#            **Nível:** Doutorado
+            **Nível:** Doutorado
                       
-#            **Orientador:** Prof. Dr. Eliseo Berni Reategui  
+            **Orientador:** Prof. Dr. Eliseo Berni Reategui  
         
-#            **Formação Anterior:**
-#            - Mestre em Comunicação e Informação pela UFRGS (PPGCOM)  
-#            - Bacharel em Biblioteconomia pela UFRGS (DCI/FABICO) - CRB10/1898
+            **Formação Anterior:**
+            - Mestre em Comunicação e Informação pela UFRGS (PPGCOM)  
+            - Bacharel em Biblioteconomia pela UFRGS (DCI/FABICO) - CRB10/1898
         
-#            **Lattes:** [http://lattes.cnpq.br/5228660998907867](http://lattes.cnpq.br/5228660998907867)
+            **Lattes:** [http://lattes.cnpq.br/5228660998907867](http://lattes.cnpq.br/5228660998907867)
 
-#            **ORCID:** https://orcid.org/0000-0002-1529-9063 
+            **ORCID:** https://orcid.org/0000-0002-1529-9063 
             
-#            **Contato:**
-#            📧 rafael.antunes@ufrgs.br
-#            📧 rderafa@gmail.com        
-#            """)
+            **Contato:**
+            📧 rafael.antunes@ufrgs.br
+            📧 rderafa@gmail.com        
+            """)
     
-#    with st.expander("Trilha de Aprendizagem"):
-#        st.markdown("""
-#            - **Delineascópio:**
-#              - Trilha gamificada
-#              - Visualização de conceitos
-#              - Glossário
-#              - Seleção de conceitos
-#              - Avaliação do projeto:
-#                - Palavras-chave
-#                - Questão de pesquisa
-#              - Interpretação personalizada
-#              - Sugestão de palavras-chave
-#              - Sugestão de chaves de busca
-#              - Relatório em PDF        
-#            - **Interação:** 
-#              - Grafo completo
-#              - Visualização dinâmica 
-#              - Inclusão e exclusão de nós
-#              - Exportação de redes
-#              - Construtor de chaves de busca
-#            - **Histórico:** 
-#              - Comparação entre grafos
-#              - Abstração hierárquica
-#                - Conceitos incluídos
-#                - Conceitos excluídos
-#                - Núcleo estável
-#              - Análise Pedagógica da Mudança
-#              - Relatório em PDF
-#            - **Painel:** 
-#              - Busca de dados com OpenAlex:
-#                - Artigos: *métricas de artigos e metadados únicos*
-#                - Conceitos: *métricas de conceitos, nuvem de palavras e lei de Zipf*
-#                - Coocorrências: *métricas de pares associados e similaridade*
-#                - Grafo: *visualização estática e clusterização*
-#                - Mapa Temático: *posição estratégica do cluster*
-#                - Estatísticas: *resumo breve*
-#                - Exportação: *dados em JSON, CSV, GraphML, .net, .xlsx, BibTeX, .ris e Zip File*     
-#            """)
+    with st.expander("Trilha de Aprendizagem"):
+        st.markdown("""
+            - **Delineascópio:**
+              - Trilha gamificada
+              - Visualização de conceitos
+              - Glossário
+              - Seleção de conceitos
+              - Avaliação do projeto:
+                - Palavras-chave
+                - Questão de pesquisa
+              - Interpretação personalizada
+              - Sugestão de palavras-chave
+              - Sugestão de chaves de busca
+              - Relatório em PDF        
+            - **Interação:** 
+              - Grafo completo
+              - Visualização dinâmica 
+              - Inclusão e exclusão de nós
+              - Exportação de redes
+              - Construtor de chaves de busca
+            - **Histórico:** 
+              - Comparação entre grafos
+              - Abstração hierárquica
+                - Conceitos incluídos
+                - Conceitos excluídos
+                - Núcleo estável
+              - Análise Pedagógica da Mudança
+              - Relatório em PDF
+            - **Painel:** 
+              - Busca de dados com OpenAlex:
+                - Artigos: *métricas de artigos e metadados únicos*
+                - Conceitos: *métricas de conceitos, nuvem de palavras e lei de Zipf*
+                - Coocorrências: *métricas de pares associados e similaridade*
+                - Grafo: *visualização estática e clusterização*
+                - Mapa Temático: *posição estratégica do cluster*
+                - Estatísticas: *resumo breve*
+                - Exportação: *dados em JSON, CSV, GraphML, .net, .xlsx, BibTeX, .ris e Zip File*     
+            """)
     
-#    with st.expander("Tecnologias"):
-#        st.markdown("""
-#            - Python | Streamlit | HuggingFace
-#            - Google Gemini AI 3 Pro | Anthropic Claude Opus 4.5
-#            - OpenAlex API
-#            - JavaScript | CSS | HTML
-#            - NetworkX | Plotly | PyVis | ReportLab
-#            - GraphViz
+    with st.expander("Tecnologias"):
+        st.markdown("""
+            - Python | Streamlit | HuggingFace
+            - Google Gemini AI 3 Pro | Anthropic Claude Opus 4.5
+            - OpenAlex API
+            - JavaScript | CSS | HTML
+            - NetworkX | Plotly | PyVis | ReportLab
+            - GraphViz
 
-#            *Versão*
-#            - Delinéia I (17 de novembro de 2025)        
-#            """)
+            *Versão*
+            - Delinéia I (17 de novembro de 2025)        
+            """)
     
-#    with st.expander("Agradecimentos"):
-#        st.markdown("""
-#            Ao **Orientador** Eliseo Berni Reategui; Aos **Professores** Alexandra Lorandi, Alexandre Ribas Semeler, Dante Augusto Couto Barone, Elisa Boff, Fernando Becker, Gabriela Trindade Perry, Ida Regina Chitto Stumpf, Leandro Krug Wives, Marcus Vinicius de Azevedo Basso, Maria de Fátima Santos Maia, Milton Antonio Zaro, Patrícia Fernanda da Silva, Rafael Port da Rocha, Regina Helena Van der Laan, Renato Ventura Bayan Henriques, Rosa Maria Vicari, Samile Andréa de Souza Vanz, Sérgio Roberto Kieling Franco, Sonia Elisa Caregnato e Vanessa Soares Maurente. Aos colegas do grupo de pesquisa **GTech.Edu** e à **CAPES**, pela concessão de bolsa de estudos.
-#            """)
+    with st.expander("Agradecimentos"):
+        st.markdown("""
+            Ao **Orientador** Eliseo Berni Reategui; Aos **Professores** Alexandra Lorandi, Alexandre Ribas Semeler, Dante Augusto Couto Barone, Elisa Boff, Fernando Becker, Gabriela Trindade Perry, Ida Regina Chitto Stumpf, Leandro Krug Wives, Marcus Vinicius de Azevedo Basso, Maria de Fátima Santos Maia, Milton Antonio Zaro, Patrícia Fernanda da Silva, Rafael Port da Rocha, Regina Helena Van der Laan, Renato Ventura Bayan Henriques, Rosa Maria Vicari, Samile Andréa de Souza Vanz, Sérgio Roberto Kieling Franco, Sonia Elisa Caregnato e Vanessa Soares Maurente. Aos colegas do grupo de pesquisa **GTech.Edu** e à **CAPES**, pela concessão de bolsa de estudos.
+            """)
 
-#    with st.expander("Publicações"):
-#        st.markdown("""
-#            *Artigos relacionados:*
-#            - SANTOS, R.A.; REATEGUI, E.B. Uso de inteligência artificial generativa e análise de palavras-chave para apoiar o planejamento de projetos de pesquisa no ensino superior. *RELATEC: Revista Latinoamericana de Tecnología Educativa*, v.24, n.2, p.87–104, 2025. Doi: https://doi.org/10.17398/1695-288X.24.2.87.
-#            - SANTOS, R.A.; REATEGUI, E.B.; CAREGNATO, S.E. Análise de coocorrência de palavras na pesquisa brasileira em HIV/AIDS indexada na Web of Science no período 1993-2020. *Informação & Informação*, v.27, n.2, p.248–273, 2022. Doi: https://doi.org/10.5433/1981-8920.2022v27n2p248. Disponível em: https://ojs.uel.br/revistas/uel/index.php/informacao/article/view/45335.        
-            
-#            *Colaboração em pesquisas:*
-#            - REATEGUI, E.B.; BIGOLIN, M.; CARNIATO, M.; SANTOS, R.A. Evaluating the performance of SOBEK text mining keyword extraction algorithm. In: HOLZINGER, A. et al. (ed.). *Machine Learning and Knowledge Extraction*: CD-MAKE 2022. Cham: Springer, 2022. p.233–243. (Lecture Notes in Computer Science, 13480. Doi: https://doi.org/10.1087/978-3-031-14463-9_15.
-#            - SEMELER, A.R.; SANTOS, R.A.; SOARES, K.U. Análise de domínio aplicada aos estudos fronteiriços brasileiros: metadados de publicações científicas de acesso aberto extraídos da plataforma Lattes. In: *ANUÁRIO Unbral das fronteiras brasileiras*: volume 1. Porto Alegre: Instituto de Geociências, 2014. p.37–65.
-#           """)
+    with st.expander("Publicações"):
+        st.markdown("""
+            *Artigos relacionados:*
+            - SANTOS, R.A.; REATEGUI, E.B. Uso de inteligência artificial generativa e análise de palavras-chave para apoiar o planejamento de projetos de pesquisa no ensino superior. *RELATEC: Revista Latinoamericana de Tecnología Educativa*, v.24, n.2, p.87–104, 2025. Doi: https://doi.org/10.17398/1695-288X.24.2.87.
+            - SANTOS, R.A.; REATEGUI, E.B.; CAREGNATO, S.E. Análise de coocorrência de palavras na pesquisa brasileira em HIV/AIDS indexada na Web of Science no período 1993-2020. *Informação & Informação*, v.27, n.2, p.248–273, 2022. Doi: https://doi.org/10.5433/1981-8920.2022v27n2p248. Disponível em: https://ojs.uel.br/revistas/uel/index.php/informacao/article/view/45335.        
+           
+            *Colaboração em pesquisas:*
+            - REATEGUI, E.B.; BIGOLIN, M.; CARNIATO, M.; SANTOS, R.A. Evaluating the performance of SOBEK text mining keyword extraction algorithm. In: HOLZINGER, A. et al. (ed.). *Machine Learning and Knowledge Extraction*: CD-MAKE 2022. Cham: Springer, 2022. p.233–243. (Lecture Notes in Computer Science, 13480. Doi: https://doi.org/10.1087/978-3-031-14463-9_15.
+            - SEMELER, A.R.; SANTOS, R.A.; SOARES, K.U. Análise de domínio aplicada aos estudos fronteiriços brasileiros: metadados de publicações científicas de acesso aberto extraídos da plataforma Lattes. In: *ANUÁRIO Unbral das fronteiras brasileiras*: volume 1. Porto Alegre: Instituto de Geociências, 2014. p.37–65.
+           """)
 
-#    st.markdown("---") # Linha divisória
+    st.markdown("---") # Linha divisória
 
-#    # LICENÇA CREATIVE COMMONS (SVGs inline para evitar requisições externas)
-#    html_cc = """
-#    <div style="text-align: center; font-size: 0.85em; color: #666;">
-#        <p>
-#            <a href="https://huggingface.co/spaces/RafaelAntunes123/Delineia" target="_blank" style="text-decoration:none; color:#3366cc; font-weight:bold;">Delinéia</a> 
-#            © 2025 by 
-#            <a href="https://github.com/rderafa-rgb" target="_blank" style="text-decoration:none; color:#3366cc;">Rafael Antunes</a>
-#        </p>
-#        <p>Licensed under: 
-#        <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" style="text-decoration:none; color:#3366cc;">CC BY-NC-ND 4.0</a>
-#        </p>
-#        <p style="margin-top:8px;">
-#            <svg style="height:20px;width:20px;margin:2px;vertical-align:middle;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11" stroke="#333" stroke-width="2"/><text x="12" y="16" text-anchor="middle" font-size="12" font-weight="bold" fill="#333">CC</text></svg>
-#            <svg style="height:20px;width:20px;margin:2px;vertical-align:middle;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11" stroke="#333" stroke-width="2"/><circle cx="12" cy="8" r="3" fill="#333"/><path d="M12 12v6M8 14h8" stroke="#333" stroke-width="2"/></svg>
-#            <svg style="height:20px;width:20px;margin:2px;vertical-align:middle;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11" stroke="#333" stroke-width="2"/><text x="12" y="16" text-anchor="middle" font-size="10" font-weight="bold" fill="#333">NC</text></svg>
-#            <svg style="height:20px;width:20px;margin:2px;vertical-align:middle;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11" stroke="#333" stroke-width="2"/><text x="12" y="16" text-anchor="middle" font-size="10" font-weight="bold" fill="#333">ND</text></svg>
-#        </p>
-#    </div>
-#    """
-#    st.markdown(html_cc, unsafe_allow_html=True)
+    # LICENÇA CREATIVE COMMONS (Formatada em HTML)
+    html_cc = """
+    <div style="text-align: center; font-size: 0.85em; color: #666;">
+        <p>
+            <a href="https://huggingface.co/spaces/RafaelAntunes123/Delineia" target="_blank" style="text-decoration:none; color:#3366cc; font-weight:bold;">Delinéia</a> 
+            © 2025 by 
+            <a href="https://github.com/rderafa-rgb" target="_blank" style="text-decoration:none; color:#3366cc;">Rafael Antunes</a>
+        </p>
+        <p>Licensed under: <br>
+        <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" style="text-decoration:none; color:#3366cc;">CC BY-NC-ND 4.0 International</a>
+        </p>
+        <p>
+            <img src="https://mirrors.creativecommons.org/presskit/icons/cc.svg" style="height:22px; margin:2px;">
+            <img src="https://mirrors.creativecommons.org/presskit/icons/by.svg" style="height:22px; margin:2px;">
+            <img src="https://mirrors.creativecommons.org/presskit/icons/nc.svg" style="height:22px; margin:2px;">
+            <img src="https://mirrors.creativecommons.org/presskit/icons/nd.svg" style="height:22px; margin:2px;">
+        </p>
+    </div>
+    """
+    st.markdown(html_cc, unsafe_allow_html=True)
 
 # ==================== BIBLIOTECA DE GÊNERO ====================
 
@@ -1767,9 +1747,6 @@ tab1, tab2, tab3, tab4 = st.tabs(["🤖 Delineascópio", "🔬 Interação", "�
 
 # ==================== ABA 1: DELINEASCÓPIO ====================
 with tab1:
-    # DEBUG - remover depois
-    import time
-    st.caption(f"🔄 Render: {time.time():.2f}")
     
     st.title("🤖 Delinéia - Delineamento de Escopo Temático")
     st.caption("Sistema de apoio ao delineamento de projetos de pesquisa com IA e Bibliometria")
@@ -2001,28 +1978,34 @@ with tab1:
                             st.error(f"❌ Erro ao processar: {str(e)}")
                             st.exception(e)
         
-        rodape_institucional()
-    
-    # ========== ETAPA 2: TRILHA DE APRENDIZAGEM ATIVA ==========
-    elif st.session_state.step == 2:
-        st.write(f"DEBUG: rerun count = {st.session_state.get('debug_rerun', 0)}")
-        st.session_state.debug_rerun = st.session_state.get('debug_rerun', 0) + 1
-        
         d = st.session_state.form_data
         r = st.session_state.resultado
+        sub_step = st.session_state.get('sub_step', 'a')
 
-        if st.button("⬅️ Voltar ao Formulário", key="btn_voltar_form_2a"):
-            st.session_state.step = 1
-            st.rerun()
+        rodape_institucional()
 
-        tab_2a, tab_2b, tab_2c = st.tabs(["🕸️ Grafo", "🎯 Seleção", "📋 Relatório"])
+    # ========== SUB-ETAPA 2a: VISUALIZAÇÃO DO GRAFO ==========
+        if sub_step == 'a':
+            if st.button("⬅️ Voltar ao Formulário", key="btn_voltar_form_2a"):
+                st.session_state.step = 1
+                st.rerun()
 
-        with tab_2a:
             render_etapa_2a(d, r)
 
-        with tab_2b:
+            if st.button("Continuar para Seleção de Conceitos ▶️", type="primary", width="stretch", key="btn_continuar_2a"):
+                st.session_state.sub_step = 'b'
+                st.rerun()
+
+            rodape_institucional()
+
+        # ========== SUB-ETAPA 2b: SELEÇÃO DE CONCEITOS ==========
+        elif sub_step == 'b':
+            if st.button("⬅️ Voltar ao Grafo", key="btn_voltar_2b"):
+                st.session_state.sub_step = 'a'
+                st.rerun()
+
             render_etapa_2b(d, r)
-            
+
             top_concepts = r.get('top_concepts', [])[:9]
             st.subheader("📋 Conceitos Identificados na Rede")
             cols = st.columns(3)
@@ -2046,124 +2029,152 @@ with tab1:
             else:
                 st.success(f"✅ **{num_selected} conceito(s) selecionado(s):** {', '.join(selected)}")
 
-            if num_selected >= 1:
-                if st.button("Gerar Relatório de Delineamento ▶️", type="primary", width="stretch", key="btn_gerar_relatorio"):
-                    with st.spinner("🔄 Gerando relatório... (aguarde 1-2 minutos)"):
-                        from research_pipeline import GeminiQueryGenerator
-                        gemini = GeminiQueryGenerator()
+            col1, col2 = st.columns(2)
 
-                        primeiro_nome = d['nome'].split()[0]
-                        tema = d['tema']
-                        original_kws = [k.strip() for k in d.get('palavras_chave', '').split(',') if k.strip()]
-                        all_concepts = r.get('top_concepts', [])[:9]
+            with col2:
+                if num_selected >= 1:
+                    if st.button("Gerar Relatório de Delineamento ▶️", type="primary", width="stretch", key="btn_gerar_relatorio"):
+                        with st.spinner("🔄 Gerando relatório... (aguarde 1-2 minutos)"):
+                            from research_pipeline import GeminiQueryGenerator
+                            gemini = GeminiQueryGenerator()
 
-                        st.session_state.personalized_interpretation = gemini.generate_contextualized_interpretation(
-                            tema, primeiro_nome, selected, all_concepts, genero=d.get('genero', 'Neutro')
-                        )
+                            primeiro_nome = d['nome'].split()[0]
+                            tema = d['tema']
+                            original_kws = [k.strip() for k in d.get('palavras_chave', '').split(',') if k.strip()]
+                            all_concepts = r.get('top_concepts', [])[:9]
 
-                        st.session_state.suggested_keywords = gemini.generate_keyword_suggestions(
-                            tema, primeiro_nome, selected, original_kws
-                        )
+                            st.session_state.personalized_interpretation = gemini.generate_contextualized_interpretation(
+                                tema, primeiro_nome, selected, all_concepts, genero=d.get('genero', 'Neutro')
+                            )
 
-                        st.session_state.suggested_strings = gemini.generate_search_strings(
-                            tema, 
-                            selected, 
-                            original_kws,
-                            st.session_state.suggested_keywords
-                        )
+                            st.session_state.suggested_keywords = gemini.generate_keyword_suggestions(
+                                tema, primeiro_nome, selected, original_kws
+                            )
 
-                        st.session_state.interpretation_generated = True
-                        if 'id_usuario' in st.session_state:
-                            atualizar_termos_sugeridos(
-                                st.session_state.id_usuario,
+                            st.session_state.suggested_strings = gemini.generate_search_strings(
+                                tema, 
+                                selected, 
+                                original_kws,
                                 st.session_state.suggested_keywords
                             )
-                    st.rerun()
 
-        with tab_2c:
-            selected = st.session_state.get('selected_concepts', [])
-            
-            if not selected:
-                st.warning("⚠️ Selecione conceitos na aba 'Seleção' primeiro.")
-            elif not st.session_state.get('interpretation_generated'):
-                st.warning("⚠️ Clique em 'Gerar Relatório' na aba 'Seleção' primeiro.")
-            else:
-                render_etapa_2c(d, r, selected)
+                            st.session_state.interpretation_generated = True
+                            if 'id_usuario' in st.session_state:
+                                atualizar_termos_sugeridos(
+                                    st.session_state.id_usuario,
+                                    st.session_state.suggested_keywords
+                                )
 
-                st.subheader("🔎 Chaves de Busca Sugeridas")
-                st.caption("Copie as chaves de busca abaixo para usar no Painel ou em bases de dados")
-
-                suggested_strings = st.session_state.get('suggested_strings', {})
-
-                if suggested_strings:
-                    for key, data in suggested_strings.items():
-                        with st.container(border=True, key=f"string_container_{key}"):
-                            st.markdown(f"**{data.get('titulo', key)}**")
-                            st.caption(data.get('descricao', ''))
-                            col_str, col_btn = st.columns([4, 1])
-                            with col_str:
-                                st.code(data.get('string', ''), language='text')
-                            with col_btn:
-                                if st.button("📋 Copiar", key=f"copy_{key}", width="stretch"):
-                                    st.session_state.dashboard_query = data.get('string', '')
-                                    st.session_state.dashboard_query_source = "delineascópio"
-                                    st.toast("✅ Chave copiada!")
-                else:
-                    search_string = r.get('search_string', 'N/A')
-                    with st.container(border=True):
-                        st.markdown("**🔎 Chave de Busca Original**")
-                        st.code(search_string, language='text')
-
-                st.divider()
-                col1, col2 = st.columns(2)
-
-                with col1:
-                    try:
-                        cache_key = f"pdf_{d.get('nome', '')}_{d.get('timestamp', '')}"
-                        if st.session_state.get('pdf_cache_key') != cache_key:
-                            st.session_state.cached_pdf_bytes = generate_pdf_report(
-                                form_data=d,
-                                result=r,
-                                selected_concepts=selected,
-                                suggested_keywords=st.session_state.get('suggested_keywords', []),
-                                suggested_strings=st.session_state.get('suggested_strings', {}),
-                                badges=st.session_state.get('badges', [])
-                            )
-                            st.session_state.pdf_cache_key = cache_key
-                        
-                        st.download_button(
-                            "📥 Baixar PDF Completo",
-                            data=st.session_state.cached_pdf_bytes,
-                            file_name=f"delineamento_{d['nome'].replace(' ', '_')}.pdf",
-                            mime="application/pdf",
-                            use_container_width=True,
-                            type="primary",
-                            key="dl_pdf_relatorio"
-                        )
-                    except Exception as e:
-                        st.error(f"Erro ao gerar PDF: {str(e)}")
-
-                with col2:
-                    if st.button("📝 Avaliar Sistema", type="primary", width="stretch", key="btn_avaliar_2c"):
-                        st.session_state.step = 3
+                        st.session_state.sub_step = 'c'
                         st.rerun()
+                else:
+                    st.button("Gerar Relatório de Delineamento ▶️", disabled=True, width="stretch", key="btn_gerar_disabled")
 
-                st.info("🎉 **Parabéns!** Você completou a trilha de delineamento!")
+            rodape_institucional()
 
-                if st.button("🔄 Iniciar Novo Delineamento", width="stretch", key="btn_novo_2c"):
-                    st.session_state.step = 1
-                    st.session_state.resultado = None
-                    st.session_state.form_data = {}
-                    st.session_state.avaliacao_completa = False
-                    st.session_state.badges = []
-                    st.session_state.selected_concepts = []
-                    st.session_state.interpretation_generated = False
-                    st.session_state.personalized_interpretation = None
-                    st.session_state.suggested_keywords = []
-                    st.session_state.suggested_strings = {}
+        # ========== SUB-ETAPA 2c: INTERPRETAÇÃO PERSONALIZADA ==========
+        elif sub_step == 'c':
+            selected = st.session_state.get('selected_concepts', [])
+
+            col_nav1, col_nav2 = st.columns([1, 3])
+            with col_nav1:
+                if st.button("⬅️ Voltar à Seleção", key="btn_voltar_2c"):
+                    st.session_state.sub_step = 'b'
                     st.rerun()
 
-        rodape_institucional()
+            render_etapa_2c(d, r, selected)
+
+            st.subheader("🔎 Chaves de Busca Sugeridas")
+            st.caption("Copie as chaves de busca abaixo para usar no Painel ou em bases de dados")
+
+            suggested_strings = st.session_state.get('suggested_strings', {})
+
+            if suggested_strings:
+                for key, data in suggested_strings.items():
+                    with st.container(border=True, key=f"string_container_{key}"):
+                        st.markdown(f"**{data.get('titulo', key)}**")
+                        st.caption(data.get('descricao', ''))
+                        col_str, col_btn = st.columns([4, 1])
+                        with col_str:
+                            st.code(data.get('string', ''), language='text')
+                        with col_btn:
+                            if st.button("📋 Copiar", key=f"copy_{key}", width="stretch"):
+                                st.session_state.dashboard_query = data.get('string', '')
+                                st.session_state.dashboard_query_source = "delineascópio"
+                                st.toast("✅ Chave copiada!")
+            else:
+                search_string = r.get('search_string', 'N/A')
+                with st.container(border=True):
+                    st.markdown("**🔎 Chave de Busca Original**")
+                    col_str, col_btn = st.columns([4, 1])
+                    with col_str:
+                        st.code(search_string, language='text')
+                    with col_btn:
+                        if st.button("📋 Copiar", key="copy_original", width="stretch"):
+                            st.session_state.dashboard_query = search_string
+                            st.session_state.dashboard_query_source = "delineascópio"
+                            st.toast("✅ Chave copiada!")
+
+            st.divider()
+            col1, col2 = st.columns(2)
+
+            with col1:
+                try:
+                    cache_key = f"pdf_{d.get('nome', '')}_{d.get('timestamp', '')}"
+                    if st.session_state.get('pdf_cache_key') != cache_key:
+                        st.session_state.cached_pdf_bytes = generate_pdf_report(
+                            form_data=d,
+                            result=r,
+                            selected_concepts=selected,
+                            suggested_keywords=st.session_state.get('suggested_keywords', []),
+                            suggested_strings=st.session_state.get('suggested_strings', {}),
+                            badges=st.session_state.get('badges', [])
+                        )
+                        st.session_state.pdf_cache_key = cache_key
+                    
+                    st.download_button(
+                        "📥 Baixar PDF Completo",
+                        data=st.session_state.cached_pdf_bytes,
+                        file_name=f"delineamento_{d['nome'].replace(' ', '_')}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True,
+                        type="primary",
+                        key="dl_pdf_relatorio"
+                    )
+                except Exception as e:
+                    st.error(f"Erro ao gerar PDF: {str(e)}")
+
+            with col2:
+                if st.button("📝 Avaliar Sistema", type="primary", width="stretch", key="btn_avaliar_2c"):
+                    st.session_state.step = 3
+                    st.rerun()
+
+            st.info("""
+            🎉 **Parabéns!** Você completou a trilha de delineamento!
+
+            Agora você pode:
+            - 📥 **Baixar o PDF** com o relatório completo
+            - 🔬 **Usar a Interação** para explorar o grafo
+            - 📋 **Realizar novos delineamentos**
+            - 📜 **Usar o Histórico** para comparar diferentes delineamentos            
+            - 🔎 **Usar o Painel** para analisar a literatura
+            - 📝 **Avaliar o sistema** e nos ajudar a melhorar
+            """)
+
+            if st.button("🔄 Iniciar Novo Delineamento", width="stretch", key="btn_novo_2c"):
+                st.session_state.step = 1
+                st.session_state.resultado = None
+                st.session_state.form_data = {}
+                st.session_state.avaliacao_completa = False
+                st.session_state.badges = []
+                st.session_state.selected_concepts = []
+                st.session_state.interpretation_generated = False
+                st.session_state.personalized_interpretation = None
+                st.session_state.suggested_keywords = []
+                st.session_state.suggested_strings = {}
+                st.rerun()
+
+            rodape_institucional()
 
     # ========== ETAPA 3: AVALIAÇÃO EXPANDIDA ==========
     elif st.session_state.step == 3:
@@ -3373,12 +3384,21 @@ with tab4:
     st.title("🔍 Painel de Exploração de Dados")
     st.caption("Análise profunda dos dados do OpenAlex")
 
+    # Inicializar valores padrão no session_state
+    if 'painel_limit' not in st.session_state:
+        st.session_state.painel_limit = 500
+    if 'painel_min_score' not in st.session_state:
+        st.session_state.painel_min_score = 0.35
+    if 'painel_min_level' not in st.session_state:
+        st.session_state.painel_min_level = 0
+
     with st.expander("🔍 Configurar Nova Busca", expanded=False):
         # Campo de busca
         query = st.text_input(
             "Chave de Busca:",
             value=st.session_state.get('dashboard_query', "games AND education"),
-            help="Use operadores: AND, OR, NOT"
+            help="Use operadores: AND, OR, NOT",
+            key="txt_query_painel"
         )
 
         if 'dashboard_query' in st.session_state and st.session_state.dashboard_query:
@@ -3391,51 +3411,54 @@ with tab4:
         st.divider()
         st.subheader("🔧 Filtros")
 
-        # CORREÇÃO: Substituir expander aninhado por checkbox toggle
-        mostrar_config_avancada = st.checkbox("⚙️ Configurações Avançadas", value=False)
-        
-        if mostrar_config_avancada:
+        with st.expander("⚙️ Configurações Avançadas", expanded=False):
             sync_config = st.checkbox("Usar configuração padrão", value=True, key="sync_config_painel")
 
             if sync_config:
                 st.info("**Configuração Padrão:**\n- Limite: 500 artigos\n- Score mínimo: 0.35\n- Level mínimo: 0")
-                limit = 500
-                min_score = 0.35
-                min_level = 0
+                st.session_state.painel_limit = 500
+                st.session_state.painel_min_score = 0.35
+                st.session_state.painel_min_level = 0
             else:
-                limit = st.slider("Limite de artigos:", 10, 500, 100, 10,
-                    help="Número máximo de artigos a buscar na API OpenAlex")
-                min_score = st.slider("Score mínimo:", 0.0, 1.0, 0.35, 0.05,
-                    help="Relevância mínima do conceito (0-1). Valores maiores = conceitos mais relevantes")
-                min_level = st.slider("Level mínimo:", 0, 5, 0, 1,
-                    help="Nível hierárquico do conceito (0-5). 0 = geral, 5 = muito específico")
-        else:
-            # Valores padrão quando configuração avançada não está visível
-            limit = 500
-            min_score = 0.35
-            min_level = 0
+                st.session_state.painel_limit = st.slider(
+                    "Limite de artigos:", 10, 500, st.session_state.painel_limit, 10,
+                    help="Número máximo de artigos a buscar na API OpenAlex",
+                    key="slider_limit_painel"
+                )
+                st.session_state.painel_min_score = st.slider(
+                    "Score mínimo:", 0.0, 1.0, st.session_state.painel_min_score, 0.05,
+                    help="Relevância mínima do conceito (0-1). Valores maiores = conceitos mais relevantes",
+                    key="slider_score_painel"
+                )
+                st.session_state.painel_min_level = st.slider(
+                    "Level mínimo:", 0, 5, st.session_state.painel_min_level, 1,
+                    help="Nível hierárquico do conceito (0-5). 0 = geral, 5 = muito específico",
+                    key="slider_level_painel"
+                )
 
         min_cooc = st.slider("Coocorrência mínima:", 1, 10, 2, 1,
-            help="Frequência mínima de coocorrência para formar aresta no grafo")
+            help="Frequência mínima de coocorrência para formar aresta no grafo",
+            key="slider_cooc_painel")
 
         st.divider()
 
         # Botão de buscar
         if st.button("🔍 Buscar", type="primary", width="stretch", key="btn_buscar_painel"):
             limpar_memoria()
-            with st.spinner("🔄 Em processamento... confira no Painel   "):
+            with st.spinner("🔄 Em processamento... confira no Painel"):
                 try:
+                    # Usar valores do session_state
+                    limit = st.session_state.painel_limit
+                    min_score = st.session_state.painel_min_score
+                    min_level = st.session_state.painel_min_level
+
                     # 1. BUSCA (CACHEADA)
-                    # Passamos 0,0 no score/level para o cache guardar TUDO.
-                    # A filtragem fina acontece visualmente abaixo, sem bater na API de novo.
                     raw_articles = search_openalex_cached(query, limit, 0, 0)
                     
                     # 2. FILTRAGEM LOCAL (PYTHON)
-                    # Aqui aplicamos os sliders de Score e Level nos dados que já estão na memória
                     filtered_concepts_lists = []
                     
                     for article in raw_articles:
-                        # Extrai apenas conceitos que passam no filtro dos sliders
                         concepts = [
                             c.get('display_name', c.get('name')) 
                             for c in article.get('concepts', [])
@@ -3448,20 +3471,18 @@ with tab4:
                     analyzer = CooccurrenceAnalyzer()
                     G = analyzer.build_graph(filtered_concepts_lists, min_cooc)
 
-                    # 4. DATAFRAME LIMPO (Usando a nova função auxiliar)
+                    # 4. DATAFRAME LIMPO
                     df_display = process_openalex_dataframe(raw_articles)
 
                     # Salvar no Session State
                     st.session_state.dashboard_data = {
-                        'articles': raw_articles,      # Guarda o bruto (JSON)
-                        'df_display': df_display,      # Guarda a tabela limpa
+                        'articles': raw_articles,
+                        'df_display': df_display,
                         'concepts_lists': filtered_concepts_lists,
                         'graph': G
                     }
 
-                    # CORREÇÃO: Substituir expander aninhado por container simples
-                    with st.container(border=True):
-                        st.caption("📋 **Detalhes da Busca**")
+                    with st.expander("📋 Detalhes da Busca", expanded=True):
                         col_d1, col_d2 = st.columns(2)
                         with col_d1:
                             st.write(f"**Chave:** `{query}`")
@@ -3474,8 +3495,6 @@ with tab4:
 
                 except Exception as e:
                     st.error(f"❌ Erro na busca: {str(e)}")
-                    # Dica de debug útil em dev
-                    # st.exception(e)
    
     # Área principal do painel
     # Verifica se TEM dados antes de tentar ler
