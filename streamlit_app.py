@@ -9,7 +9,7 @@ st.set_page_config(
     page_title="Delinéia",
     page_icon="🤖",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 # ==================== CSS CUSTOMIZADO (BOTÕES VERDES) ====================
@@ -369,152 +369,152 @@ def render_etapa_2c(d, r, selected):
                   f"{graph_stats.get('edges', 0)} coocorrências")
 
 # ==================== SIDEBAR FIXO ====================
-with st.sidebar:
+#with st.sidebar:
     
-    logo_path = "assets/delineia_logo.png"
-    img_base64 = get_base64_image(logo_path)
+#    logo_path = "assets/delineia_logo.png"
+#    img_base64 = get_base64_image(logo_path)
     
-    if img_base64:
-        html_logo = f"""
-        <div style="text-align: center; margin-bottom: 20px;">
-            <img src="data:image/png;base64,{img_base64}" style="width: 180px; max-width: 100%;">
-            <h1 style="font-size: 24px; margin-top: 10px; margin-bottom: 0;">📋 O que é Delinéia?</h1>
-        </div>
-        """
-        st.markdown(html_logo, unsafe_allow_html=True)
-    else:
-        # Fallback se a imagem não for encontrada 
+#    if img_base64:
+#        html_logo = f"""
+#        <div style="text-align: center; margin-bottom: 20px;">
+#            <img src="data:image/png;base64,{img_base64}" style="width: 180px; max-width: 100%;">
+#            <h1 style="font-size: 24px; margin-top: 10px; margin-bottom: 0;">📋 O que é Delinéia?</h1>
+#        </div>
+#        """
+#        st.markdown(html_logo, unsafe_allow_html=True)
+#    else:
+#        # Fallback se a imagem não for encontrada 
         
-        st.title("📋 O que é Delinéia?")
+#        st.title("📋 O que é Delinéia?")
     
-    st.markdown("---")
+#    st.markdown("---")
   
-    with st.expander("Sobre o Delinéia"):
-        st.markdown("""
-           O Delinéia é um sistema de apoio ao delineamento do escopo temático de projetos de pesquisa no ensino superior e foi desenvolvido como parte de uma tese de doutorado em Informática na Educação. O sistema combina Inteligência Artificial Generativa (Gemini Pro) com análise bibliométrica de coocorrência de palavras a partir de buscas contextuais na base OpenAlex. A proposição visa auxiliar estudantes de graduação e de pós-graduação no esboço de seus projetos de pesquisa.
-            """)
+#    with st.expander("Sobre o Delinéia"):
+#        st.markdown("""
+#           O Delinéia é um sistema de apoio ao delineamento do escopo temático de projetos de pesquisa no ensino superior e foi desenvolvido como parte de uma tese de doutorado em Informática na Educação. O sistema combina Inteligência Artificial Generativa (Gemini Pro) com análise bibliométrica de coocorrência de palavras a partir de buscas contextuais na base OpenAlex. A proposição visa auxiliar estudantes de graduação e de pós-graduação no esboço de seus projetos de pesquisa.
+#            """)
     
-    with st.expander("Abordagem Interdisciplinar"):
-        st.markdown("""
-            Este projeto situa-se na colaboração entre os campos da Informática na Educação e da Ciência da Informação, explorando como tecnologias de IA podem apoiar processos de aprendizagem científica no ensino superior.        
-        """)
+#    with st.expander("Abordagem Interdisciplinar"):
+#        st.markdown("""
+#            Este projeto situa-se na colaboração entre os campos da Informática na Educação e da Ciência da Informação, explorando como tecnologias de IA podem apoiar processos de aprendizagem científica no ensino superior.        
+#        """)
  
-    with st.expander("Autoria"):
-        st.markdown("""
-            **Desenvolvimento:** Rafael Antunes dos Santos  
+#    with st.expander("Autoria"):
+#        st.markdown("""
+#            **Desenvolvimento:** Rafael Antunes dos Santos  
             
-            **Instituição:**             
-            - Universidade Federal do Rio Grande do Sul (UFRGS) 
-            - Centro Interdisciplinar de Novas Tecnologias na Educação (Cinted)
-            - Programa de Pós-Graduação em Informática na Educação (PPGIE)
+#            **Instituição:**             
+#            - Universidade Federal do Rio Grande do Sul (UFRGS) 
+#            - Centro Interdisciplinar de Novas Tecnologias na Educação (Cinted)
+#            - Programa de Pós-Graduação em Informática na Educação (PPGIE)
               
-            **Nível:** Doutorado
+#            **Nível:** Doutorado
                       
-            **Orientador:** Prof. Dr. Eliseo Berni Reategui  
+#            **Orientador:** Prof. Dr. Eliseo Berni Reategui  
         
-            **Formação Anterior:**
-            - Mestre em Comunicação e Informação pela UFRGS (PPGCOM)  
-            - Bacharel em Biblioteconomia pela UFRGS (DCI/FABICO) - CRB10/1898
+#            **Formação Anterior:**
+#            - Mestre em Comunicação e Informação pela UFRGS (PPGCOM)  
+#            - Bacharel em Biblioteconomia pela UFRGS (DCI/FABICO) - CRB10/1898
         
-            **Lattes:** [http://lattes.cnpq.br/5228660998907867](http://lattes.cnpq.br/5228660998907867)
+#            **Lattes:** [http://lattes.cnpq.br/5228660998907867](http://lattes.cnpq.br/5228660998907867)
 
-            **ORCID:** https://orcid.org/0000-0002-1529-9063 
+#            **ORCID:** https://orcid.org/0000-0002-1529-9063 
             
-            **Contato:**
-            📧 rafael.antunes@ufrgs.br
-            📧 rderafa@gmail.com        
-            """)
+#            **Contato:**
+#            📧 rafael.antunes@ufrgs.br
+#            📧 rderafa@gmail.com        
+#            """)
     
-    with st.expander("Trilha de Aprendizagem"):
-        st.markdown("""
-            - **Delineascópio:**
-              - Trilha gamificada
-              - Visualização de conceitos
-              - Glossário
-              - Seleção de conceitos
-              - Avaliação do projeto:
-                - Palavras-chave
-                - Questão de pesquisa
-              - Interpretação personalizada
-              - Sugestão de palavras-chave
-              - Sugestão de chaves de busca
-              - Relatório em PDF        
-            - **Interação:** 
-              - Grafo completo
-              - Visualização dinâmica 
-              - Inclusão e exclusão de nós
-              - Exportação de redes
-              - Construtor de chaves de busca
-            - **Histórico:** 
-              - Comparação entre grafos
-              - Abstração hierárquica
-                - Conceitos incluídos
-                - Conceitos excluídos
-                - Núcleo estável
-              - Análise Pedagógica da Mudança
-              - Relatório em PDF
-            - **Painel:** 
-              - Busca de dados com OpenAlex:
-                - Artigos: *métricas de artigos e metadados únicos*
-                - Conceitos: *métricas de conceitos, nuvem de palavras e lei de Zipf*
-                - Coocorrências: *métricas de pares associados e similaridade*
-                - Grafo: *visualização estática e clusterização*
-                - Mapa Temático: *posição estratégica do cluster*
-                - Estatísticas: *resumo breve*
-                - Exportação: *dados em JSON, CSV, GraphML, .net, .xlsx, BibTeX, .ris e Zip File*     
-            """)
+#    with st.expander("Trilha de Aprendizagem"):
+#        st.markdown("""
+#            - **Delineascópio:**
+#              - Trilha gamificada
+#              - Visualização de conceitos
+#              - Glossário
+#              - Seleção de conceitos
+#              - Avaliação do projeto:
+#                - Palavras-chave
+#                - Questão de pesquisa
+#              - Interpretação personalizada
+#              - Sugestão de palavras-chave
+#              - Sugestão de chaves de busca
+#              - Relatório em PDF        
+#            - **Interação:** 
+#              - Grafo completo
+#              - Visualização dinâmica 
+#              - Inclusão e exclusão de nós
+#              - Exportação de redes
+#              - Construtor de chaves de busca
+#            - **Histórico:** 
+#              - Comparação entre grafos
+#              - Abstração hierárquica
+#                - Conceitos incluídos
+#                - Conceitos excluídos
+#                - Núcleo estável
+#              - Análise Pedagógica da Mudança
+#              - Relatório em PDF
+#            - **Painel:** 
+#              - Busca de dados com OpenAlex:
+#                - Artigos: *métricas de artigos e metadados únicos*
+#                - Conceitos: *métricas de conceitos, nuvem de palavras e lei de Zipf*
+#                - Coocorrências: *métricas de pares associados e similaridade*
+#                - Grafo: *visualização estática e clusterização*
+#                - Mapa Temático: *posição estratégica do cluster*
+#                - Estatísticas: *resumo breve*
+#                - Exportação: *dados em JSON, CSV, GraphML, .net, .xlsx, BibTeX, .ris e Zip File*     
+#            """)
     
-    with st.expander("Tecnologias"):
-        st.markdown("""
-            - Python | Streamlit | HuggingFace
-            - Google Gemini AI 3 Pro | Anthropic Claude Opus 4.5
-            - OpenAlex API
-            - JavaScript | CSS | HTML
-            - NetworkX | Plotly | PyVis | ReportLab
-            - GraphViz
+#    with st.expander("Tecnologias"):
+#        st.markdown("""
+#            - Python | Streamlit | HuggingFace
+#            - Google Gemini AI 3 Pro | Anthropic Claude Opus 4.5
+#            - OpenAlex API
+#            - JavaScript | CSS | HTML
+#            - NetworkX | Plotly | PyVis | ReportLab
+#            - GraphViz
 
-            *Versão*
-            - Delinéia I (17 de novembro de 2025)        
-            """)
+#            *Versão*
+#            - Delinéia I (17 de novembro de 2025)        
+#            """)
     
-    with st.expander("Agradecimentos"):
-        st.markdown("""
-            Ao **Orientador** Eliseo Berni Reategui; Aos **Professores** Alexandra Lorandi, Alexandre Ribas Semeler, Dante Augusto Couto Barone, Elisa Boff, Fernando Becker, Gabriela Trindade Perry, Ida Regina Chitto Stumpf, Leandro Krug Wives, Marcus Vinicius de Azevedo Basso, Maria de Fátima Santos Maia, Milton Antonio Zaro, Patrícia Fernanda da Silva, Rafael Port da Rocha, Regina Helena Van der Laan, Renato Ventura Bayan Henriques, Rosa Maria Vicari, Samile Andréa de Souza Vanz, Sérgio Roberto Kieling Franco, Sonia Elisa Caregnato e Vanessa Soares Maurente. Aos colegas do grupo de pesquisa **GTech.Edu** e à **CAPES**, pela concessão de bolsa de estudos.
-            """)
+#    with st.expander("Agradecimentos"):
+#        st.markdown("""
+#            Ao **Orientador** Eliseo Berni Reategui; Aos **Professores** Alexandra Lorandi, Alexandre Ribas Semeler, Dante Augusto Couto Barone, Elisa Boff, Fernando Becker, Gabriela Trindade Perry, Ida Regina Chitto Stumpf, Leandro Krug Wives, Marcus Vinicius de Azevedo Basso, Maria de Fátima Santos Maia, Milton Antonio Zaro, Patrícia Fernanda da Silva, Rafael Port da Rocha, Regina Helena Van der Laan, Renato Ventura Bayan Henriques, Rosa Maria Vicari, Samile Andréa de Souza Vanz, Sérgio Roberto Kieling Franco, Sonia Elisa Caregnato e Vanessa Soares Maurente. Aos colegas do grupo de pesquisa **GTech.Edu** e à **CAPES**, pela concessão de bolsa de estudos.
+#            """)
 
-    with st.expander("Publicações"):
-        st.markdown("""
-            *Artigos relacionados:*
-            - SANTOS, R.A.; REATEGUI, E.B. Uso de inteligência artificial generativa e análise de palavras-chave para apoiar o planejamento de projetos de pesquisa no ensino superior. *RELATEC: Revista Latinoamericana de Tecnología Educativa*, v.24, n.2, p.87–104, 2025. Doi: https://doi.org/10.17398/1695-288X.24.2.87.
-            - SANTOS, R.A.; REATEGUI, E.B.; CAREGNATO, S.E. Análise de coocorrência de palavras na pesquisa brasileira em HIV/AIDS indexada na Web of Science no período 1993-2020. *Informação & Informação*, v.27, n.2, p.248–273, 2022. Doi: https://doi.org/10.5433/1981-8920.2022v27n2p248. Disponível em: https://ojs.uel.br/revistas/uel/index.php/informacao/article/view/45335.        
+#    with st.expander("Publicações"):
+#        st.markdown("""
+#            *Artigos relacionados:*
+#            - SANTOS, R.A.; REATEGUI, E.B. Uso de inteligência artificial generativa e análise de palavras-chave para apoiar o planejamento de projetos de pesquisa no ensino superior. *RELATEC: Revista Latinoamericana de Tecnología Educativa*, v.24, n.2, p.87–104, 2025. Doi: https://doi.org/10.17398/1695-288X.24.2.87.
+#            - SANTOS, R.A.; REATEGUI, E.B.; CAREGNATO, S.E. Análise de coocorrência de palavras na pesquisa brasileira em HIV/AIDS indexada na Web of Science no período 1993-2020. *Informação & Informação*, v.27, n.2, p.248–273, 2022. Doi: https://doi.org/10.5433/1981-8920.2022v27n2p248. Disponível em: https://ojs.uel.br/revistas/uel/index.php/informacao/article/view/45335.        
             
-            *Colaboração em pesquisas:*
-            - REATEGUI, E.B.; BIGOLIN, M.; CARNIATO, M.; SANTOS, R.A. Evaluating the performance of SOBEK text mining keyword extraction algorithm. In: HOLZINGER, A. et al. (ed.). *Machine Learning and Knowledge Extraction*: CD-MAKE 2022. Cham: Springer, 2022. p.233–243. (Lecture Notes in Computer Science, 13480. Doi: https://doi.org/10.1087/978-3-031-14463-9_15.
-            - SEMELER, A.R.; SANTOS, R.A.; SOARES, K.U. Análise de domínio aplicada aos estudos fronteiriços brasileiros: metadados de publicações científicas de acesso aberto extraídos da plataforma Lattes. In: *ANUÁRIO Unbral das fronteiras brasileiras*: volume 1. Porto Alegre: Instituto de Geociências, 2014. p.37–65.
-           """)
+#            *Colaboração em pesquisas:*
+#            - REATEGUI, E.B.; BIGOLIN, M.; CARNIATO, M.; SANTOS, R.A. Evaluating the performance of SOBEK text mining keyword extraction algorithm. In: HOLZINGER, A. et al. (ed.). *Machine Learning and Knowledge Extraction*: CD-MAKE 2022. Cham: Springer, 2022. p.233–243. (Lecture Notes in Computer Science, 13480. Doi: https://doi.org/10.1087/978-3-031-14463-9_15.
+#            - SEMELER, A.R.; SANTOS, R.A.; SOARES, K.U. Análise de domínio aplicada aos estudos fronteiriços brasileiros: metadados de publicações científicas de acesso aberto extraídos da plataforma Lattes. In: *ANUÁRIO Unbral das fronteiras brasileiras*: volume 1. Porto Alegre: Instituto de Geociências, 2014. p.37–65.
+#           """)
 
-    st.markdown("---") # Linha divisória
+#    st.markdown("---") # Linha divisória
 
-    # LICENÇA CREATIVE COMMONS (SVGs inline para evitar requisições externas)
-    html_cc = """
-    <div style="text-align: center; font-size: 0.85em; color: #666;">
-        <p>
-            <a href="https://huggingface.co/spaces/RafaelAntunes123/Delineia" target="_blank" style="text-decoration:none; color:#3366cc; font-weight:bold;">Delinéia</a> 
-            © 2025 by 
-            <a href="https://github.com/rderafa-rgb" target="_blank" style="text-decoration:none; color:#3366cc;">Rafael Antunes</a>
-        </p>
-        <p>Licensed under: 
-        <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" style="text-decoration:none; color:#3366cc;">CC BY-NC-ND 4.0</a>
-        </p>
-        <p style="margin-top:8px;">
-            <svg style="height:20px;width:20px;margin:2px;vertical-align:middle;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11" stroke="#333" stroke-width="2"/><text x="12" y="16" text-anchor="middle" font-size="12" font-weight="bold" fill="#333">CC</text></svg>
-            <svg style="height:20px;width:20px;margin:2px;vertical-align:middle;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11" stroke="#333" stroke-width="2"/><circle cx="12" cy="8" r="3" fill="#333"/><path d="M12 12v6M8 14h8" stroke="#333" stroke-width="2"/></svg>
-            <svg style="height:20px;width:20px;margin:2px;vertical-align:middle;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11" stroke="#333" stroke-width="2"/><text x="12" y="16" text-anchor="middle" font-size="10" font-weight="bold" fill="#333">NC</text></svg>
-            <svg style="height:20px;width:20px;margin:2px;vertical-align:middle;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11" stroke="#333" stroke-width="2"/><text x="12" y="16" text-anchor="middle" font-size="10" font-weight="bold" fill="#333">ND</text></svg>
-        </p>
-    </div>
-    """
-    st.markdown(html_cc, unsafe_allow_html=True)
+#    # LICENÇA CREATIVE COMMONS (SVGs inline para evitar requisições externas)
+#    html_cc = """
+#    <div style="text-align: center; font-size: 0.85em; color: #666;">
+#        <p>
+#            <a href="https://huggingface.co/spaces/RafaelAntunes123/Delineia" target="_blank" style="text-decoration:none; color:#3366cc; font-weight:bold;">Delinéia</a> 
+#            © 2025 by 
+#            <a href="https://github.com/rderafa-rgb" target="_blank" style="text-decoration:none; color:#3366cc;">Rafael Antunes</a>
+#        </p>
+#        <p>Licensed under: 
+#        <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" style="text-decoration:none; color:#3366cc;">CC BY-NC-ND 4.0</a>
+#        </p>
+#        <p style="margin-top:8px;">
+#            <svg style="height:20px;width:20px;margin:2px;vertical-align:middle;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11" stroke="#333" stroke-width="2"/><text x="12" y="16" text-anchor="middle" font-size="12" font-weight="bold" fill="#333">CC</text></svg>
+#            <svg style="height:20px;width:20px;margin:2px;vertical-align:middle;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11" stroke="#333" stroke-width="2"/><circle cx="12" cy="8" r="3" fill="#333"/><path d="M12 12v6M8 14h8" stroke="#333" stroke-width="2"/></svg>
+#            <svg style="height:20px;width:20px;margin:2px;vertical-align:middle;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11" stroke="#333" stroke-width="2"/><text x="12" y="16" text-anchor="middle" font-size="10" font-weight="bold" fill="#333">NC</text></svg>
+#            <svg style="height:20px;width:20px;margin:2px;vertical-align:middle;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11" stroke="#333" stroke-width="2"/><text x="12" y="16" text-anchor="middle" font-size="10" font-weight="bold" fill="#333">ND</text></svg>
+#        </p>
+#    </div>
+#    """
+#    st.markdown(html_cc, unsafe_allow_html=True)
 
 # ==================== BIBLIOTECA DE GÊNERO ====================
 
