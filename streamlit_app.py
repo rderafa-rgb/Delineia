@@ -232,6 +232,142 @@ def search_openalex_cached(query, limit, min_score, min_level):
     # Se possível, faça a filtragem de score/level aqui e retorne apenas o necessário
     return raw_articles
 
+# ==================== FRAGMENTS PARA ETAPA 2 (NÍVEL DO MÓDULO) ====================
+
+@st.fragment
+def render_etapa_2a(d, r):
+    """Fragment estável para etapa 2a - Visualização do Grafo"""
+    st.header("🕸️ 2. Grafo de conceitos")
+    st.caption("Etapa 2: Explore o grafo e o glossário antes de selecionar os conceitos")
+
+    with st.container(border=True):
+        st.caption("📋 **Dados do Projeto**")
+        st.write(f"**Tema:** {d['tema']} | **Questão de pesquisa:** {d['questao']} | **Palavras-chave:** {d['palavras_chave']}")
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("📚 Artigos Analisados", r.get('articles_count', 0))
+    col2.metric("🧩 Conceitos no Grafo", r['graph_stats']['nodes'])
+    col3.metric("🔗 Conexões", r['graph_stats']['edges'])
+
+    col_grafo, col_glossario = st.columns([1, 1])
+
+    with col_grafo:
+        st.subheader("🕸️ Grafo de Coocorrências")
+        if r.get('visualization_path'):
+            st.image(r['visualization_path'], width="stretch")
+        else:
+            st.warning("⚠️ Visualização não disponível")
+
+    with col_glossario:
+        st.subheader("📖 Glossário de Conceitos")
+        with st.container(height=400):
+            st.markdown(r.get('glossary', '⚠️ Glossário não disponível'))
+
+    st.divider()
+    st.info("""
+    💡 **Próximo passo:** Observe atentamente o grafo e o glossário acima. 
+    Na próxima etapa, você selecionará os conceitos mais relevantes para sua pesquisa.
+    Essa seleção será usada para gerar uma interpretação personalizada do grafo.
+    """)
+
+
+@st.fragment
+def render_etapa_2b(d, r):
+    """Fragment estável para etapa 2b - Seleção de Conceitos"""
+    primeiro_nome = d['nome'].split()[0]
+    st.header("🎯 3. Seleção de Conceitos")
+    st.caption("Etapa 3: Escolha os conceitos mais relevantes para sua pesquisa")
+
+    st.markdown(f"""
+    ### {primeiro_nome}, quais conceitos do grafo são mais relevantes para seu projeto?
+
+    Considerando seu tema **"{d['tema']}"**, selecione os conceitos que você considera 
+    mais importantes para o delineamento do escopo da sua pesquisa.
+
+    *Selecione pelo menos 1 conceito para continuar.*
+    """)
+
+    st.subheader("🕸️ Grafo de Referência")
+    if r.get('visualization_path'):
+        st.image(r['visualization_path'], width="stretch")
+
+
+@st.fragment
+def render_etapa_2c(d, r, selected):
+    """Fragment estável para etapa 2c - Relatório"""
+    st.header("📋 4. Relatório")
+    st.caption("Etapa 4: Interpretação baseada nos conceitos que você selecionou")
+
+    st.success(f"✅ **Conceitos selecionados:** {', '.join(selected)}")
+
+    with st.container(border=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write(f"**👤 Aluno:** {d['nome']}")
+            st.write(f"**📧 E-mail:** {d['email']}")
+        with col2:
+            st.write(f"**📅 Data:** {d['timestamp']}")
+            st.write(f"**💭 Confiança:** {d['confianca']}")
+
+    with st.container(border=True):
+        st.write(f"**🎯 Tema:** {d['tema']}")
+        st.write(f"**❓ Questão:** {d['questao']}")
+        st.write(f"**🔑 Palavras-chave:** {d['palavras_chave']}")
+
+    st.subheader("📋 Avaliação do Projeto")
+    with st.container(border=True):
+        st.markdown(r.get('full_report', '⚠️ Avaliação não disponível'))
+
+    st.subheader("💡 Interpretação Personalizada do Grafo")
+    with st.container(border=True):
+        interpretation = st.session_state.get('personalized_interpretation', '')
+        if interpretation:
+            st.markdown(interpretation)
+        else:
+            st.markdown(r.get('graph_interpretation', '⚠️ Interpretação não disponível'))
+
+    st.subheader("🕸️ Grafo de Coocorrências")
+    if r.get('visualization_path'):
+        st.image(r['visualization_path'], width="stretch")
+
+    st.subheader("📖 Glossário de Conceitos")
+    st.caption("Role para ver todos os conceitos")
+    with st.container(height=300, border=True):
+        st.markdown(r.get('glossary', '⚠️ Glossário não disponível'))
+
+    st.subheader("🔑 Sugestões de Palavras-chave")
+    suggested_kws = st.session_state.get('suggested_keywords', [])
+    if suggested_kws:
+        for idx, kw in enumerate(suggested_kws):
+            with st.container(border=True, key=f"kw_mod_{idx}"):
+                col1, col2 = st.columns([1, 3])
+                with col1:
+                    st.markdown(f"**{kw.get('term_en', 'N/A')}**")
+                    st.caption(f"({kw.get('term_pt', 'N/A')})")
+                with col2:
+                    st.write(kw.get('description', ''))
+    else:
+        st.info("Sugestões de palavras-chave não disponíveis")
+
+    st.subheader("🔬 Transparência: Chave de Busca Usada")
+    st.caption("Esta é a chave de busca exata que foi usada para recuperar artigos do OpenAlex")
+    
+    with st.container(border=True):
+        search_objective = r.get('search_objective', '')
+        if search_objective:
+            st.markdown(f"**Objetivo:** {search_objective}")
+            st.divider()
+        
+        search_string = r.get('search_string', 'N/A')
+        st.markdown("**Chave de busca executada:**")
+        st.code(search_string, language='text')
+        
+        articles_count = r.get('articles_count', 0)
+        graph_stats = r.get('graph_stats', {})
+        st.caption(f"📊 Resultados: {articles_count} artigos encontrados | "
+                  f"{graph_stats.get('nodes', 0)} conceitos | "
+                  f"{graph_stats.get('edges', 0)} coocorrências")
+
 # ==================== SIDEBAR FIXO ====================
 with st.sidebar:
     
@@ -359,7 +495,7 @@ with st.sidebar:
 
     st.markdown("---") # Linha divisória
 
-    # LICENÇA CREATIVE COMMONS (sem imagens externas para evitar tremores)
+    # LICENÇA CREATIVE COMMONS (SVGs inline para evitar requisições externas)
     html_cc = """
     <div style="text-align: center; font-size: 0.85em; color: #666;">
         <p>
@@ -367,10 +503,14 @@ with st.sidebar:
             © 2025 by 
             <a href="https://github.com/rderafa-rgb" target="_blank" style="text-decoration:none; color:#3366cc;">Rafael Antunes</a>
         </p>
-        <p>
-            <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" style="text-decoration:none; color:#3366cc;">
-                CC BY-NC-ND 4.0
-            </a>
+        <p>Licensed under: 
+        <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" style="text-decoration:none; color:#3366cc;">CC BY-NC-ND 4.0</a>
+        </p>
+        <p style="margin-top:8px;">
+            <svg style="height:20px;width:20px;margin:2px;vertical-align:middle;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11" stroke="#333" stroke-width="2"/><text x="12" y="16" text-anchor="middle" font-size="12" font-weight="bold" fill="#333">CC</text></svg>
+            <svg style="height:20px;width:20px;margin:2px;vertical-align:middle;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11" stroke="#333" stroke-width="2"/><circle cx="12" cy="8" r="3" fill="#333"/><path d="M12 12v6M8 14h8" stroke="#333" stroke-width="2"/></svg>
+            <svg style="height:20px;width:20px;margin:2px;vertical-align:middle;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11" stroke="#333" stroke-width="2"/><text x="12" y="16" text-anchor="middle" font-size="10" font-weight="bold" fill="#333">NC</text></svg>
+            <svg style="height:20px;width:20px;margin:2px;vertical-align:middle;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11" stroke="#333" stroke-width="2"/><text x="12" y="16" text-anchor="middle" font-size="10" font-weight="bold" fill="#333">ND</text></svg>
         </p>
     </div>
     """
@@ -1864,53 +2004,12 @@ with tab1:
 
         # ========== SUB-ETAPA 2a: VISUALIZAÇÃO DO GRAFO ==========
         if sub_step == 'a':
-            @st.fragment
-            def render_etapa_2a():
-                st.header("🕸️ 2. Grafo de conceitos")
-                st.caption("Etapa 2: Explore o grafo e o glossário antes de selecionar os conceitos")
-
-                # Informações do projeto (resumido)
-                with st.container(border=True):
-                    st.caption("📋 **Dados do Projeto**")
-                    st.write(f"**Tema:** {d['tema']} | **Questão de pesquisa:** {d['questao']} | **Palavras-chave:** {d['palavras_chave']}")
-
-                # Métricas
-                col1, col2, col3 = st.columns(3)
-                col1.metric("📚 Artigos Analisados", r.get('articles_count', 0))
-                col2.metric("🧩 Conceitos no Grafo", r['graph_stats']['nodes'])
-                col3.metric("🔗 Conexões", r['graph_stats']['edges'])
-
-                # Layout: Grafo e Glossário lado a lado
-                col_grafo, col_glossario = st.columns([1, 1])
-
-                with col_grafo:
-                    st.subheader("🕸️ Grafo de Coocorrências")
-                    if r.get('visualization_path'):
-                        st.image(r['visualization_path'], width="stretch")
-                    else:
-                        st.warning("⚠️ Visualização não disponível")
-
-                with col_glossario:
-                    st.subheader("📖 Glossário de Conceitos")
-                    with st.container(height=400):
-                        st.markdown(r.get('glossary', '⚠️ Glossário não disponível'))
-
-                # Instrução para próxima etapa
-                st.divider()
-                st.info("""
-                💡 **Próximo passo:** Observe atentamente o grafo e o glossário acima. 
-                Na próxima etapa, você selecionará os conceitos mais relevantes para sua pesquisa.
-                Essa seleção será usada para gerar uma interpretação personalizada do grafo.
-                """)
-
-            # Botão voltar (FORA do fragment)
             if st.button("⬅️ Voltar ao Formulário"):
                 st.session_state.step = 1
                 st.rerun()
 
-            render_etapa_2a()
+            render_etapa_2a(d, r)
 
-            # Botão avançar (FORA do fragment)
             if st.button("Continuar para Seleção de Conceitos ▶️", type="primary", width="stretch"):
                 st.session_state.sub_step = 'b'
                 st.rerun()
@@ -1918,39 +2017,17 @@ with tab1:
             rodape_institucional()
 
         # ========== SUB-ETAPA 2b: SELEÇÃO DE CONCEITOS ==========
+        # ========== SUB-ETAPA 2b: SELEÇÃO DE CONCEITOS ==========
         elif sub_step == 'b':
             top_concepts = r.get('top_concepts', [])[:9]
 
-            @st.fragment
-            def render_etapa_2b():
-                primeiro_nome = d['nome'].split()[0]
-                st.header("🎯 3. Seleção de Conceitos")
-                st.caption("Etapa 3: Escolha os conceitos mais relevantes para sua pesquisa")
-
-                st.markdown(f"""
-                ### {primeiro_nome}, quais conceitos do grafo são mais relevantes para seu projeto?
-
-                Considerando seu tema **"{d['tema']}"**, selecione os conceitos que você considera 
-                mais importantes para o delineamento do escopo da sua pesquisa.
-
-                *Selecione pelo menos 1 conceito para continuar.*
-                """)
-
-                # Mostrar grafo como referência
-                st.subheader("🕸️ Grafo de Referência")
-                if r.get('visualization_path'):
-                    st.image(r['visualization_path'], width="stretch")
-
-            # Navegação (FORA do fragment)
             if st.button("⬅️ Voltar ao Grafo"):
                 st.session_state.sub_step = 'a'
                 st.rerun()
 
-            render_etapa_2b()
+            render_etapa_2b(d, r)
 
-            # Seleção de conceitos com checkboxes (FORA do fragment - interativo)
             st.subheader("📋 Conceitos Identificados na Rede")
-
             cols = st.columns(3)
             selected = []
 
@@ -2019,99 +2096,15 @@ with tab1:
         elif sub_step == 'c':
             selected = st.session_state.get('selected_concepts', [])
 
-            @st.fragment
-            def render_etapa_2c():
-                st.header("📋 4. Relatório")
-                st.caption("Etapa 4: Interpretação baseada nos conceitos que você selecionado")
-
-                # Resumo da seleção
-                st.success(f"✅ **Conceitos selecionados:** {', '.join(selected)}")
-
-                # Informações do projeto
-                with st.container(border=True):
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.write(f"**👤 Aluno:** {d['nome']}")
-                        st.write(f"**📧 E-mail:** {d['email']}")
-                    with col2:
-                        st.write(f"**📅 Data:** {d['timestamp']}")
-                        st.write(f"**💭 Confiança:** {d['confianca']}")
-
-                with st.container(border=True):
-                    st.write(f"**🎯 Tema:** {d['tema']}")
-                    st.write(f"**❓ Questão:** {d['questao']}")
-                    st.write(f"**🔑 Palavras-chave:** {d['palavras_chave']}")
-
-                # ========== SEÇÃO 1: AVALIAÇÃO INICIAL DO PROJETO ==========
-                st.subheader("📋 Avaliação do Projeto")
-                with st.container(border=True):
-                    st.markdown(r.get('full_report', '⚠️ Avaliação não disponível'))
-
-                # ========== SEÇÃO 2: INTERPRETAÇÃO PERSONALIZADA ==========
-                st.subheader("💡 Interpretação Personalizada do Grafo")
-                with st.container(border=True):
-                    interpretation = st.session_state.get('personalized_interpretation', '')
-                    if interpretation:
-                        st.markdown(interpretation)
-                    else:
-                        st.markdown(r.get('graph_interpretation', '⚠️ Interpretação não disponível'))
-
-                # ========== SEÇÃO 3: GRAFO ==========
-                st.subheader("🕸️ Grafo de Coocorrências")
-                if r.get('visualization_path'):
-                    st.image(r['visualization_path'], width="stretch")
-
-                # ========== SEÇÃO 4: GLOSSÁRIO ==========
-                st.subheader("📖 Glossário de Conceitos")
-                st.caption("Role para ver todos os conceitos")
-                with st.container(height=300, border=True):
-                    st.markdown(r.get('glossary', '⚠️ Glossário não disponível'))
-
-                # ========== SEÇÃO 5: SUGESTÕES DE PALAVRAS-CHAVE ==========
-                st.subheader("🔑 Sugestões de Palavras-chave")
-                suggested_kws = st.session_state.get('suggested_keywords', [])
-                if suggested_kws:
-                    for idx, kw in enumerate(suggested_kws):
-                        with st.container(border=True, key=f"kw_frag_{idx}"):
-                            col1, col2 = st.columns([1, 3])
-                            with col1:
-                                st.markdown(f"**{kw.get('term_en', 'N/A')}**")
-                                st.caption(f"({kw.get('term_pt', 'N/A')})")
-                            with col2:
-                                st.write(kw.get('description', ''))
-                else:
-                    st.info("Sugestões de palavras-chave não disponíveis")
-
-                # ========== SEÇÃO 7: CHAVE DE TRANSPARÊNCIA (ORIGINAL OPENALEX) ==========
-                st.subheader("🔬 Transparência: Chave de Busca Usada")
-                st.caption("Esta é a chave de busca exata que foi usada para recuperar artigos do OpenAlex")
-                
-                with st.container(border=True):
-                    search_objective = r.get('search_objective', '')
-                    if search_objective:
-                        st.markdown(f"**Objetivo:** {search_objective}")
-                        st.divider()
-                    
-                    search_string = r.get('search_string', 'N/A')
-                    st.markdown("**Chave de busca executada:**")
-                    st.code(search_string, language='text')
-                    
-                    articles_count = r.get('articles_count', 0)
-                    graph_stats = r.get('graph_stats', {})
-                    st.caption(f"📊 Resultados: {articles_count} artigos encontrados | "
-                              f"{graph_stats.get('nodes', 0)} conceitos | "
-                              f"{graph_stats.get('edges', 0)} coocorrências")
-
-            # Navegação (FORA do fragment)
             col_nav1, col_nav2 = st.columns([1, 3])
             with col_nav1:
                 if st.button("⬅️ Voltar à Seleção"):
                     st.session_state.sub_step = 'b'
                     st.rerun()
 
-            render_etapa_2c()
+            render_etapa_2c(d, r, selected)
 
-            # ========== SEÇÃO 6: CHAVES DE BUSCA SUGERIDAS (FORA - tem botões) ==========
+            # ========== SEÇÃO 6: CHAVES DE BUSCA SUGERIDAS ==========
             st.subheader("🔎 Chaves de Busca Sugeridas")
             st.caption("Copie as chaves de busca abaixo para usar no Painel ou em bases de dados")
 
@@ -2134,7 +2127,6 @@ with tab1:
                                 st.session_state.dashboard_query_source = "delineascópio"
                                 st.toast(f"✅ Chave de busca copiada para o Painel!")
             else:
-                # Fallback: mostrar chave de busca original
                 search_string = r.get('search_string', 'N/A')
                 with st.container(border=True):
                     st.markdown("**🔎 Chave de Busca Original**")
@@ -2147,7 +2139,6 @@ with tab1:
                             st.session_state.dashboard_query_source = "delineascópio"
                             st.toast("✅ Chave de busca copiada para o Painel!")
 
-            # Botão copiar transparência (FORA do fragment)
             col_transp, _ = st.columns([1, 3])
             with col_transp:
                 if st.button("📋 Copiar Chave Original", key="copy_transparency", width="stretch"):
@@ -2155,7 +2146,6 @@ with tab1:
                     st.session_state.dashboard_query_source = "delineascópio"
                     st.toast("✅ Chave de busca copiada para o Painel!")
 
-            # ========== SEÇÃO 8: AÇÕES FINAIS ==========
             st.divider()
 
             col1, col2 = st.columns(2)
@@ -2192,7 +2182,6 @@ with tab1:
                     st.session_state.step = 3
                     st.rerun()
 
-            # Dica final
             st.info("""
             🎉 **Parabéns!** Você completou a trilha de delineamento!
 
@@ -2205,7 +2194,6 @@ with tab1:
             - 📝 **Avaliar o sistema** e nos ajudar a melhorar
             """)
 
-            # Botão novo projeto
             if st.button("🔄 Iniciar Novo Delineamento", width="stretch"):
                 st.session_state.step = 1
                 st.session_state.resultado = None
