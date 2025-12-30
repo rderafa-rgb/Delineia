@@ -240,9 +240,10 @@ def render_etapa_2a(d, r):
     st.header("🕸️ 2. Grafo de conceitos")
     st.caption("Etapa 2: Explore o grafo e o glossário antes de selecionar os conceitos")
 
-    with st.container(border=True):
-        st.caption("📋 **Dados do Projeto**")
-        st.write(f"**Tema:** {d['tema']} | **Questão de pesquisa:** {d['questao']} | **Palavras-chave:** {d['palavras_chave']}")
+    with st.expander("📋 Dados do Projeto", expanded=False):
+        st.write(f"**🎯 Tema:** {d['tema']}")
+        st.write(f"**❓ Questão:** {d['questao']}")
+        st.write(f"**🔑 Palavras-chave:** {d['palavras_chave']}")
 
     col1, col2, col3 = st.columns(3)
     col1.metric("📚 Artigos Analisados", r.get('articles_count', 0))
@@ -1402,11 +1403,11 @@ def render_tab3_interacao():
                 help="Algoritmo de posicionamento dos nós"
             )
         
-        with col_physics:
-            enable_physics = st.checkbox(
+        enable_physics = st.checkbox(
                 "⚡ Física ativa",
                 value=(layout_option == "Força (padrão)"),
-                help="Permite arrastar nós. Desative para layouts fixos."
+                help="Permite arrastar nós. Desative para layouts fixos.",
+                key="chk_physics"
             )
     
     # ==================== APLICAR FILTROS ====================
@@ -1518,7 +1519,8 @@ def render_tab3_interacao():
                     file_name="grafo_interativo.graphml",
                     mime="application/xml",
                     width="stretch",
-                    help="Para Gephi ou Cytoscape"
+                    help="Para Gephi ou Cytoscape",
+                    key="dl_graphml_interacao"
                 )
             except Exception as e:
                 st.error(f"Erro: {e}")
@@ -1537,7 +1539,8 @@ def render_tab3_interacao():
                 file_name="grafo_arestas.csv",
                 mime="text/csv",
                 width="stretch",
-                help="Lista de conexões"
+                help="Lista de conexões",
+                key="dl_arestas_csv"
             )
         
         with col_exp3:
@@ -1558,7 +1561,8 @@ def render_tab3_interacao():
                 file_name="grafo_nos.csv",
                 mime="text/csv",
                 width="stretch",
-                help="Lista de conceitos com métricas"
+                help="Lista de conceitos com métricas",
+                key="dl_nos_csv"
             )
     
     # ==================== CONSTRUTOR DE CHAVE DE BUSCA ====================
@@ -1585,7 +1589,8 @@ def render_tab3_interacao():
             options=[""] + available_concepts,
             index=0,
             help="Escolha um conceito para formatar e adicionar à chave",
-            label_visibility="collapsed"
+            label_visibility="collapsed",
+            key="sel_conceito_construtor"
         )
         
         if selected_concept:
@@ -1600,14 +1605,16 @@ def render_tab3_interacao():
                 use_truncation = st.checkbox(
                     "Usar truncagem (*)",
                     value=False,
-                    help="Adiciona * ao final para recuperar variações"
+                    help="Adiciona * ao final para recuperar variações",
+                    key="chk_truncagem"
                 )
             
             with col_aspas:
                 use_quotes = st.checkbox(
                     'Usar aspas (" ")',
                     value=True,
-                    help="Coloca o termo entre aspas para busca exata"
+                    help="Coloca o termo entre aspas para busca exata",
+                    key="chk_aspas"
                 )
             
             def format_term(term, truncation=False, quotes=False):
@@ -1998,35 +2005,25 @@ with tab1:
     
     # ========== ETAPA 2: TRILHA DE APRENDIZAGEM ATIVA ==========
     elif st.session_state.step == 2:
+        st.write(f"DEBUG: rerun count = {st.session_state.get('debug_rerun', 0)}")
+        st.session_state.debug_rerun = st.session_state.get('debug_rerun', 0) + 1
+        
         d = st.session_state.form_data
         r = st.session_state.resultado
-        sub_step = st.session_state.get('sub_step', 'a')
 
-        # ========== SUB-ETAPA 2a: VISUALIZAÇÃO DO GRAFO ==========
-        if sub_step == 'a':
-            if st.button("⬅️ Voltar ao Formulário"):
-                st.session_state.step = 1
-                st.rerun()
+        if st.button("⬅️ Voltar ao Formulário", key="btn_voltar_form_2a"):
+            st.session_state.step = 1
+            st.rerun()
 
+        tab_2a, tab_2b, tab_2c = st.tabs(["🕸️ Grafo", "🎯 Seleção", "📋 Relatório"])
+
+        with tab_2a:
             render_etapa_2a(d, r)
 
-            if st.button("Continuar para Seleção de Conceitos ▶️", type="primary", width="stretch"):
-                st.session_state.sub_step = 'b'
-                st.rerun()
-
-            rodape_institucional()
-
-        # ========== SUB-ETAPA 2b: SELEÇÃO DE CONCEITOS ==========
-        # ========== SUB-ETAPA 2b: SELEÇÃO DE CONCEITOS ==========
-        elif sub_step == 'b':
-            top_concepts = r.get('top_concepts', [])[:9]
-
-            if st.button("⬅️ Voltar ao Grafo"):
-                st.session_state.sub_step = 'a'
-                st.rerun()
-
+        with tab_2b:
             render_etapa_2b(d, r)
-
+            
+            top_concepts = r.get('top_concepts', [])[:9]
             st.subheader("📋 Conceitos Identificados na Rede")
             cols = st.columns(3)
             selected = []
@@ -2049,168 +2046,124 @@ with tab1:
             else:
                 st.success(f"✅ **{num_selected} conceito(s) selecionado(s):** {', '.join(selected)}")
 
-            col1, col2 = st.columns(2)
+            if num_selected >= 1:
+                if st.button("Gerar Relatório de Delineamento ▶️", type="primary", width="stretch", key="btn_gerar_relatorio"):
+                    with st.spinner("🔄 Gerando relatório... (aguarde 1-2 minutos)"):
+                        from research_pipeline import GeminiQueryGenerator
+                        gemini = GeminiQueryGenerator()
 
-            with col2:
-                if num_selected >= 1:
-                    if st.button("Gerar Relatório de Delineamento ▶️", type="primary", width="stretch"):
-                        with st.spinner("🔄 Gerando relatório... (aguarde 1-2 minutos)"):
-                            from research_pipeline import GeminiQueryGenerator
-                            gemini = GeminiQueryGenerator()
+                        primeiro_nome = d['nome'].split()[0]
+                        tema = d['tema']
+                        original_kws = [k.strip() for k in d.get('palavras_chave', '').split(',') if k.strip()]
+                        all_concepts = r.get('top_concepts', [])[:9]
 
-                            primeiro_nome = d['nome'].split()[0]
-                            tema = d['tema']
-                            original_kws = [k.strip() for k in d.get('palavras_chave', '').split(',') if k.strip()]
-                            all_concepts = r.get('top_concepts', [])[:9]
+                        st.session_state.personalized_interpretation = gemini.generate_contextualized_interpretation(
+                            tema, primeiro_nome, selected, all_concepts, genero=d.get('genero', 'Neutro')
+                        )
 
-                            st.session_state.personalized_interpretation = gemini.generate_contextualized_interpretation(
-                                tema, primeiro_nome, selected, all_concepts, genero=d.get('genero', 'Neutro')
-                            )
+                        st.session_state.suggested_keywords = gemini.generate_keyword_suggestions(
+                            tema, primeiro_nome, selected, original_kws
+                        )
 
-                            st.session_state.suggested_keywords = gemini.generate_keyword_suggestions(
-                                tema, primeiro_nome, selected, original_kws
-                            )
+                        st.session_state.suggested_strings = gemini.generate_search_strings(
+                            tema, 
+                            selected, 
+                            original_kws,
+                            st.session_state.suggested_keywords
+                        )
 
-                            st.session_state.suggested_strings = gemini.generate_search_strings(
-                                tema, 
-                                selected, 
-                                original_kws,
+                        st.session_state.interpretation_generated = True
+                        if 'id_usuario' in st.session_state:
+                            atualizar_termos_sugeridos(
+                                st.session_state.id_usuario,
                                 st.session_state.suggested_keywords
                             )
+                    st.rerun()
 
-                            st.session_state.interpretation_generated = True
-                            if 'id_usuario' in st.session_state:
-                                atualizar_termos_sugeridos(
-                                    st.session_state.id_usuario,
-                                    st.session_state.suggested_keywords
-                                )
-
-                        st.session_state.sub_step = 'c'
-                        st.rerun()
-                else:
-                    st.button("Gerar Interpretação Personalizada ▶️", disabled=True, width="stretch")
-
-            rodape_institucional()
-
-        # ========== SUB-ETAPA 2c: INTERPRETAÇÃO PERSONALIZADA ==========
-        elif sub_step == 'c':
+        with tab_2c:
             selected = st.session_state.get('selected_concepts', [])
-
-            col_nav1, col_nav2 = st.columns([1, 3])
-            with col_nav1:
-                if st.button("⬅️ Voltar à Seleção"):
-                    st.session_state.sub_step = 'b'
-                    st.rerun()
-
-            render_etapa_2c(d, r, selected)
-
-            # ========== SEÇÃO 6: CHAVES DE BUSCA SUGERIDAS ==========
-            st.subheader("🔎 Chaves de Busca Sugeridas")
-            st.caption("Copie as chaves de busca abaixo para usar no Painel ou em bases de dados")
-
-            suggested_strings = st.session_state.get('suggested_strings', {})
-
-            if suggested_strings:
-                for key, data in suggested_strings.items():
-                    with st.container(border=True, key=f"string_container_{key}"):
-                        st.markdown(f"**{data.get('titulo', key)}**")
-                        st.caption(data.get('descricao', ''))
-
-                        col_str, col_btn = st.columns([4, 1])
-
-                        with col_str:
-                            st.code(data.get('string', ''), language='text')
-
-                        with col_btn:
-                            if st.button("📋 Copiar", key=f"copy_{key}", width="stretch"):
-                                st.session_state.dashboard_query = data.get('string', '')
-                                st.session_state.dashboard_query_source = "delineascópio"
-                                st.toast(f"✅ Chave de busca copiada para o Painel!")
+            
+            if not selected:
+                st.warning("⚠️ Selecione conceitos na aba 'Seleção' primeiro.")
+            elif not st.session_state.get('interpretation_generated'):
+                st.warning("⚠️ Clique em 'Gerar Relatório' na aba 'Seleção' primeiro.")
             else:
-                search_string = r.get('search_string', 'N/A')
-                with st.container(border=True):
-                    st.markdown("**🔎 Chave de Busca Original**")
-                    col_str, col_btn = st.columns([4, 1])
-                    with col_str:
+                render_etapa_2c(d, r, selected)
+
+                st.subheader("🔎 Chaves de Busca Sugeridas")
+                st.caption("Copie as chaves de busca abaixo para usar no Painel ou em bases de dados")
+
+                suggested_strings = st.session_state.get('suggested_strings', {})
+
+                if suggested_strings:
+                    for key, data in suggested_strings.items():
+                        with st.container(border=True, key=f"string_container_{key}"):
+                            st.markdown(f"**{data.get('titulo', key)}**")
+                            st.caption(data.get('descricao', ''))
+                            col_str, col_btn = st.columns([4, 1])
+                            with col_str:
+                                st.code(data.get('string', ''), language='text')
+                            with col_btn:
+                                if st.button("📋 Copiar", key=f"copy_{key}", width="stretch"):
+                                    st.session_state.dashboard_query = data.get('string', '')
+                                    st.session_state.dashboard_query_source = "delineascópio"
+                                    st.toast("✅ Chave copiada!")
+                else:
+                    search_string = r.get('search_string', 'N/A')
+                    with st.container(border=True):
+                        st.markdown("**🔎 Chave de Busca Original**")
                         st.code(search_string, language='text')
-                    with col_btn:
-                        if st.button("📋 Copiar", key="copy_original", width="stretch"):
-                            st.session_state.dashboard_query = search_string
-                            st.session_state.dashboard_query_source = "delineascópio"
-                            st.toast("✅ Chave de busca copiada para o Painel!")
 
-            col_transp, _ = st.columns([1, 3])
-            with col_transp:
-                if st.button("📋 Copiar Chave Original", key="copy_transparency", width="stretch"):
-                    st.session_state.dashboard_query = r.get('search_string', '')
-                    st.session_state.dashboard_query_source = "delineascópio"
-                    st.toast("✅ Chave de busca copiada para o Painel!")
+                st.divider()
+                col1, col2 = st.columns(2)
 
-            st.divider()
-
-            col1, col2 = st.columns(2)
-
-            with col1:
-                try:
-                    cache_key = f"pdf_{d.get('nome', '')}_{d.get('timestamp', '')}"
-                    if st.session_state.get('pdf_cache_key') != cache_key:
-                        st.session_state.cached_pdf_bytes = generate_pdf_report(
-                            form_data=d,
-                            result=r,
-                            selected_concepts=selected,
-                            suggested_keywords=st.session_state.get('suggested_keywords', []),
-                            suggested_strings=st.session_state.get('suggested_strings', {}),
-                            badges=st.session_state.get('badges', [])
+                with col1:
+                    try:
+                        cache_key = f"pdf_{d.get('nome', '')}_{d.get('timestamp', '')}"
+                        if st.session_state.get('pdf_cache_key') != cache_key:
+                            st.session_state.cached_pdf_bytes = generate_pdf_report(
+                                form_data=d,
+                                result=r,
+                                selected_concepts=selected,
+                                suggested_keywords=st.session_state.get('suggested_keywords', []),
+                                suggested_strings=st.session_state.get('suggested_strings', {}),
+                                badges=st.session_state.get('badges', [])
+                            )
+                            st.session_state.pdf_cache_key = cache_key
+                        
+                        st.download_button(
+                            "📥 Baixar PDF Completo",
+                            data=st.session_state.cached_pdf_bytes,
+                            file_name=f"delineamento_{d['nome'].replace(' ', '_')}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True,
+                            type="primary",
+                            key="dl_pdf_relatorio"
                         )
-                        st.session_state.pdf_cache_key = cache_key
-                    
-                    pdf_bytes = st.session_state.cached_pdf_bytes
-                    
-                    st.download_button(
-                        "📥 Baixar PDF Completo",
-                        data=pdf_bytes,
-                        file_name=f"delineamento_{d['nome'].replace(' ', '_')}.pdf",
-                        mime="application/pdf",
-                        use_container_width=True,
-                        type="primary"
-                    )
-                except Exception as e:
-                    st.error(f"Erro ao gerar PDF: {str(e)}")
+                    except Exception as e:
+                        st.error(f"Erro ao gerar PDF: {str(e)}")
 
-            with col2:
-                if st.button("📝 Avaliar Sistema", type="primary", width="stretch"):
-                    st.session_state.step = 3
+                with col2:
+                    if st.button("📝 Avaliar Sistema", type="primary", width="stretch", key="btn_avaliar_2c"):
+                        st.session_state.step = 3
+                        st.rerun()
+
+                st.info("🎉 **Parabéns!** Você completou a trilha de delineamento!")
+
+                if st.button("🔄 Iniciar Novo Delineamento", width="stretch", key="btn_novo_2c"):
+                    st.session_state.step = 1
+                    st.session_state.resultado = None
+                    st.session_state.form_data = {}
+                    st.session_state.avaliacao_completa = False
+                    st.session_state.badges = []
+                    st.session_state.selected_concepts = []
+                    st.session_state.interpretation_generated = False
+                    st.session_state.personalized_interpretation = None
+                    st.session_state.suggested_keywords = []
+                    st.session_state.suggested_strings = {}
                     st.rerun()
 
-            st.info("""
-            🎉 **Parabéns!** Você completou a trilha de delineamento!
-
-            Agora você pode:
-            - 📥 **Baixar o PDF** com o relatório completo
-            - 🔬 **Usar a Interação** para explorar o grafo
-            - 📋 **Realizar novos delineamentos**
-            - 📜 **Usar o Histórico** para comparar diferentes delineamentos            
-            - 🔎 **Usar o Painel** para analisar a literatura
-            - 📝 **Avaliar o sistema** e nos ajudar a melhorar
-            """)
-
-            if st.button("🔄 Iniciar Novo Delineamento", width="stretch"):
-                st.session_state.step = 1
-                st.session_state.resultado = None
-                st.session_state.form_data = {}
-                st.session_state.avaliacao_completa = False
-                st.session_state.badges = []
-                st.session_state.sub_step = 'a'
-                st.session_state.selected_concepts = []
-                st.session_state.interpretation_generated = False
-                st.session_state.personalized_interpretation = None
-                st.session_state.suggested_keywords = []
-                st.session_state.suggested_strings = {}
-                st.rerun()
-
-                limpar_memoria()
-
-            rodape_institucional()
+        rodape_institucional()
 
     # ========== ETAPA 3: AVALIAÇÃO EXPANDIDA ==========
     elif st.session_state.step == 3:
@@ -2238,7 +2191,8 @@ Para prosseguir com o preenchimento deste formulário, assinale a alternativa ma
                 data=pdf_file,
                 file_name="TCLE_Delineia.pdf",
                 mime="application/pdf",
-                help="Clique para baixar o Termo de Consentimento Livre e Esclarecido completo"
+                help="Clique para baixar o Termo de Consentimento Livre e Esclarecido completo",
+                key="dl_tcle_pdf"
             )
 
         st.markdown("") # Um pequeno espaço
@@ -2703,7 +2657,8 @@ Para prosseguir com o preenchimento deste formulário, assinale a alternativa ma
                         data=pdf_aval,
                         file_name=nome_arquivo,
                         mime="application/pdf",
-                        width="stretch"
+                        width="stretch",
+                        key="dl_avaliacao_pdf"
                     )
                 except Exception as e:
                     st.warning(f"PDF indisponível: {e}")
@@ -2912,7 +2867,7 @@ Que sangre o dedo, mas que estanque o vício.
                         
 """)
 
-        if st.button("🔄 Iniciar Novo Delineamento", width="stretch"):
+        if st.button("🔄 Iniciar Novo Delineamento", width="stretch", key="btn_novo_etapa4"):
             st.session_state.step = 1
             st.session_state.resultado = None
             st.session_state.form_data = {}
@@ -2982,7 +2937,7 @@ with tab3:
                 )
 
             # Botão de Ação
-            if st.button("🔄 Comparar Delineamentos", type="primary", width="stretch"):
+            if st.button("🔄 Comparar Delineamentos", type="primary", width="stretch", key="btn_comparar_hist"):
                 if g1_title == g2_title:
                     st.warning("⚠️ Selecione dois delineamentos distintos para ver as diferenças.")
                 else:
@@ -3352,7 +3307,8 @@ with tab3:
                                     data=pdf_bytes,
                                     file_name=nome_arquivo,
                                     mime="application/pdf",
-                                    width="stretch"
+                                    width="stretch",
+                                    key="dl_historico_pdf"
                                 )
                             except Exception as e:
                                 st.warning(f"PDF indisponível: {e}")
@@ -3465,7 +3421,7 @@ with tab4:
         st.divider()
 
         # Botão de buscar
-        if st.button("🔍 Buscar", type="primary", width="stretch"):
+        if st.button("🔍 Buscar", type="primary", width="stretch", key="btn_buscar_painel"):
             limpar_memoria()
             with st.spinner("🔄 Em processamento... confira no Painel   "):
                 try:
@@ -4009,7 +3965,8 @@ with tab4:
                     data=csv_salton,
                     file_name="matriz_salton_completa.csv",
                     mime="text/csv",
-                    width="stretch"
+                    width="stretch",
+                    key="dl_salton_csv"
                 )
                 
                 st.metric("Dimensão da matriz", f"{len(all_concepts)} x {len(all_concepts)}")
@@ -4520,7 +4477,8 @@ with tab4:
                     "articles.json",
                     "application/json",
                     help="Dados brutos completos (ideal para mineração).",
-                    width="stretch"
+                    width="stretch",
+                    key="dl_artigos_json"
                 )
 
                 st.download_button(
@@ -4528,7 +4486,8 @@ with tab4:
                     json.dumps(concepts_lists, indent=2, ensure_ascii=False),
                     "concepts.json",
                     "application/json",
-                    width="stretch"
+                    width="stretch",
+                    key="dl_conceitos_json"
                 )
 
                 cooc_json = [
@@ -4541,7 +4500,8 @@ with tab4:
                     json.dumps(cooc_json, indent=2, ensure_ascii=False),
                     "cooccurrences.json",
                     "application/json",
-                    width="stretch"
+                    width="stretch",
+                    key="dl_cooc_json"
                 )
 
             # --- COLUNA 2: CSV ---
@@ -4562,7 +4522,8 @@ with tab4:
                     df_articles_export.to_csv(index=False),
                     "articles.csv",
                     "text/csv",
-                    width="stretch"
+                    width="stretch",
+                    key="dl_artigos_csv"
                 )
 
                 df_concepts = pd.DataFrame(
@@ -4575,7 +4536,8 @@ with tab4:
                     df_concepts.to_csv(index=False),
                     "concepts.csv",
                     "text/csv",
-                    width="stretch"
+                    width="stretch",
+                    key="dl_conceitos_csv"
                 )
 
                 edges_list = [[u, v, d['weight']] for u, v, d in G.edges(data=True)]
@@ -4586,7 +4548,8 @@ with tab4:
                     df_cooc.to_csv(index=False),
                     "cooccurrences.csv",
                     "text/csv",
-                    width="stretch"
+                    width="stretch",
+                    key="dl_cooc_csv"
                 )
 
             # --- COLUNA 3: OUTROS FORMATOS (GraphML e .net) ---
@@ -4608,7 +4571,8 @@ with tab4:
                         "graph.graphml",
                         "application/xml",
                         help="Para Gephi ou Cytoscape",
-                        width="stretch"
+                        width="stretch",
+                        key="dl_graphml_painel"
                     )
                 except Exception as e:
                     st.error(f"Erro GraphML: {e}")
@@ -4623,7 +4587,8 @@ with tab4:
                         "graph.net", 
                         "text/plain",
                         help="Para VOSviewer ou Pajek",
-                        width="stretch"
+                        width="stretch",
+                        key="dl_pajek_painel"
                     )
                 except Exception as e:
                     st.error(f"Erro Pajek: {e}")
@@ -4646,7 +4611,8 @@ with tab4:
                         file_name="delineia_resultados.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         help="Planilha formatada com conceitos, score e level.",
-                        width="stretch"
+                        width="stretch",
+                        key="dl_excel"
                     )
             except Exception as e:
                 st.error(f"Erro Excel: {e}")
@@ -4661,7 +4627,8 @@ with tab4:
                         file_name="delineia_referencias.bib",
                         mime="text/plain",
                         help="Para LaTeX/Overleaf.",
-                        width="stretch"
+                        width="stretch",
+                        key="dl_bibtex"
                     )
             except Exception as e:
                 st.error(f"Erro BibTeX: {e}")
@@ -4676,7 +4643,8 @@ with tab4:
                         file_name="delineia_referencias.ris",
                         mime="application/x-research-info-systems",
                         help="Para Zotero, Mendeley, EndNote.",
-                        width="stretch"
+                        width="stretch",
+                        key="dl_ris"
                     )
             except Exception as e:
                 st.error(f"Erro RIS: {e}")
@@ -4684,7 +4652,7 @@ with tab4:
             # --- PACOTE ZIP ---
             st.subheader("📦 Pacote Completo")
 
-            if st.button("🎁 Gerar ZIP com Todos os Dados", width="stretch"):
+            if st.button("🎁 Gerar ZIP com Todos os Dados", width="stretch", key="btn_gerar_zip"):
                 with st.spinner("📦 Gerando arquivo ZIP..."):
                     import zipfile
                     from io import BytesIO
@@ -4764,7 +4732,8 @@ Total de Artigos: {len(articles)}
                         zip_buffer.getvalue(),
                         "painel_completo.zip",
                         "application/zip",
-                        width="stretch"
+                        width="stretch",
+                        key="dl_zip_completo"
                     )
 
     else:
