@@ -1978,10 +1978,6 @@ with tab1:
                             st.error(f"❌ Erro ao processar: {str(e)}")
                             st.exception(e)
         
-        d = st.session_state.form_data
-        r = st.session_state.resultado
-        sub_step = st.session_state.get('sub_step', 'a')
-
         rodape_institucional()
 
     # ========== ETAPA 2: TRILHA DE APRENDIZAGEM ATIVA ==========
