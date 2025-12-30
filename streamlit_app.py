@@ -1984,7 +1984,13 @@ with tab1:
 
         rodape_institucional()
 
-    # ========== SUB-ETAPA 2a: VISUALIZAÇÃO DO GRAFO ==========
+    # ========== ETAPA 2: TRILHA DE APRENDIZAGEM ATIVA ==========
+    elif st.session_state.step == 2:
+        d = st.session_state.form_data
+        r = st.session_state.resultado
+        sub_step = st.session_state.get('sub_step', 'a')
+
+        # ========== SUB-ETAPA 2a: VISUALIZAÇÃO DO GRAFO ==========
         if sub_step == 'a':
             if st.button("⬅️ Voltar ao Formulário", key="btn_voltar_form_2a"):
                 st.session_state.step = 1
@@ -2072,7 +2078,7 @@ with tab1:
 
             rodape_institucional()
 
-        # ========== SUB-ETAPA 2c: INTERPRETAÇÃO PERSONALIZADA ==========
+        # ========== SUB-ETAPA 2c: RELATÓRIO ==========
         elif sub_step == 'c':
             selected = st.session_state.get('selected_concepts', [])
 
