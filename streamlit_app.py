@@ -262,7 +262,6 @@ capacity for processing information. *Psychological Review*, Washington, v. 63, 
 p. 81-97, 1956. DOI: [https://doi.org/10.1037/h0043158](https://doi.org/10.1037/h0043158).
         """)
 
-    st.divider()
     st.info("""
     💡 **Próximo passo:** Observe atentamente o grafo e o glossário acima. 
     Na próxima etapa, você selecionará os conceitos mais relevantes para sua pesquisa.
@@ -329,9 +328,7 @@ def render_etapa_2c(d, r, selected):
         st.image(r['visualization_path'], width="stretch")
 
     with st.expander("📖 Glossário de Conceitos", expanded=False):
-        st.caption("Role para ver todos os conceitos")
-        with st.container(height=300, border=True):
-            st.markdown(r.get('glossary', '⚠️ Glossário não disponível'))
+        st.markdown(r.get('glossary', '⚠️ Glossário não disponível'))
 
     st.subheader("🔑 Sugestões de Palavras-chave")
     suggested_kws = st.session_state.get('suggested_keywords', [])
@@ -346,32 +343,6 @@ def render_etapa_2c(d, r, selected):
                     st.write(kw.get('description', ''))
     else:
         st.info("Sugestões de palavras-chave não disponíveis")
-
-    st.subheader("🔬 Transparência: Chave de Busca Usada")
-    st.caption("Esta é a chave de busca exata que foi usada para recuperar artigos do OpenAlex")
-    
-    with st.container(border=True):
-        search_objective = r.get('search_objective', '')
-        if search_objective:
-            st.markdown(f"**Objetivo:** {search_objective}")
-            st.divider()
-        
-        search_string = r.get('search_string', 'N/A')
-        st.markdown("**Chave de busca executada:**")
-        col_code, col_copy = st.columns([4, 1])
-        with col_code:
-            st.code(search_string, language='text')
-        with col_copy:
-            if st.button("📋 Copiar", key="copy_search_string_2c", width="stretch"):
-                st.session_state.dashboard_query = search_string
-                st.session_state.dashboard_query_source = "delineascópio"
-                st.toast("✅ Chave copiada para o Painel!")
-        
-        articles_count = r.get('articles_count', 0)
-        graph_stats = r.get('graph_stats', {})
-        st.caption(f"📊 Resultados: {articles_count} artigos encontrados | "
-                  f"{graph_stats.get('nodes', 0)} conceitos | "
-                  f"{graph_stats.get('edges', 0)} coocorrências")
 
 # ==================== SIDEBAR FIXO ====================
 with st.sidebar:
@@ -406,28 +377,36 @@ with st.sidebar:
  
     with st.expander("Autoria"):
         st.markdown("""
-            **Desenvolvimento:** Rafael Antunes dos Santos  
+            **Desenvolvimento:** 
+            - Rafael Antunes dos Santos  
+            
+            **Orientador:** 
+            - Prof. Dr. Eliseo Berni Reategui
+            
+            **Nível:** 
+            - Doutorado
             
             **Instituição:**             
             - Universidade Federal do Rio Grande do Sul (UFRGS) 
             - Centro Interdisciplinar de Novas Tecnologias na Educação (Cinted)
             - Programa de Pós-Graduação em Informática na Educação (PPGIE)
-              
-            **Nível:** Doutorado
-                      
-            **Orientador:** Prof. Dr. Eliseo Berni Reategui  
-        
+                              
             **Formação Anterior:**
             - Mestre em Comunicação e Informação pela UFRGS (PPGCOM)  
             - Bacharel em Biblioteconomia pela UFRGS (DCI/FABICO) - CRB10/1898
         
-            **Lattes:** [http://lattes.cnpq.br/5228660998907867](http://lattes.cnpq.br/5228660998907867)
+            **Lattes:** 
+            - [http://lattes.cnpq.br/5228660998907867](http://lattes.cnpq.br/5228660998907867)
 
-            **ORCID:** https://orcid.org/0000-0002-1529-9063 
+            **ORCID:** 
+            - https://orcid.org/0000-0002-1529-9063 
             
             **Contato:**
             - rafael.antunes@ufrgs.br
-            - rderafa@gmail.com        
+            - rderafa@gmail.com
+
+            **Github:**
+            - https://github.com/rderafa-rgb        
             """)
     
     with st.expander("Trilha de Aprendizagem"):
@@ -471,13 +450,20 @@ with st.sidebar:
     
     with st.expander("Tecnologias"):
         st.markdown("""
-            - Google Gemini AI 2.5 Pro API
             - OpenAlex API
+            - Google Gemini AI 2.5 Pro API
             - Anthropic Claude Opus 4.5
-            - Python | Streamlit | HuggingFace
-            - JavaScript | CSS | HTML
-            - NetworkX | Plotly | PyVis | ReportLab
+            - Python
+            - HuggingFace
+            - Streamlit
+            - NetworkX
+            - Plotly
+            - PyVis
+            - ReportLab
             - GraphViz
+            - JavaScript
+            - CSS
+            - HTML
 
             *Versão*
             - Delinéia I (17 nov. 2025)        
@@ -510,7 +496,8 @@ with st.sidebar:
             - Sonia Elisa Caregnato
             - Vanessa Soares Maurente
             
-            Aos **Colegas** do grupo de pesquisa **GTech.Edu**
+            Aos **Colegas** do grupo de pesquisa GTech.Edu.  
+            
             À **CAPES**, pela concessão de bolsa de estudos.
             """)
 
@@ -2140,6 +2127,32 @@ with tab1:
                             st.session_state.dashboard_query_source = "delineascópio"
                             st.toast("✅ Chave copiada!")
 
+            st.subheader("🔬 Transparência: Chave de Busca Usada")
+            st.caption("Esta é a chave de busca exata que foi usada para recuperar artigos do OpenAlex")
+            
+            with st.container(border=True):
+                search_objective = r.get('search_objective', '')
+                if search_objective:
+                    st.markdown(f"**Objetivo:** {search_objective}")
+                    st.divider()
+                
+                search_string = r.get('search_string', 'N/A')
+                st.markdown("**Chave de busca executada:**")
+                col_code, col_copy = st.columns([4, 1])
+                with col_code:
+                    st.code(search_string, language='text')
+                with col_copy:
+                    if st.button("📋 Copiar", key="copy_search_string_2c", width="stretch"):
+                        st.session_state.dashboard_query = search_string
+                        st.session_state.dashboard_query_source = "delineascópio"
+                        st.toast("✅ Chave copiada para o Painel!")
+                
+                articles_count = r.get('articles_count', 0)
+                graph_stats = r.get('graph_stats', {})
+                st.caption(f"📊 Resultados: {articles_count} artigos encontrados | "
+                          f"{graph_stats.get('nodes', 0)} conceitos | "
+                          f"{graph_stats.get('edges', 0)} coocorrências")
+
             st.divider()
             col1, col2 = st.columns(2)
 
@@ -2430,7 +2443,7 @@ Para prosseguir com o preenchimento deste formulário, assinale a alternativa ma
                 "F2.21. Em uma escala de 0 a 10, quanto você recomendaria o Delinéia para um colega?",
                 min_value=0,
                 max_value=10,
-                value=5,
+                value=7,
                 help="0 = Definitivamente não recomendaria | 10 = Definitivamente recomendaria"
             )
 
@@ -2583,6 +2596,30 @@ Para prosseguir com o preenchimento deste formulário, assinale a alternativa ma
             )
 
             if submitted:
+                # Validação obrigatória dos checkboxes do TCLE
+                tcle_valido = True
+                
+                # Validação 1: Concordância inicial (deve marcar exatamente uma opção)
+                if tcle_aceite and tcle_rejeita:
+                    st.error("⚠️ **TCLE - Concordância:** Selecione apenas UMA opção (CONCORDO ou NÃO CONCORDO).")
+                    tcle_valido = False
+                elif not tcle_aceite and not tcle_rejeita:
+                    st.error("⚠️ **TCLE - Concordância:** É obrigatório selecionar uma opção (CONCORDO ou NÃO CONCORDO).")
+                    tcle_valido = False
+                
+                # Validação 2: Continuidade (deve marcar exatamente uma opção)
+                if aceite_continuidade and rejeita_continuidade:
+                    st.error("⚠️ **Convite à Continuidade:** Selecione apenas UMA opção (CONCORDO ou NÃO CONCORDO).")
+                    tcle_valido = False
+                elif not aceite_continuidade and not rejeita_continuidade:
+                    st.error("⚠️ **Convite à Continuidade:** É obrigatório selecionar uma opção (CONCORDO ou NÃO CONCORDO).")
+                    tcle_valido = False
+                
+                # Impede envio se validação falhar
+                if not tcle_valido:
+                    st.warning("📋 Por favor, revise suas escolhas no TCLE e no Convite à Continuidade antes de enviar.")
+                    st.stop()
+                
                 # Calcular categoria NPS
                 if nps >= 9:
                     nps_category = "Promotor 🌟"
@@ -3419,6 +3456,12 @@ with tab4:
         st.session_state.painel_min_cooc = 2
 
     with st.expander("🔍 Configurar Nova Busca", expanded=False):
+        # Sincroniza dashboard_query com o campo de texto
+        if 'dashboard_query' in st.session_state and st.session_state.dashboard_query:
+            # Se dashboard_query foi atualizado, propaga para o campo de texto
+            if st.session_state.get('txt_query_painel') != st.session_state.dashboard_query:
+                st.session_state.txt_query_painel = st.session_state.dashboard_query
+        
         # Campo de busca
         query = st.text_input(
             "Chave de Busca:",
@@ -3434,7 +3477,6 @@ with tab4:
             else:
                 st.info("📋 Chave de busca copiada do Delineascópio")
 
-        st.divider()
         st.subheader("🔧 Filtros")
 
         with st.expander("⚙️ Configurações Avançadas", expanded=True):
@@ -3557,9 +3599,12 @@ with tab4:
             if df_display is not None and not df_display.empty:
                 st.metric("Total de Artigos", len(df_display))
                 
-                # Exibe Tabela Interativa
+                # Exibe Tabela Interativa (índice começando em 1)
+                df_display_indexed = df_display.copy()
+                df_display_indexed.index = range(1, len(df_display_indexed) + 1)
+                
                 st.dataframe(
-                    df_display,
+                    df_display_indexed,
                     width="stretch",
                     height=400,
                     column_config={
@@ -3627,6 +3672,240 @@ with tab4:
     
                 with st.expander("🔍 Ver JSON completo"):
                     st.json(selected)
+
+            # ========== ANÁLISE DE PRODUÇÃO ANUAL ==========
+            if df_display is not None and not df_display.empty and 'Ano' in df_display.columns:
+                st.divider()
+                st.subheader("📈 Distribuição Anual da Produção")
+                
+                # Extrair anos e contar frequências
+                anos_validos = df_display['Ano'].dropna()
+                anos_validos = anos_validos[anos_validos != ''].astype(int)
+                
+                if len(anos_validos) > 0:
+                    # Criar DataFrame de frequências por ano
+                    freq_anos = anos_validos.value_counts().sort_index()
+                    
+                    # Criar DataFrame completo com todos os anos no intervalo
+                    ano_min, ano_max = freq_anos.index.min(), freq_anos.index.max()
+                    todos_anos = range(ano_min, ano_max + 1)
+                    
+                    df_anos = pd.DataFrame({
+                        'Ano': list(todos_anos),
+                        'Frequência Absoluta': [freq_anos.get(ano, 0) for ano in todos_anos]
+                    })
+                    
+                    # Calcular métricas
+                    total = df_anos['Frequência Absoluta'].sum()
+                    df_anos['Frequência Relativa (%)'] = (df_anos['Frequência Absoluta'] / total * 100).round(2)
+                    df_anos['Freq. Acumulada Absoluta'] = df_anos['Frequência Absoluta'].cumsum()
+                    df_anos['Freq. Acumulada Relativa (%)'] = (df_anos['Freq. Acumulada Absoluta'] / total * 100).round(2)
+                    
+                    # Taxa de crescimento (% em relação ao ano anterior)
+                    df_anos['Taxa de Crescimento (%)'] = df_anos['Frequência Absoluta'].pct_change().fillna(0) * 100
+                    df_anos['Taxa de Crescimento (%)'] = df_anos['Taxa de Crescimento (%)'].round(2)
+                    
+                    # Gráfico de linha
+                    fig_anos = go.Figure()
+                    
+                    # Linha azul - Frequência absoluta
+                    fig_anos.add_trace(go.Scatter(
+                        x=df_anos['Ano'],
+                        y=df_anos['Frequência Absoluta'],
+                        mode='lines+markers',
+                        name='Nº de Artigos',
+                        line=dict(color='blue', width=2),
+                        marker=dict(size=6)
+                    ))
+                    
+                    # Linha de tendência (média móvel 3 anos)
+                    if len(df_anos) >= 3:
+                        df_anos['Tendência'] = df_anos['Frequência Absoluta'].rolling(window=3, min_periods=1).mean()
+                        fig_anos.add_trace(go.Scatter(
+                            x=df_anos['Ano'],
+                            y=df_anos['Tendência'],
+                            mode='lines',
+                            name='Tendência (média móvel)',
+                            line=dict(color='red', width=2, dash='dash')
+                        ))
+                    
+                    fig_anos.update_layout(
+                        title='Distribuição Anual de Publicações',
+                        xaxis_title='Ano de Publicação',
+                        yaxis_title='Número de Artigos',
+                        height=400,
+                        hovermode='x unified',
+                        legend=dict(orientation='h', yanchor='bottom', y=1.02)
+                    )
+                    
+                    st.plotly_chart(fig_anos, use_container_width=True)
+                    
+                    # Tabela de frequências
+                    st.markdown("**📋 Tabela de Frequências por Ano**")
+                    
+                    # Preparar tabela para exibição
+                    df_tabela = df_anos[['Ano', 'Frequência Absoluta', 'Frequência Relativa (%)', 
+                                         'Freq. Acumulada Absoluta', 'Freq. Acumulada Relativa (%)',
+                                         'Taxa de Crescimento (%)']].copy()
+                    df_tabela = df_tabela.rename(columns={'Ano': 'Ano de Publicação'})
+                    df_tabela = df_tabela.set_index('Ano de Publicação')
+                    
+                    st.dataframe(df_tabela, use_container_width=True)
+                    
+                    # Métricas resumo
+                    col_m1, col_m2, col_m3 = st.columns(3)
+                    col_m1.metric("Período", f"{ano_min} - {ano_max}")
+                    col_m2.metric("Ano com mais publicações", f"{df_anos.loc[df_anos['Frequência Absoluta'].idxmax(), 'Ano']}")
+                    
+                    # Taxa média de crescimento (excluindo primeiro ano)
+                    taxa_media = df_anos['Taxa de Crescimento (%)'].iloc[1:].mean()
+                    col_m3.metric("Taxa média de crescimento", f"{taxa_media:.1f}%")
+                else:
+                    st.info("Dados de ano não disponíveis para análise temporal.")
+
+            # ========== ANÁLISE DE DISTRIBUIÇÃO POR PAÍSES ==========
+            if len(articles) > 0:
+                st.divider()
+                st.subheader("🌍 Distribuição Geográfica")
+                
+                # Extrair países das instituições dos autores
+                from collections import Counter
+                
+                paises_counter = Counter()
+                
+                for article in articles:
+                    authorships = article.get('authorships', [])
+                    paises_artigo = set()  # Evita contar o mesmo país várias vezes por artigo
+                    
+                    for authorship in authorships:
+                        institutions = authorship.get('institutions', [])
+                        for inst in institutions:
+                            country_code = inst.get('country_code')
+                            if country_code:
+                                paises_artigo.add(country_code)
+                    
+                    for pais in paises_artigo:
+                        paises_counter[pais] += 1
+                
+                if paises_counter:
+                    # Criar DataFrame
+                    df_paises = pd.DataFrame(
+                        paises_counter.most_common(),
+                        columns=['Código', 'Artigos']
+                    )
+                    
+                    # Dicionário de nomes de países (ISO Alpha-2 para nome)
+                    nomes_paises = {
+                        # África
+                        'DZ': 'Argélia', 'AO': 'Angola', 'BJ': 'Benin', 'BW': 'Botsuana',
+                        'BF': 'Burkina Faso', 'BI': 'Burundi', 'CV': 'Cabo Verde', 'CM': 'Camarões',
+                        'CF': 'República Centro-Africana', 'TD': 'Chade', 'KM': 'Comores',
+                        'CG': 'Congo', 'CD': 'República Democrática do Congo', 'CI': 'Costa do Marfim',
+                        'DJ': 'Djibuti', 'EG': 'Egito', 'GQ': 'Guiné Equatorial', 'ER': 'Eritreia',
+                        'SZ': 'Essuatíni', 'ET': 'Etiópia', 'GA': 'Gabão', 'GM': 'Gâmbia',
+                        'GH': 'Gana', 'GN': 'Guiné', 'GW': 'Guiné-Bissau', 'KE': 'Quênia',
+                        'LS': 'Lesoto', 'LR': 'Libéria', 'LY': 'Líbia', 'MG': 'Madagascar',
+                        'MW': 'Maláui', 'ML': 'Mali', 'MR': 'Mauritânia', 'MU': 'Maurício',
+                        'MA': 'Marrocos', 'MZ': 'Moçambique', 'NA': 'Namíbia', 'NE': 'Níger',
+                        'NG': 'Nigéria', 'RW': 'Ruanda', 'ST': 'São Tomé e Príncipe', 'SN': 'Senegal',
+                        'SC': 'Seicheles', 'SL': 'Serra Leoa', 'SO': 'Somália', 'ZA': 'África do Sul',
+                        'SS': 'Sudão do Sul', 'SD': 'Sudão', 'TZ': 'Tanzânia', 'TG': 'Togo',
+                        'TN': 'Tunísia', 'UG': 'Uganda', 'ZM': 'Zâmbia', 'ZW': 'Zimbábue',
+                        
+                        # Américas
+                        'AG': 'Antígua e Barbuda', 'AR': 'Argentina', 'BS': 'Bahamas', 'BB': 'Barbados',
+                        'BZ': 'Belize', 'BO': 'Bolívia', 'BR': 'Brasil', 'CA': 'Canadá',
+                        'CL': 'Chile', 'CO': 'Colômbia', 'CR': 'Costa Rica', 'CU': 'Cuba',
+                        'DM': 'Dominica', 'DO': 'República Dominicana', 'EC': 'Equador',
+                        'SV': 'El Salvador', 'GD': 'Granada', 'GT': 'Guatemala', 'GY': 'Guiana',
+                        'HT': 'Haiti', 'HN': 'Honduras', 'JM': 'Jamaica', 'MX': 'México',
+                        'NI': 'Nicarágua', 'PA': 'Panamá', 'PY': 'Paraguai', 'PE': 'Peru',
+                        'KN': 'São Cristóvão e Névis', 'LC': 'Santa Lúcia', 'VC': 'São Vicente e Granadinas',
+                        'SR': 'Suriname', 'TT': 'Trinidad e Tobago', 'US': 'Estados Unidos',
+                        'UY': 'Uruguai', 'VE': 'Venezuela', 'PR': 'Porto Rico',
+                        
+                        # Ásia
+                        'AF': 'Afeganistão', 'AM': 'Armênia', 'AZ': 'Azerbaijão', 'BH': 'Bahrein',
+                        'BD': 'Bangladesh', 'BT': 'Butão', 'BN': 'Brunei', 'KH': 'Camboja',
+                        'CN': 'China', 'CY': 'Chipre', 'GE': 'Geórgia', 'IN': 'Índia',
+                        'ID': 'Indonésia', 'IR': 'Irã', 'IQ': 'Iraque', 'IL': 'Israel',
+                        'JP': 'Japão', 'JO': 'Jordânia', 'KZ': 'Cazaquistão', 'KW': 'Kuwait',
+                        'KG': 'Quirguistão', 'LA': 'Laos', 'LB': 'Líbano', 'MY': 'Malásia',
+                        'MV': 'Maldivas', 'MN': 'Mongólia', 'MM': 'Mianmar', 'NP': 'Nepal',
+                        'KP': 'Coreia do Norte', 'OM': 'Omã', 'PK': 'Paquistão', 'PS': 'Palestina',
+                        'PH': 'Filipinas', 'QA': 'Catar', 'SA': 'Arábia Saudita', 'SG': 'Singapura',
+                        'KR': 'Coreia do Sul', 'LK': 'Sri Lanka', 'SY': 'Síria', 'TW': 'Taiwan',
+                        'TJ': 'Tajiquistão', 'TH': 'Tailândia', 'TL': 'Timor-Leste', 'TR': 'Turquia',
+                        'TM': 'Turcomenistão', 'AE': 'Emirados Árabes Unidos', 'UZ': 'Uzbequistão',
+                        'VN': 'Vietnã', 'YE': 'Iêmen', 'HK': 'Hong Kong', 'MO': 'Macau',
+                        
+                        # Europa
+                        'AL': 'Albânia', 'AD': 'Andorra', 'AT': 'Áustria', 'BY': 'Bielorrússia',
+                        'BE': 'Bélgica', 'BA': 'Bósnia e Herzegovina', 'BG': 'Bulgária', 'HR': 'Croácia',
+                        'CZ': 'República Tcheca', 'DK': 'Dinamarca', 'EE': 'Estônia', 'FI': 'Finlândia',
+                        'FR': 'França', 'DE': 'Alemanha', 'GR': 'Grécia', 'HU': 'Hungria',
+                        'IS': 'Islândia', 'IE': 'Irlanda', 'IT': 'Itália', 'XK': 'Kosovo',
+                        'LV': 'Letônia', 'LI': 'Liechtenstein', 'LT': 'Lituânia', 'LU': 'Luxemburgo',
+                        'MT': 'Malta', 'MD': 'Moldávia', 'MC': 'Mônaco', 'ME': 'Montenegro',
+                        'NL': 'Países Baixos', 'MK': 'Macedônia do Norte', 'NO': 'Noruega', 'PL': 'Polônia',
+                        'PT': 'Portugal', 'RO': 'Romênia', 'RU': 'Rússia', 'SM': 'San Marino',
+                        'RS': 'Sérvia', 'SK': 'Eslováquia', 'SI': 'Eslovênia', 'ES': 'Espanha',
+                        'SE': 'Suécia', 'CH': 'Suíça', 'UA': 'Ucrânia', 'GB': 'Reino Unido',
+                        'VA': 'Vaticano',
+                        
+                        # Oceania
+                        'AU': 'Austrália', 'FJ': 'Fiji', 'KI': 'Kiribati', 'MH': 'Ilhas Marshall',
+                        'FM': 'Micronésia', 'NR': 'Nauru', 'NZ': 'Nova Zelândia', 'PW': 'Palau',
+                        'PG': 'Papua-Nova Guiné', 'WS': 'Samoa', 'SB': 'Ilhas Salomão', 'TO': 'Tonga',
+                        'TV': 'Tuvalu', 'VU': 'Vanuatu', 'NC': 'Nova Caledônia', 'PF': 'Polinésia Francesa',
+                        'GU': 'Guam'
+                    }
+                    
+                    df_paises['País'] = df_paises['Código'].map(
+                        lambda x: nomes_paises.get(x, x)
+                    )
+                    
+                    # Mapa geográfico (Choropleth)
+                    fig_mapa = px.choropleth(
+                        df_paises,
+                        locations='Código',
+                        locationmode='ISO-3166-1 alpha-2',
+                        color='Artigos',
+                        hover_name='País',
+                        hover_data={'Código': False, 'Artigos': True},
+                        color_continuous_scale='Blues',
+                        title='Distribuição de Artigos por País'
+                    )
+                    
+                    fig_mapa.update_layout(
+                        height=500,
+                        geo=dict(
+                            showframe=False,
+                            showcoastlines=True,
+                            projection_type='natural earth'
+                        ),
+                        margin=dict(l=0, r=0, t=50, b=0)
+                    )
+                    
+                    st.plotly_chart(fig_mapa, use_container_width=True)
+                    
+                    # Métricas
+                    col_g1, col_g2, col_g3 = st.columns(3)
+                    col_g1.metric("Países representados", len(df_paises))
+                    col_g2.metric("País líder", df_paises.iloc[0]['País'])
+                    col_g3.metric("Artigos do líder", df_paises.iloc[0]['Artigos'])
+                    
+                    # Tabela com ranking
+                    st.markdown("**📋 Ranking de Países**")
+                    
+                    df_tabela_paises = df_paises[['País', 'Código', 'Artigos']].copy()
+                    df_tabela_paises['% do Total'] = (df_tabela_paises['Artigos'] / df_tabela_paises['Artigos'].sum() * 100).round(2)
+                    df_tabela_paises.index = range(1, len(df_tabela_paises) + 1)
+                    df_tabela_paises.index.name = 'Rank'
+                    
+                    st.dataframe(df_tabela_paises, use_container_width=True)
+                else:
+                    st.info("Dados de país não disponíveis para os artigos recuperados.")
 
         # ========== SUB-ABA 2: CONCEITOS ==========
         with t2:
@@ -3716,7 +3995,13 @@ with tab4:
                 columns=['Conceito', 'Frequência']
             )
 
-            # Gráfico de barras
+            # Tabela primeiro
+            st.markdown("**📋 Tabela de Frequências**")
+            st.dataframe(df_freq, width="stretch")
+            
+            st.divider()
+
+            # Gráfico de barras depois
             fig = px.bar(
                 df_freq,
                 x='Frequência',
@@ -3884,12 +4169,6 @@ with tab4:
                     - ZIPF, G.K. Human behavior and the principle of least effort: an introduction to human ecology. Cambridge: Addison-Wesley Press, 1949. Disponível em: https://archive.org/details/in.ernet.dli.2015.90211.
                     """)
 
-            # Tabela
-            st.subheader("📋 Tabela de Frequências")
-            st.dataframe(df_freq, width="stretch")
-
-            st.divider()
-
             # Distribuição
             st.subheader("📊 Distribuição de Conceitos por Artigo")
 
@@ -3909,6 +4188,117 @@ with tab4:
                 col1.metric("Média", f"{sum(concepts_per_article)/len(concepts_per_article):.1f}")
                 col2.metric("Mínimo", min(concepts_per_article))
                 col3.metric("Máximo", max(concepts_per_article))
+
+            # ========== EVOLUÇÃO TEMPORAL DOS CONCEITOS ==========
+            st.divider()
+            st.subheader("📈 Evolução dos Conceitos ao Longo do Tempo")
+            
+            # Extrair conceitos por ano
+            conceito_ano = {}  # {conceito: {ano: frequência}}
+            
+            for article in articles:
+                ano = article.get('year')
+                if not ano:
+                    continue
+                    
+                concepts = article.get('concepts', [])
+                for c in concepts:
+                    nome = c.get('display_name', c.get('name', ''))
+                    score = c.get('score', 0)
+                    
+                    # Filtrar por score mínimo
+                    if nome and score >= 0.35:
+                        if nome not in conceito_ano:
+                            conceito_ano[nome] = {}
+                        if ano not in conceito_ano[nome]:
+                            conceito_ano[nome][ano] = 0
+                        conceito_ano[nome][ano] += 1
+            
+            if conceito_ano:
+                # Calcular total por conceito e selecionar top N
+                top_n_temporal = st.slider(
+                    "Número de conceitos a exibir:", 
+                    5, 20, 10, 1, 
+                    key="slider_top_temporal"
+                )
+                
+                totais = {c: sum(anos.values()) for c, anos in conceito_ano.items()}
+                top_conceitos = sorted(totais.items(), key=lambda x: x[1], reverse=True)[:top_n_temporal]
+                
+                # Determinar range de anos
+                todos_anos = set()
+                for c, _ in top_conceitos:
+                    todos_anos.update(conceito_ano[c].keys())
+                
+                if todos_anos:
+                    ano_min, ano_max = min(todos_anos), max(todos_anos)
+                    anos_range = list(range(ano_min, ano_max + 1))
+                    
+                    # Criar figura
+                    fig_temporal = go.Figure()
+                    
+                    # Paleta de cores distintas
+                    cores = [
+                        '#E41A1C', '#FF7F00', '#C4A000', '#4DAF4A', '#377EB8',
+                        '#00CED1', '#984EA3', '#FF69B4', '#A65628', '#F781BF',
+                        '#999999', '#66C2A5', '#FC8D62', '#8DA0CB', '#E78AC3',
+                        '#A6D854', '#FFD92F', '#E5C494', '#B3B3B3', '#1B9E77'
+                    ]
+                    
+                    for i, (conceito, total) in enumerate(top_conceitos):
+                        # Frequências por ano (0 se não existir)
+                        freqs = [conceito_ano[conceito].get(ano, 0) for ano in anos_range]
+                        
+                        fig_temporal.add_trace(go.Scatter(
+                            x=anos_range,
+                            y=freqs,
+                            mode='lines+markers',
+                            name=f'{conceito} ({total})',
+                            line=dict(color=cores[i % len(cores)], width=2),
+                            marker=dict(size=6),
+                            hovertemplate=f'<b>{conceito}</b><br>Ano: %{{x}}<br>Frequência: %{{y}}<extra></extra>'
+                        ))
+                    
+                    fig_temporal.update_layout(
+                        title=f'Top {top_n_temporal} Conceitos ao Longo do Tempo',
+                        xaxis_title='Ano',
+                        yaxis_title='Frequência',
+                        height=500,
+                        hovermode='x unified',
+                        legend=dict(
+                            title='Conceitos (Total)',
+                            orientation='v',
+                            yanchor='top',
+                            y=1,
+                            xanchor='left',
+                            x=1.02,
+                            font=dict(size=10)
+                        ),
+                        margin=dict(r=250),  # Espaço para legenda
+                        xaxis=dict(
+                            tickmode='linear',
+                            dtick=1 if len(anos_range) <= 15 else 2
+                        )
+                    )
+                    
+                    st.plotly_chart(fig_temporal, use_container_width=True)
+                    
+                    # Tabela opcional
+                    with st.expander("📋 Ver dados da evolução temporal"):
+                        # Criar DataFrame pivot
+                        dados_pivot = []
+                        for conceito, total in top_conceitos:
+                            row = {'Conceito': conceito, 'Total': total}
+                            for ano in anos_range:
+                                row[str(ano)] = conceito_ano[conceito].get(ano, 0)
+                            dados_pivot.append(row)
+                        
+                        df_temporal = pd.DataFrame(dados_pivot)
+                        st.dataframe(df_temporal, use_container_width=True)
+                else:
+                    st.info("Dados temporais insuficientes para gerar o gráfico.")
+            else:
+                st.info("Não foi possível extrair dados de conceitos por ano.")
 
         # ========== SUB-ABA 3: COOCORRÊNCIAS ==========
         with t3:
@@ -4108,10 +4498,8 @@ with tab4:
 
                     for i, comm in enumerate(communities, 1):
                         with st.expander(f"Comunidade {i} ({len(comm)} conceitos)"):
-                            members = list(comm)[:20]
+                            members = sorted(list(comm))
                             st.write(", ".join(members))
-                            if len(comm) > 20:
-                                st.caption(f"... e mais {len(comm)-20} conceitos")
 
                 except Exception as e:
                     st.info("Não foi possível detectar comunidades")
@@ -4408,9 +4796,7 @@ with tab4:
 
                                         with col1:
                                             st.write("**Conceitos:**")
-                                            concepts_display = ", ".join(cluster["conceitos"][:10])
-                                            if len(cluster["conceitos"]) > 10:
-                                                concepts_display += f" ... (+{len(cluster['conceitos']) - 10} mais)"
+                                            concepts_display = ", ".join(sorted(cluster["conceitos"]))
                                             st.write(concepts_display)
 
                                         with col2:
