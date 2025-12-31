@@ -164,10 +164,10 @@ def get_pipeline_instance():
     """Cache da instância do pipeline para não recriar objetos pesados."""
     return ResearchScopePipeline(OPENALEX_EMAIL)
 
-def run_cached_pipeline(nome, tema, questao, kws, genero):
-    pipe = get_pipeline_instance()
+def run_cached_pipeline(nome, tema, questao, kws, genero, google_academico=""):
+    pipe = ResearchScopePipeline(OPENALEX_EMAIL)
     # A função process retorna dicionários e grafos NetworkX, que o Streamlit serializa bem
-    return pipe.process(nome, tema, questao, kws, genero=genero)
+    return pipe.process(nome, tema, questao, kws, genero=genero, google_academico=google_academico)
 
 @st.cache_data(ttl="1h", show_spinner=False)
 def generate_cached_pdf(form_data, result, selected_concepts, suggested_keywords, suggested_strings, badges):
@@ -246,6 +246,24 @@ def render_etapa_2a(d, r):
 
     st.divider()
     st.info("""
+    💡 **Atenção:** Observe atentamente o grafo e o glossário acima.
+    """)
+
+    with st.expander("📚 Por que limitamos a 9 conceitos?", expanded=False):
+        st.markdown("""
+Limitar a exibição de nós em grafos de palavras-chave reduz a sobrecarga cognitiva, 
+permitindo que o usuário identifique relações semânticas sem exceder sua capacidade 
+limitada de memória de trabalho.
+
+**Referência:**
+
+MILLER, George A. The magical number seven, plus or minus two: some limits on our 
+capacity for processing information. *Psychological Review*, Washington, v. 63, n. 2, 
+p. 81-97, 1956. DOI: [https://doi.org/10.1037/h0043158](https://doi.org/10.1037/h0043158).
+        """)
+
+    st.divider()
+    st.info("""
     💡 **Próximo passo:** Observe atentamente o grafo e o glossário acima. 
     Na próxima etapa, você selecionará os conceitos mais relevantes para sua pesquisa.
     Essa seleção será usada para gerar uma interpretação personalizada do grafo.
@@ -268,10 +286,9 @@ def render_etapa_2b(d, r):
     *Selecione pelo menos 1 conceito para continuar.*
     """)
 
-    st.subheader("🕸️ Grafo de Referência")
-    if r.get('visualization_path'):
-        st.image(r['visualization_path'], width="stretch")
-
+    with st.expander("🕸️ Grafo de Referência", expanded=False):
+        if r.get('visualization_path'):
+            st.image(r['visualization_path'], width="stretch")
 
 @st.fragment
 def render_etapa_2c(d, r, selected):
@@ -311,10 +328,10 @@ def render_etapa_2c(d, r, selected):
     if r.get('visualization_path'):
         st.image(r['visualization_path'], width="stretch")
 
-    st.subheader("📖 Glossário de Conceitos")
-    st.caption("Role para ver todos os conceitos")
-    with st.container(height=300, border=True):
-        st.markdown(r.get('glossary', '⚠️ Glossário não disponível'))
+    with st.expander("📖 Glossário de Conceitos", expanded=False):
+        st.caption("Role para ver todos os conceitos")
+        with st.container(height=300, border=True):
+            st.markdown(r.get('glossary', '⚠️ Glossário não disponível'))
 
     st.subheader("🔑 Sugestões de Palavras-chave")
     suggested_kws = st.session_state.get('suggested_keywords', [])
@@ -341,7 +358,14 @@ def render_etapa_2c(d, r, selected):
         
         search_string = r.get('search_string', 'N/A')
         st.markdown("**Chave de busca executada:**")
-        st.code(search_string, language='text')
+        col_code, col_copy = st.columns([4, 1])
+        with col_code:
+            st.code(search_string, language='text')
+        with col_copy:
+            if st.button("📋 Copiar", key="copy_search_string_2c", width="stretch"):
+                st.session_state.dashboard_query = search_string
+                st.session_state.dashboard_query_source = "delineascópio"
+                st.toast("✅ Chave copiada para o Painel!")
         
         articles_count = r.get('articles_count', 0)
         graph_stats = r.get('graph_stats', {})
@@ -402,8 +426,8 @@ with st.sidebar:
             **ORCID:** https://orcid.org/0000-0002-1529-9063 
             
             **Contato:**
-            📧 rafael.antunes@ufrgs.br
-            📧 rderafa@gmail.com        
+            - rafael.antunes@ufrgs.br
+            - rderafa@gmail.com        
             """)
     
     with st.expander("Trilha de Aprendizagem"):
@@ -447,20 +471,47 @@ with st.sidebar:
     
     with st.expander("Tecnologias"):
         st.markdown("""
-            - Python | Streamlit | HuggingFace
-            - Google Gemini AI 3 Pro | Anthropic Claude Opus 4.5
+            - Google Gemini AI 2.5 Pro API
             - OpenAlex API
+            - Anthropic Claude Opus 4.5
+            - Python | Streamlit | HuggingFace
             - JavaScript | CSS | HTML
             - NetworkX | Plotly | PyVis | ReportLab
             - GraphViz
 
             *Versão*
-            - Delinéia I (17 de novembro de 2025)        
+            - Delinéia I (17 nov. 2025)        
             """)
     
     with st.expander("Agradecimentos"):
         st.markdown("""
-            Ao **Orientador** Eliseo Berni Reategui; Aos **Professores** Alexandra Lorandi, Alexandre Ribas Semeler, Dante Augusto Couto Barone, Elisa Boff, Fernando Becker, Gabriela Trindade Perry, Ida Regina Chitto Stumpf, Leandro Krug Wives, Marcus Vinicius de Azevedo Basso, Maria de Fátima Santos Maia, Milton Antonio Zaro, Patrícia Fernanda da Silva, Rafael Port da Rocha, Regina Helena Van der Laan, Renato Ventura Bayan Henriques, Rosa Maria Vicari, Samile Andréa de Souza Vanz, Sérgio Roberto Kieling Franco, Sonia Elisa Caregnato e Vanessa Soares Maurente. Aos colegas do grupo de pesquisa **GTech.Edu** e à **CAPES**, pela concessão de bolsa de estudos.
+            Ao **Orientador** 
+            - Eliseo Berni Reategui
+                     
+            Aos **Professores** 
+            - Alexandra Lorandi 
+            - Alexandre Ribas Semeler
+            - Dante Augusto Couto Barone
+            - Elisa Boff
+            - Fernando Becker
+            - Gabriela Trindade Perry
+            - Ida Regina Chitto Stumpf 
+            - Leandro Krug Wives 
+            - Marcus Vinicius de Azevedo Basso
+            - Maria de Fátima Santos Maia
+            - Milton Antonio Zaro
+            - Patrícia Fernanda da Silva
+            - Rafael Port da Rocha
+            - Regina Helena Van der Laan
+            - Renato Ventura Bayan Henriques
+            - Rosa Maria Vicari
+            - Samile Andréa de Souza Vanz
+            - Sérgio Roberto Kieling Franco
+            - Sonia Elisa Caregnato
+            - Vanessa Soares Maurente
+            
+            Aos **Colegas** do grupo de pesquisa **GTech.Edu**
+            À **CAPES**, pela concessão de bolsa de estudos.
             """)
 
     with st.expander("Publicações"):
@@ -470,7 +521,7 @@ with st.sidebar:
             - SANTOS, R.A.; REATEGUI, E.B.; CAREGNATO, S.E. Análise de coocorrência de palavras na pesquisa brasileira em HIV/AIDS indexada na Web of Science no período 1993-2020. *Informação & Informação*, v.27, n.2, p.248–273, 2022. Doi: https://doi.org/10.5433/1981-8920.2022v27n2p248. Disponível em: https://ojs.uel.br/revistas/uel/index.php/informacao/article/view/45335.        
            
             *Colaboração em pesquisas:*
-            - REATEGUI, E.B.; BIGOLIN, M.; CARNIATO, M.; SANTOS, R.A. Evaluating the performance of SOBEK text mining keyword extraction algorithm. In: HOLZINGER, A. et al. (ed.). *Machine Learning and Knowledge Extraction*: CD-MAKE 2022. Cham: Springer, 2022. p.233–243. (Lecture Notes in Computer Science, 13480. Doi: https://doi.org/10.1087/978-3-031-14463-9_15.
+            - REATEGUI, E.B.; BIGOLIN, M.; CARNIATO, M.; SANTOS, R.A. Evaluating the performance of SOBEK text mining keyword extraction algorithm. In: HOLZINGER, A. et al. (ed.). *Machine Learning and Knowledge Extraction*: CD-MAKE 2022. Cham: Springer, 2022. p.233–243. (Lecture Notes in Computer Science, 13480. Doi: https://doi.org/10.1007/978-3-031-14463-9_15.
             - SEMELER, A.R.; SANTOS, R.A.; SOARES, K.U. Análise de domínio aplicada aos estudos fronteiriços brasileiros: metadados de publicações científicas de acesso aberto extraídos da plataforma Lattes. In: *ANUÁRIO Unbral das fronteiras brasileiras*: volume 1. Porto Alegre: Instituto de Geociências, 2014. p.37–65.
            """)
 
@@ -546,7 +597,7 @@ def rodape_institucional():
 <div style="display: flex; gap: 30px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; justify-content: center;">
 <img src="data:image/png;base64,{img_ufrgs}" style="height: 85px; width: auto; opacity: 0.9;">
 <img src="data:image/png;base64,{img_cinted}" style="height: 85px; width: auto; opacity: 0.9;">
-<img src="data:image/png;base64,{img_ppgie}" style="height: 95px; width: auto; opacity: 0.9;">
+<img src="data:image/png;base64,{img_ppgie}" style="height: 105px; width: auto; opacity: 0.9;">
 </div>
 <div style="text-align: center; color: #666; font-size: 0.85rem; line-height: 1.6;">
 <p style="margin-bottom: 10px;">
@@ -662,6 +713,7 @@ def salvar_grafo_historico(id_usuario, form_data, result):
             ["aluno_tema", form_data.get('tema', ''), "", ""],
             ["aluno_questao", form_data.get('questao', ''), "", ""],
             ["aluno_confianca_ini", form_data.get('confianca', ''), "", ""],
+            ["aluno_google_academico", form_data.get('google_academico', ''), "", ""],
             ["pipeline_string", result.get('search_string', ''), "", ""],
             ["pipeline_artigos_total", result.get('articles_count', 0), "", ""],
         ]
@@ -1383,7 +1435,8 @@ def render_tab3_interacao():
                 help="Algoritmo de posicionamento dos nós"
             )
         
-        enable_physics = st.checkbox(
+        with col_physics:
+            enable_physics = st.checkbox(
                 "⚡ Física ativa",
                 value=(layout_option == "Força (padrão)"),
                 help="Permite arrastar nós. Desative para layouts fixos.",
@@ -1697,37 +1750,7 @@ def render_tab3_interacao():
             
             if edited_key != st.session_state.search_key_text:
                 st.session_state.search_key_text = edited_key
-            
-            if edited_key.strip():
-                import json
-                safe_text = json.dumps(edited_key.strip())
-                
-                copy_js = f"""
-                <script>
-                function copyToClipboard() {{
-                    navigator.clipboard.writeText({safe_text}).then(function() {{
-                        document.getElementById('copy-status').innerHTML = '✅ Copiado!';
-                        setTimeout(function() {{
-                            document.getElementById('copy-status').innerHTML = '';
-                        }}, 2000);
-                    }});
-                }}
-                </script>
-                <div style="text-align: center;">
-                    <button onclick="copyToClipboard()" style="
-                        background-color: #ffffff;
-                        color: #000000;
-                        border: 1px solid #cccccc;
-                        padding: 8px 16px;
-                        border-radius: 6px;
-                        cursor: pointer;
-                        font-size: 14px;
-                    ">📋 Copiar</button>
-                    <span id="copy-status" style="margin-left: 10px; color: #21c354;"></span>
-                </div>
-                """
-                components.html(copy_js, height=50)
-            
+                        
             # Métricas
             col_info1, col_info2 = st.columns(2)
             col_info1.metric("Termos coletados", len(st.session_state.collected_terms))
@@ -1735,10 +1758,10 @@ def render_tab3_interacao():
             
             st.divider()
             
-            if st.button("📋 Copiar para o Painel", width="stretch", type="primary"):
+            if st.button("📋 Copiar para o Painel", width="stretch", type="primary", key="btn_copiar_construtor"):
                 st.session_state.dashboard_query = edited_key.strip()
                 st.session_state.dashboard_query_source = "construtor"
-                st.success("✅ Chave copiada!")     
+                st.toast("✅ Chave copiada para o Painel!")     
              
     rodape_institucional()
 
@@ -1895,7 +1918,7 @@ with tab1:
             )
 
             if submitted:
-                if not all([nome, email, tema, questao, palavras_chave]):
+                if not all([nome, email, tema, questao, palavras_chave, google_academico]):
                     st.error("⚠️ Por favor, preencha todos os campos obrigatórios (*)")
                 else:
                     # Força o reinício da trilha na etapa de visualização (a)
@@ -1947,7 +1970,7 @@ with tab1:
                             tempo_inicio = time_module.time()
                             
                             # Usa a função cacheada
-                            st.session_state.resultado = run_cached_pipeline(nome, tema, questao, kws, genero)
+                            st.session_state.resultado = run_cached_pipeline(nome, tema, questao, kws, genero, google_academico)
                             tempo_fim = time_module.time()
 
                             # Enviar resultados para Google Sheets
@@ -3016,16 +3039,19 @@ with tab3:
                 # LEGENDA DOS NÍVEIS (similar ao Mapa Temático)
                 with st.expander("📖 Legenda: Níveis de Abstração (OpenAlex)", expanded=False):
                     st.markdown("""
-                    O **OpenAlex** organiza conceitos científicos em 6 níveis hierárquicos de abstração:
+                    O **OpenAlex** organiza conceitos científicos em 6 níveis hierárquicos de abstração (Level):
                     
-                    - 🔵 **L0 - Raiz:** Grandes áreas do conhecimento (ex: Medicine, Science)
-                    - 🔵 **L1 - Área:** Disciplinas amplas (ex: Biology, Psychology)
-                    - 🔵 **L2 - Campo:** Campos de estudo (ex: Genetics, Neuroscience)
-                    - 🔵 **L3 - Subcampo:** Especializações (ex: Molecular biology)
-                    - 🔵 **L4 - Tópico:** Tópicos específicos (ex: Gene expression)
-                    - 🔵 **L5 - Específico:** Termos muito específicos (ex: CRISPR)
+                    - 🌍 **L0 - Raiz:** Grandes áreas do conhecimento (ex: Medicine, Science)
+                    - 🙂 **L1 - Área:** Disciplinas amplas (ex: Biology, Psychology)
+                    - 😊 **L2 - Campo:** Campos de estudo (ex: Genetics, Neuroscience)
+                    - 🤔 **L3 - Subcampo:** Especializações (ex: Molecular biology)
+                    - 🧐 **L4 - Tópico:** Tópicos específicos (ex: Gene expression)
+                    - 🤓 **L5 - Específico:** Termos muito específicos (ex: CRISPR)
                     
-                    **Interpretação:** Conceitos de nível baixo (L0-L1) são mais abrangentes. Conceitos de nível alto (L4-L5) indicam maior especificidade e foco na pesquisa.
+                    **Interpretação:**  
+                    Níveis baixos (L0-L2) = conceitos abrangentes  
+                    Níveis altos (L4-L5) = conceitos específicos  
+                    Conceitos são introduzidos nos mapas hierárquicos segundo a declaração de relevância presente em Score.
                     """)
                 
                 # === O QUE ENTROU (NOVIDADES) ===
@@ -3292,7 +3318,7 @@ with tab3:
                         st.info(st.session_state['ultima_analise_historico'], icon="🤖")
                         
                         # Botões de ação
-                        col_pdf, col_novo, col_limpar = st.columns([2, 2, 1])
+                        col_pdf, col_novo = st.columns(2)
                         
                         with col_pdf:
                             try:
@@ -3335,11 +3361,7 @@ with tab3:
                                 if 'ultima_analise_historico' in st.session_state:
                                     del st.session_state['ultima_analise_historico']
                                 st.rerun()
-                        
-                        with col_limpar:
-                            if st.button("🔁 Refazer", key="btn_limpar_analise", width="stretch"):
-                                del st.session_state['ultima_analise_historico']
-                                st.rerun()
+
                     else:
                         # Mostrar botão para gerar
                         if st.button("✨ Gerar Análise Pedagógica da Mudança", type="primary", width="stretch", key="btn_analise_ia_tab3"):
@@ -3393,6 +3415,8 @@ with tab4:
         st.session_state.painel_min_score = 0.35
     if 'painel_min_level' not in st.session_state:
         st.session_state.painel_min_level = 0
+    if 'painel_min_cooc' not in st.session_state:
+        st.session_state.painel_min_cooc = 2
 
     with st.expander("🔍 Configurar Nova Busca", expanded=False):
         # Campo de busca
@@ -3413,7 +3437,7 @@ with tab4:
         st.divider()
         st.subheader("🔧 Filtros")
 
-        with st.expander("⚙️ Configurações Avançadas", expanded=False):
+        with st.expander("⚙️ Configurações Avançadas", expanded=True):
             sync_config = st.checkbox("Usar configuração padrão", value=True, key="sync_config_painel")
 
             if sync_config:
@@ -3421,6 +3445,7 @@ with tab4:
                 st.session_state.painel_limit = 500
                 st.session_state.painel_min_score = 0.35
                 st.session_state.painel_min_level = 0
+                st.session_state.painel_min_cooc = 1
             else:
                 st.session_state.painel_limit = st.slider(
                     "Limite de artigos:", 10, 500, st.session_state.painel_limit, 10,
@@ -3437,10 +3462,17 @@ with tab4:
                     help="Nível hierárquico do conceito (0-5). 0 = geral, 5 = muito específico",
                     key="slider_level_painel"
                 )
+                st.session_state.painel_min_cooc = st.slider (
+                    "Coocorrência mínima:", 1, 10, st.session_state.painel_min_cooc, 2,
+                    help="Frequência mínima de coocorrência para formar aresta no grafo",
+                    key="slider_cooc_painel"
+                )
 
-        min_cooc = st.slider("Coocorrência mínima:", 1, 10, 2, 1,
-            help="Frequência mínima de coocorrência para formar aresta no grafo",
-            key="slider_cooc_painel")
+        # Variáveis locais para uso posterior
+        limit = st.session_state.painel_limit
+        min_score = st.session_state.painel_min_score
+        min_level = st.session_state.painel_min_level
+        min_cooc = st.session_state.painel_min_cooc
 
         st.divider()
 
@@ -3778,7 +3810,7 @@ with tab4:
                 st.subheader("📈 Análise da Lei de Zipf")
 
                 st.markdown("""
-                A **Lei de Zipf** prediz que a frequência de uma palavra é inversamente proporcional
+                A **Lei de George Kingsley Zipf** prediz que a frequência de uma palavra é inversamente proporcional
                 ao seu ranking. Em um gráfico log-log, isso aparece como uma linha reta com inclinação
                 próxima a -1.0.
                 """)
@@ -3847,6 +3879,9 @@ with tab4:
                     - Menos negativo: vocabulário mais distribuído
 
                     **Significância estatística**: p-value = {zipf_results['p_value']:.6f}
+
+                    **Referência**  
+                    - ZIPF, G.K. Human behavior and the principle of least effort: an introduction to human ecology. Cambridge: Addison-Wesley Press, 1949. Disponível em: https://archive.org/details/in.ernet.dli.2015.90211.
                     """)
 
             # Tabela

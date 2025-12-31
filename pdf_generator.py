@@ -821,8 +821,9 @@ def generate_comparison_pdf(
     <b>L3 (Subcampo):</b> Especializações (ex: Molecular biology)<br/>
     <b>L4 (Topico):</b> Tópicos específicos (ex: Gene expression)<br/>
     <b>L5 (Especifico):</b> Termos muito específicos (ex: CRISPR, PCR)<br/><br/>
-    <i>Niveis baixos (L0-L2) = conceitos abrangentes | Níveis altos (L4-L5) = conceitos específicos</i>
-    <i>Conceitos presentes nos gráficos dos mapas hierárquicos são introduzidos segundo a declaração de Score (Relevância) sobre cada conceito no OpenAlex</i>
+    <i>Níveis baixos (L0-L2) = conceitos abrangentes</i><br/>
+    <i>Níveis altos (L4-L5) = conceitos específicos</i><br/>
+    <i>Conceitos são introduzidos nos mapas hierárquicos segundo a declaração de relevância presente em Score.</i>
     """
     story.append(Paragraph(legenda_texto, styles['body_left']))
     story.append(Spacer(1, 0.3*cm))
