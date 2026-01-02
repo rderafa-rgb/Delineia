@@ -4653,9 +4653,9 @@ with tab4:
                         
                         fig_sankey = go.Figure(data=[go.Sankey(
                             node=dict(
-                                pad=15,
-                                thickness=20,
-                                line=dict(color="black", width=0.5),
+                                pad=20,
+                                thickness=25,
+                                line=dict(color="white", width=1),
                                 label=[n['label'] for n in nodes],
                                 color=node_colors,
                                 hovertemplate='%{label}<br>Frequência: %{value}<extra></extra>'
@@ -4664,14 +4664,20 @@ with tab4:
                                 source=links_source,
                                 target=links_target,
                                 value=links_value,
-                                color='rgba(200,200,200,0.4)'
+                                color='rgba(180,180,180,0.5)'
+                            ),
+                            textfont=dict(
+                                family='Arial',
+                                size=11,
+                                color='#333333'
                             )
                         )])
                         
                         fig_sankey.update_layout(
                             title='Evolução Temática das Coocorrências entre Períodos',
                             height=600,
-                            font=dict(size=12, color='black')
+                            paper_bgcolor='white',
+                            plot_bgcolor='white'
                         )
                         
                         st.plotly_chart(fig_sankey, width='stretch')
