@@ -245,10 +245,7 @@ def render_etapa_2a(d, r):
             st.markdown(r.get('glossary', '⚠️ Glossário não disponível'))
 
     st.divider()
-    st.info("""
-    💡 **Atenção:** Observe atentamente o grafo e o glossário acima.
-    """)
-
+    
     with st.expander("📚 Por que limitamos a 9 conceitos?", expanded=False):
         st.markdown("""
 Limitar a exibição de nós em grafos de palavras-chave reduz a sobrecarga cognitiva, 
@@ -267,7 +264,6 @@ p. 81-97, 1956. DOI: [https://doi.org/10.1037/h0043158](https://doi.org/10.1037/
     Na próxima etapa, você selecionará os conceitos mais relevantes para sua pesquisa.
     Essa seleção será usada para gerar uma interpretação personalizada do grafo.
     """)
-
 
 @st.fragment
 def render_etapa_2b(d, r):
@@ -2175,7 +2171,7 @@ with tab1:
                         data=st.session_state.cached_pdf_bytes,
                         file_name=f"delineamento_{d['nome'].replace(' ', '_')}.pdf",
                         mime="application/pdf",
-                        use_container_width=True,
+                        width='stretch',
                         type="primary",
                         key="dl_pdf_relatorio"
                     )
@@ -3739,7 +3735,7 @@ with tab4:
                         legend=dict(orientation='h', yanchor='bottom', y=1.02)
                     )
                     
-                    st.plotly_chart(fig_anos, use_container_width=True)
+                    st.plotly_chart(fig_anos, width='stretch')
                     
                     # Tabela de frequências
                     st.markdown("**📋 Tabela de Frequências por Ano**")
@@ -3751,7 +3747,7 @@ with tab4:
                     df_tabela = df_tabela.rename(columns={'Ano': 'Ano de Publicação'})
                     df_tabela = df_tabela.set_index('Ano de Publicação')
                     
-                    st.dataframe(df_tabela, use_container_width=True)
+                    st.dataframe(df_tabela, width='stretch')
                     
                     # Métricas resumo
                     col_m1, col_m2, col_m3 = st.columns(3)
@@ -3935,7 +3931,7 @@ with tab4:
                         margin=dict(l=0, r=0, t=50, b=0)
                     )
                     
-                    st.plotly_chart(fig_mapa, use_container_width=True)
+                    st.plotly_chart(fig_mapa, width='stretch')
                     
                     # Métricas
                     col_g1, col_g2, col_g3 = st.columns(3)
@@ -3951,7 +3947,7 @@ with tab4:
                     df_tabela_paises.index = range(1, len(df_tabela_paises) + 1)
                     df_tabela_paises.index.name = 'Rank'
                     
-                    st.dataframe(df_tabela_paises, use_container_width=True)
+                    st.dataframe(df_tabela_paises, width='stretch')
                 else:
                     st.info("Dados de país não disponíveis para os artigos recuperados.")
 
@@ -4329,7 +4325,7 @@ with tab4:
                         )
                     )
                     
-                    st.plotly_chart(fig_temporal, use_container_width=True)
+                    st.plotly_chart(fig_temporal, width='stretch')
                     
                     # Tabela opcional
                     with st.expander("📋 Ver dados da evolução temporal"):
@@ -4342,7 +4338,7 @@ with tab4:
                             dados_pivot.append(row)
                         
                         df_temporal = pd.DataFrame(dados_pivot)
-                        st.dataframe(df_temporal, use_container_width=True)
+                        st.dataframe(df_temporal, width='stretch')
                 else:
                     st.info("Dados temporais insuficientes para gerar o gráfico.")
             else:
@@ -4478,6 +4474,238 @@ with tab4:
             )
 
             st.plotly_chart(fig3, width="stretch")
+
+            # ========== EVOLUÇÃO TEMPORAL DAS COOCORRÊNCIAS ==========
+            st.divider()
+            st.subheader("📈 Evolução Temporal das Coocorrências")
+            
+            # Extrair pares de coocorrência por ano
+            pares_por_ano = {}  # {ano: {(conceito1, conceito2): frequência}}
+            
+            for article in articles:
+                ano = article.get('year')
+                if not ano:
+                    continue
+                
+                concepts = article.get('concepts', [])
+                # Filtrar conceitos relevantes
+                nomes = [
+                    c.get('display_name', c.get('name', ''))
+                    for c in concepts
+                    if c.get('score', 0) >= 0.35 and (c.get('display_name') or c.get('name'))
+                ]
+                
+                if len(nomes) >= 2:
+                    if ano not in pares_por_ano:
+                        pares_por_ano[ano] = {}
+                    
+                    # Gerar pares (ordem alfabética para consistência)
+                    for i in range(len(nomes)):
+                        for j in range(i + 1, len(nomes)):
+                            par = tuple(sorted([nomes[i], nomes[j]]))
+                            if par not in pares_por_ano[ano]:
+                                pares_por_ano[ano][par] = 0
+                            pares_por_ano[ano][par] += 1
+            
+            if pares_por_ano:
+                # Calcular top pares globais
+                totais_pares = {}
+                for ano, pares in pares_por_ano.items():
+                    for par, freq in pares.items():
+                        if par not in totais_pares:
+                            totais_pares[par] = 0
+                        totais_pares[par] += freq
+                
+                # Selecionar top N pares
+                top_n_pares = st.slider(
+                    "Número de pares a exibir:",
+                    5, 20, 10, 1,
+                    key="slider_top_pares_temporal"
+                )
+                
+                top_pares = sorted(totais_pares.items(), key=lambda x: x[1], reverse=True)[:top_n_pares]
+                top_pares_set = {par for par, _ in top_pares}
+                
+                # Preparar dados para visualização
+                anos_ordenados = sorted(pares_por_ano.keys())
+                
+                # ===== HEATMAP TEMPORAL =====
+                st.markdown("#### 🔥 Mapa de Calor: Coocorrências × Anos")
+                
+                # Criar matriz para heatmap
+                pares_labels = [f"{p[0]} ↔ {p[1]}" for p, _ in top_pares]
+                matriz_heatmap = []
+                
+                for par, _ in top_pares:
+                    row = []
+                    for ano in anos_ordenados:
+                        freq = pares_por_ano.get(ano, {}).get(par, 0)
+                        row.append(freq)
+                    matriz_heatmap.append(row)
+                
+                fig_heatmap = go.Figure(data=go.Heatmap(
+                    z=matriz_heatmap,
+                    x=[str(a) for a in anos_ordenados],
+                    y=pares_labels,
+                    colorscale='Blues',
+                    hovertemplate='Par: %{y}<br>Ano: %{x}<br>Frequência: %{z}<extra></extra>'
+                ))
+                
+                fig_heatmap.update_layout(
+                    title='Intensidade de Coocorrência ao Longo do Tempo',
+                    xaxis_title='Ano',
+                    yaxis_title='Par de Conceitos',
+                    height=max(400, top_n_pares * 35),
+                    yaxis=dict(tickfont=dict(size=10)),
+                    xaxis=dict(tickangle=45)
+                )
+                
+                st.plotly_chart(fig_heatmap, width='stretch')
+                
+                # ===== SANKEY DE EVOLUÇÃO TEMÁTICA =====
+                st.markdown("#### 🌊 Diagrama Sankey: Fluxo Temporal das Coocorrências")
+                
+                # Dividir em períodos (automático baseado nos dados)
+                if len(anos_ordenados) >= 4:
+                    # Criar 3 períodos
+                    n_anos = len(anos_ordenados)
+                    corte1 = n_anos // 3
+                    corte2 = 2 * n_anos // 3
+                    
+                    periodos = {
+                        f"{anos_ordenados[0]}-{anos_ordenados[corte1-1]}": anos_ordenados[:corte1],
+                        f"{anos_ordenados[corte1]}-{anos_ordenados[corte2-1]}": anos_ordenados[corte1:corte2],
+                        f"{anos_ordenados[corte2]}-{anos_ordenados[-1]}": anos_ordenados[corte2:]
+                    }
+                    
+                    # Calcular top pares por período
+                    top_por_periodo = {}
+                    for periodo, anos_periodo in periodos.items():
+                        freq_periodo = {}
+                        for ano in anos_periodo:
+                            for par, freq in pares_por_ano.get(ano, {}).items():
+                                if par not in freq_periodo:
+                                    freq_periodo[par] = 0
+                                freq_periodo[par] += freq
+                        
+                        top_por_periodo[periodo] = sorted(
+                            freq_periodo.items(), 
+                            key=lambda x: x[1], 
+                            reverse=True
+                        )[:7]  # Top 7 por período
+                    
+                    # Construir Sankey
+                    nodes = []
+                    node_indices = {}
+                    
+                    # Criar nós para cada período
+                    periodos_lista = list(periodos.keys())
+                    for periodo in periodos_lista:
+                        for par, freq in top_por_periodo[periodo]:
+                            node_label = f"{par[0][:15]}↔{par[1][:15]} ({periodo.split('-')[0]})"
+                            if node_label not in node_indices:
+                                node_indices[node_label] = len(nodes)
+                                nodes.append({
+                                    'label': node_label,
+                                    'par': par,
+                                    'periodo': periodo,
+                                    'freq': freq
+                                })
+                    
+                    # Criar links entre períodos
+                    links_source = []
+                    links_target = []
+                    links_value = []
+                    
+                    for i in range(len(periodos_lista) - 1):
+                        periodo_atual = periodos_lista[i]
+                        periodo_prox = periodos_lista[i + 1]
+                        
+                        for par_atual, freq_atual in top_por_periodo[periodo_atual]:
+                            for par_prox, freq_prox in top_por_periodo[periodo_prox]:
+                                # Verificar sobreposição de conceitos
+                                set_atual = set(par_atual)
+                                set_prox = set(par_prox)
+                                overlap = len(set_atual & set_prox)
+                                
+                                if overlap >= 1:  # Pelo menos um conceito em comum
+                                    node_label_atual = f"{par_atual[0][:15]}↔{par_atual[1][:15]} ({periodo_atual.split('-')[0]})"
+                                    node_label_prox = f"{par_prox[0][:15]}↔{par_prox[1][:15]} ({periodo_prox.split('-')[0]})"
+                                    
+                                    if node_label_atual in node_indices and node_label_prox in node_indices:
+                                        links_source.append(node_indices[node_label_atual])
+                                        links_target.append(node_indices[node_label_prox])
+                                        # Valor proporcional à força da conexão
+                                        links_value.append(min(freq_atual, freq_prox) * overlap)
+                    
+                    if links_source:
+                        # Cores por período
+                        cores_periodo = {
+                            periodos_lista[0]: 'rgba(31, 119, 180, 0.8)',
+                            periodos_lista[1]: 'rgba(255, 127, 14, 0.8)',
+                            periodos_lista[2]: 'rgba(44, 160, 44, 0.8)'
+                        }
+                        
+                        node_colors = [
+                            cores_periodo.get(n['periodo'], 'rgba(150,150,150,0.8)')
+                            for n in nodes
+                        ]
+                        
+                        fig_sankey = go.Figure(data=[go.Sankey(
+                            node=dict(
+                                pad=15,
+                                thickness=20,
+                                line=dict(color="black", width=0.5),
+                                label=[n['label'] for n in nodes],
+                                color=node_colors,
+                                hovertemplate='%{label}<br>Frequência: %{value}<extra></extra>'
+                            ),
+                            link=dict(
+                                source=links_source,
+                                target=links_target,
+                                value=links_value,
+                                color='rgba(200,200,200,0.4)'
+                            )
+                        )])
+                        
+                        fig_sankey.update_layout(
+                            title='Evolução Temática das Coocorrências entre Períodos',
+                            height=500,
+                            font=dict(size=10)
+                        )
+                        
+                        st.plotly_chart(fig_sankey, width='stretch')
+                        
+                        # Legenda
+                        st.markdown(f"""
+                        **Legenda dos Períodos:**
+                        - 🔵 {periodos_lista[0]} (período inicial)
+                        - 🟠 {periodos_lista[1]} (período intermediário)  
+                        - 🟢 {periodos_lista[2]} (período recente)
+                        
+                        *As conexões indicam continuidade temática (conceitos compartilhados entre pares).*
+                        """)
+                    else:
+                        st.info("Dados insuficientes para gerar o diagrama Sankey.")
+                else:
+                    st.info("São necessários pelo menos 4 anos de dados para gerar o diagrama de evolução.")
+                
+                # Tabela expandível
+                with st.expander("📋 Ver dados das coocorrências temporais"):
+                    dados_tabela = []
+                    for par, total in top_pares:
+                        row = {
+                            'Par': f"{par[0]} ↔ {par[1]}",
+                            'Total': total
+                        }
+                        for ano in anos_ordenados:
+                            row[str(ano)] = pares_por_ano.get(ano, {}).get(par, 0)
+                        dados_tabela.append(row)
+                    
+                    df_pares_temporal = pd.DataFrame(dados_tabela)
+                    st.dataframe(df_pares_temporal, width='stretch')
+            else:
+                st.info("Não foi possível extrair dados de coocorrência temporal.")
 
         # ========== SUB-ABA 4: GRAFO ==========
         with t4:
