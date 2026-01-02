@@ -4602,7 +4602,7 @@ with tab4:
                     periodos_lista = list(periodos.keys())
                     for periodo in periodos_lista:
                         for par, freq in top_por_periodo[periodo]:
-                            node_label = f"{par[0][:15]}↔{par[1][:15]} ({periodo.split('-')[0]})"
+                            node_label = f"{par[0][:12]}—{par[1][:12]}"
                             if node_label not in node_indices:
                                 node_indices[node_label] = len(nodes)
                                 nodes.append({
@@ -4629,8 +4629,8 @@ with tab4:
                                 overlap = len(set_atual & set_prox)
                                 
                                 if overlap >= 1:  # Pelo menos um conceito em comum
-                                    node_label_atual = f"{par_atual[0][:15]}↔{par_atual[1][:15]} ({periodo_atual.split('-')[0]})"
-                                    node_label_prox = f"{par_prox[0][:15]}↔{par_prox[1][:15]} ({periodo_prox.split('-')[0]})"
+                                    node_label_atual = f"{par_atual[0][:12]}—{par_atual[1][:12]}"
+                                    node_label_prox = f"{par_prox[0][:12]}—{par_prox[1][:12]}"
                                     
                                     if node_label_atual in node_indices and node_label_prox in node_indices:
                                         links_source.append(node_indices[node_label_atual])
@@ -4670,8 +4670,8 @@ with tab4:
                         
                         fig_sankey.update_layout(
                             title='Evolução Temática das Coocorrências entre Períodos',
-                            height=500,
-                            font=dict(size=10)
+                            height=600,
+                            font=dict(size=12, color='black')
                         )
                         
                         st.plotly_chart(fig_sankey, width='stretch')
