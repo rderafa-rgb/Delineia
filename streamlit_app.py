@@ -5244,8 +5244,18 @@ with tab4:
                     key="dl_artigos_csv"
                 )
 
+                # Recriar contador de conceitos para exportação
+                from collections import Counter
+                all_concepts_export = []
+                for a in articles:
+                    for c in a.get('concepts', []):
+                        nome = c.get('display_name', c.get('name', ''))
+                        if nome:
+                            all_concepts_export.append(nome)
+                freq_export = Counter(all_concepts_export)
+                
                 df_concepts = pd.DataFrame(
-                    freq.most_common(),
+                    freq_export.most_common(),
                     columns=['concept', 'frequency']
                 )
 
