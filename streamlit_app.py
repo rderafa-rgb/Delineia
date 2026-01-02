@@ -3703,7 +3703,8 @@ with tab4:
                     
                     # Taxa de crescimento (% em relação ao ano anterior)
                     df_anos['Taxa de Crescimento (%)'] = df_anos['Frequência Absoluta'].pct_change().fillna(0) * 100
-                    df_anos['Taxa de Crescimento (%)'] = df_anos['Taxa de Crescimento (%)'].round(2)
+                    # Substituir infinitos por 0 (quando ano anterior tinha 0 publicações)
+                    df_anos['Taxa de Crescimento (%)'] = df_anos['Taxa de Crescimento (%)'].replace([np.inf, -np.inf], 0).round(2)
                     
                     # Gráfico de linha
                     fig_anos = go.Figure()
@@ -3757,8 +3758,9 @@ with tab4:
                     col_m1.metric("Período", f"{ano_min} - {ano_max}")
                     col_m2.metric("Ano com mais publicações", f"{df_anos.loc[df_anos['Frequência Absoluta'].idxmax(), 'Ano']}")
                     
-                    # Taxa média de crescimento (excluindo primeiro ano)
-                    taxa_media = df_anos['Taxa de Crescimento (%)'].iloc[1:].mean()
+                    # Taxa média de crescimento (excluindo primeiro ano e infinitos)
+                    taxas_validas = df_anos['Taxa de Crescimento (%)'].iloc[1:].replace([np.inf, -np.inf], np.nan).dropna()
+                    taxa_media = taxas_validas.mean() if len(taxas_validas) > 0 else 0
                     col_m3.metric("Taxa média de crescimento", f"{taxa_media:.1f}%")
                 else:
                     st.info("Dados de ano não disponíveis para análise temporal.")
@@ -3865,11 +3867,57 @@ with tab4:
                         lambda x: nomes_paises.get(x, x)
                     )
                     
+                    # Converter códigos ISO Alpha-2 para Alpha-3
+                    iso2_to_iso3 = {
+                        'AF': 'AFG', 'AL': 'ALB', 'DZ': 'DZA', 'AD': 'AND', 'AO': 'AGO',
+                        'AG': 'ATG', 'AR': 'ARG', 'AM': 'ARM', 'AU': 'AUS', 'AT': 'AUT',
+                        'AZ': 'AZE', 'BS': 'BHS', 'BH': 'BHR', 'BD': 'BGD', 'BB': 'BRB',
+                        'BY': 'BLR', 'BE': 'BEL', 'BZ': 'BLZ', 'BJ': 'BEN', 'BT': 'BTN',
+                        'BO': 'BOL', 'BA': 'BIH', 'BW': 'BWA', 'BR': 'BRA', 'BN': 'BRN',
+                        'BG': 'BGR', 'BF': 'BFA', 'BI': 'BDI', 'CV': 'CPV', 'KH': 'KHM',
+                        'CM': 'CMR', 'CA': 'CAN', 'CF': 'CAF', 'TD': 'TCD', 'CL': 'CHL',
+                        'CN': 'CHN', 'CO': 'COL', 'KM': 'COM', 'CG': 'COG', 'CD': 'COD',
+                        'CR': 'CRI', 'CI': 'CIV', 'HR': 'HRV', 'CU': 'CUB', 'CY': 'CYP',
+                        'CZ': 'CZE', 'DK': 'DNK', 'DJ': 'DJI', 'DM': 'DMA', 'DO': 'DOM',
+                        'EC': 'ECU', 'EG': 'EGY', 'SV': 'SLV', 'GQ': 'GNQ', 'ER': 'ERI',
+                        'EE': 'EST', 'SZ': 'SWZ', 'ET': 'ETH', 'FJ': 'FJI', 'FI': 'FIN',
+                        'FR': 'FRA', 'GA': 'GAB', 'GM': 'GMB', 'GE': 'GEO', 'DE': 'DEU',
+                        'GH': 'GHA', 'GR': 'GRC', 'GD': 'GRD', 'GT': 'GTM', 'GN': 'GIN',
+                        'GW': 'GNB', 'GY': 'GUY', 'HT': 'HTI', 'HN': 'HND', 'HU': 'HUN',
+                        'IS': 'ISL', 'IN': 'IND', 'ID': 'IDN', 'IR': 'IRN', 'IQ': 'IRQ',
+                        'IE': 'IRL', 'IL': 'ISR', 'IT': 'ITA', 'JM': 'JAM', 'JP': 'JPN',
+                        'JO': 'JOR', 'KZ': 'KAZ', 'KE': 'KEN', 'KI': 'KIR', 'KP': 'PRK',
+                        'KR': 'KOR', 'KW': 'KWT', 'KG': 'KGZ', 'LA': 'LAO', 'LV': 'LVA',
+                        'LB': 'LBN', 'LS': 'LSO', 'LR': 'LBR', 'LY': 'LBY', 'LI': 'LIE',
+                        'LT': 'LTU', 'LU': 'LUX', 'MG': 'MDG', 'MW': 'MWI', 'MY': 'MYS',
+                        'MV': 'MDV', 'ML': 'MLI', 'MT': 'MLT', 'MH': 'MHL', 'MR': 'MRT',
+                        'MU': 'MUS', 'MX': 'MEX', 'FM': 'FSM', 'MD': 'MDA', 'MC': 'MCO',
+                        'MN': 'MNG', 'ME': 'MNE', 'MA': 'MAR', 'MZ': 'MOZ', 'MM': 'MMR',
+                        'NA': 'NAM', 'NR': 'NRU', 'NP': 'NPL', 'NL': 'NLD', 'NZ': 'NZL',
+                        'NI': 'NIC', 'NE': 'NER', 'NG': 'NGA', 'MK': 'MKD', 'NO': 'NOR',
+                        'OM': 'OMN', 'PK': 'PAK', 'PW': 'PLW', 'PS': 'PSE', 'PA': 'PAN',
+                        'PG': 'PNG', 'PY': 'PRY', 'PE': 'PER', 'PH': 'PHL', 'PL': 'POL',
+                        'PT': 'PRT', 'QA': 'QAT', 'RO': 'ROU', 'RU': 'RUS', 'RW': 'RWA',
+                        'KN': 'KNA', 'LC': 'LCA', 'VC': 'VCT', 'WS': 'WSM', 'SM': 'SMR',
+                        'ST': 'STP', 'SA': 'SAU', 'SN': 'SEN', 'RS': 'SRB', 'SC': 'SYC',
+                        'SL': 'SLE', 'SG': 'SGP', 'SK': 'SVK', 'SI': 'SVN', 'SB': 'SLB',
+                        'SO': 'SOM', 'ZA': 'ZAF', 'SS': 'SSD', 'ES': 'ESP', 'LK': 'LKA',
+                        'SD': 'SDN', 'SR': 'SUR', 'SE': 'SWE', 'CH': 'CHE', 'SY': 'SYR',
+                        'TW': 'TWN', 'TJ': 'TJK', 'TZ': 'TZA', 'TH': 'THA', 'TL': 'TLS',
+                        'TG': 'TGO', 'TO': 'TON', 'TT': 'TTO', 'TN': 'TUN', 'TR': 'TUR',
+                        'TM': 'TKM', 'TV': 'TUV', 'UG': 'UGA', 'UA': 'UKR', 'AE': 'ARE',
+                        'GB': 'GBR', 'US': 'USA', 'UY': 'URY', 'UZ': 'UZB', 'VU': 'VUT',
+                        'VA': 'VAT', 'VE': 'VEN', 'VN': 'VNM', 'YE': 'YEM', 'ZM': 'ZMB',
+                        'ZW': 'ZWE', 'HK': 'HKG', 'MO': 'MAC', 'PR': 'PRI', 'XK': 'XKX'
+                    }
+                    
+                    df_paises['ISO3'] = df_paises['Código'].map(iso2_to_iso3)
+                    
                     # Mapa geográfico (Choropleth)
                     fig_mapa = px.choropleth(
                         df_paises,
-                        locations='Código',
-                        locationmode='ISO-3166-1 alpha-2',
+                        locations='ISO3',
+                        locationmode='ISO-3',
                         color='Artigos',
                         hover_name='País',
                         hover_data={'Código': False, 'Artigos': True},
