@@ -4539,8 +4539,8 @@ with tab4:
                 for par, _ in top_pares:
                     row = []
                     for ano in anos_ordenados:
-                        freq_par = pares_por_ano.get(ano, {}).get(par, 0)
-                        row.append(freq_par)
+                        freq_valor = pares_por_ano.get(ano, {}).get(par, 0)
+                        row.append(freq_valor)
                     matriz_heatmap.append(row)
                 
                 fig_heatmap = go.Figure(data=go.Heatmap(
