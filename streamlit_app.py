@@ -604,7 +604,7 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
     st.markdown(html_code, unsafe_allow_html=True)
 
 # ==================== GOOGLE SHEETS CONFIG ====================
-GOOGLE_SHEETS_URL = "https://docs.google.com/spreadsheets/d/1BE2le2ZVm2ej20w7UF5T7RSjO-V_Ii0RuhZQ2vEQQLY/edit"
+GOOGLE_SHEETS_URL = "https://docs.google.com/spreadsheets/d/1z5Btw5LLZhwdvBDstd8L_LYf2A0tL0Gjc_6KJPiyAE4/edit?gid=1488517131#gid=1488517131"
 ABA_FORMULARIO_INICIAL = "formulario_inicial"
 ABA_RESULTADOS_PIPELINE = "resultados_pipeline"
 ABA_FORMULARIO_AVALIACAO = "formulario_avaliacao"
