@@ -3463,10 +3463,13 @@ with tab4:
             if st.session_state.get('txt_query_painel') != st.session_state.dashboard_query:
                 st.session_state.txt_query_painel = st.session_state.dashboard_query
         
+        # Inicializa o valor se não existir
+        if 'txt_query_painel' not in st.session_state:
+            st.session_state.txt_query_painel = st.session_state.get('dashboard_query', "games AND education")
+        
         # Campo de busca
         query = st.text_input(
             "Chave de Busca:",
-            value=st.session_state.get('dashboard_query', "games AND education"),
             help="Use operadores: AND, OR, NOT",
             key="txt_query_painel"
         )
