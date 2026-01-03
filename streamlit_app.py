@@ -1525,13 +1525,15 @@ def render_tab3_interacao():
         
         with col_exp1:
             try:
-                graphml_buffer = io.BytesIO()
-                nx.write_graphml(G_filtered, graphml_buffer)
-                graphml_buffer.seek(0)
+                if 'cache_graphml_interacao' not in st.session_state:
+                    graphml_buffer = io.BytesIO()
+                    nx.write_graphml(G_filtered, graphml_buffer)
+                    graphml_buffer.seek(0)
+                    st.session_state.cache_graphml_interacao = graphml_buffer.getvalue()
                 
                 st.download_button(
                     "📥 GraphML (Gephi)",
-                    data=graphml_buffer.getvalue(),
+                    data=st.session_state.cache_graphml_interacao,
                     file_name="grafo_interativo.graphml",
                     mime="application/xml",
                     width="stretch",
@@ -1542,16 +1544,16 @@ def render_tab3_interacao():
                 st.error(f"Erro: {e}")
         
         with col_exp2:
-            edges_data = ["source,target,weight"]
-            for u, v in G_filtered.edges():
-                weight = G_filtered[u][v].get('weight', 1)
-                edges_data.append(f"{u},{v},{weight}")
-            
-            csv_content = "\n".join(edges_data)
+            if 'cache_arestas_csv' not in st.session_state:
+                edges_data = ["source,target,weight"]
+                for u, v in G_filtered.edges():
+                    weight = G_filtered[u][v].get('weight', 1)
+                    edges_data.append(f"{u},{v},{weight}")
+                st.session_state.cache_arestas_csv = "\n".join(edges_data)
             
             st.download_button(
                 "📥 Arestas (CSV)",
-                data=csv_content,
+                data=st.session_state.cache_arestas_csv,
                 file_name="grafo_arestas.csv",
                 mime="text/csv",
                 width="stretch",
@@ -1560,20 +1562,20 @@ def render_tab3_interacao():
             )
         
         with col_exp3:
-            nodes_data = ["node,degree,degree_centrality,selected"]
-            degree_cent = nx.degree_centrality(G_filtered) if len(G_filtered.nodes()) > 0 else {}
-            
-            for node in G_filtered.nodes():
-                deg = G_filtered.degree(node)
-                dc = degree_cent.get(node, 0)
-                sel = "sim" if node in selected_concepts else "não"
-                nodes_data.append(f"{node},{deg},{dc:.4f},{sel}")
-            
-            csv_nodes = "\n".join(nodes_data)
+            if 'cache_nos_csv' not in st.session_state:
+                nodes_data = ["node,degree,degree_centrality,selected"]
+                degree_cent = nx.degree_centrality(G_filtered) if len(G_filtered.nodes()) > 0 else {}
+                
+                for node in G_filtered.nodes():
+                    deg = G_filtered.degree(node)
+                    dc = degree_cent.get(node, 0)
+                    sel = "sim" if node in selected_concepts else "não"
+                    nodes_data.append(f"{node},{deg},{dc:.4f},{sel}")
+                st.session_state.cache_nos_csv = "\n".join(nodes_data)
             
             st.download_button(
                 "📥 Nós (CSV)",
-                data=csv_nodes,
+                data=st.session_state.cache_nos_csv,
                 file_name="grafo_nos.csv",
                 mime="text/csv",
                 width="stretch",
@@ -2713,17 +2715,18 @@ Para prosseguir com o preenchimento deste formulário, assinale a alternativa ma
                 try:
                     from pdf_generator import generate_evaluation_pdf
                     
-                    pdf_aval = generate_evaluation_pdf(
-                        form_data=st.session_state.get('form_data', {}),
-                        avaliacao_data=st.session_state.get('avaliacao_data', {})
-                    )
+                    if 'cache_pdf_avaliacao' not in st.session_state:
+                        st.session_state.cache_pdf_avaliacao = generate_evaluation_pdf(
+                            form_data=st.session_state.get('form_data', {}),
+                            avaliacao_data=st.session_state.get('avaliacao_data', {})
+                        )
                     
                     nome_aluno = st.session_state.get('form_data', {}).get('nome', 'aluno').split()[0]
                     nome_arquivo = f"avaliacao_{nome_aluno}.pdf"
                     
                     st.download_button(
                         label="📥 Salvar Avaliação (PDF)",
-                        data=pdf_aval,
+                        data=st.session_state.cache_pdf_avaliacao,
                         file_name=nome_arquivo,
                         mime="application/pdf",
                         width="stretch",
@@ -3362,21 +3365,23 @@ with tab3:
                                 meta_antigo = getattr(safe_df1, 'attrs', {}).get('metadata', {}) if safe_df1 is not None else {}
                                 meta_novo = getattr(safe_df2, 'attrs', {}).get('metadata', {}) if safe_df2 is not None else {}
                                 
-                                pdf_bytes = generate_comparison_pdf(
-                                    form_data=st.session_state.get('form_data', {}),
-                                    metrics=metrics,
-                                    meta_antigo=meta_antigo,
-                                    meta_novo=meta_novo,
-                                    analise_ia=st.session_state['ultima_analise_historico'],
-                                    nodes_info=nodes_info
-                                )
+                                # Cache do PDF para evitar "Missing File"
+                                if 'cache_pdf_historico' not in st.session_state:
+                                    st.session_state.cache_pdf_historico = generate_comparison_pdf(
+                                        form_data=st.session_state.get('form_data', {}),
+                                        metrics=metrics,
+                                        meta_antigo=meta_antigo,
+                                        meta_novo=meta_novo,
+                                        analise_ia=st.session_state['ultima_analise_historico'],
+                                        nodes_info=nodes_info
+                                    )
                                 
                                 nome_aluno_limpo = st.session_state.get('form_data', {}).get('nome', 'aluno').split()[0]
                                 nome_arquivo = f"compara_grafos_{nome_aluno_limpo}.pdf"
                                 
                                 st.download_button(
                                     label="📥 Baixar Relatório PDF",
-                                    data=pdf_bytes,
+                                    data=st.session_state.cache_pdf_historico,
                                     file_name=nome_arquivo,
                                     mime="application/pdf",
                                     width="stretch",
@@ -4440,19 +4445,21 @@ with tab4:
             with st.expander("💾 Baixar Matriz Completa de Salton"):
                 st.caption("Matriz com todos os conceitos do grafo")
                 
-                all_concepts = list(freq.keys())
-                full_salton = pd.DataFrame(0.0, index=all_concepts, columns=all_concepts)
-                
-                for (c1, c2), f in pairs.items():
-                    salton_value = f / np.sqrt(concept_freq.get(c1, 1) * concept_freq.get(c2, 1))
-                    full_salton.loc[c1, c2] = round(salton_value, 4)
-                    full_salton.loc[c2, c1] = round(salton_value, 4)
-                
-                csv_salton = full_salton.to_csv()
+                if 'cache_salton_csv' not in st.session_state:
+                    all_concepts = list(freq.keys())
+                    full_salton = pd.DataFrame(0.0, index=all_concepts, columns=all_concepts)
+                    
+                    for (c1, c2), f in pairs.items():
+                        salton_value = f / np.sqrt(concept_freq.get(c1, 1) * concept_freq.get(c2, 1))
+                        full_salton.loc[c1, c2] = round(salton_value, 4)
+                        full_salton.loc[c2, c1] = round(salton_value, 4)
+                    
+                    st.session_state.cache_salton_csv = full_salton.to_csv()
+                    st.session_state.cache_salton_dim = len(all_concepts)
                 
                 st.download_button(
                     "📥 Baixar Matriz Salton (CSV)",
-                    data=csv_salton,
+                    data=st.session_state.cache_salton_csv,
                     file_name="matriz_salton_completa.csv",
                     mime="text/csv",
                     width="stretch",
@@ -5195,9 +5202,12 @@ with tab4:
             with col1:
                 st.subheader("📄 JSON")
 
+                if 'cache_artigos_json' not in st.session_state:
+                    st.session_state.cache_artigos_json = json.dumps(articles, indent=2, ensure_ascii=False)
+
                 st.download_button(
                     "📥 Artigos (JSON Completo)",
-                    json.dumps(articles, indent=2, ensure_ascii=False),
+                    st.session_state.cache_artigos_json,
                     "articles.json",
                     "application/json",
                     help="Dados brutos completos (ideal para mineração).",
@@ -5205,23 +5215,28 @@ with tab4:
                     key="dl_artigos_json"
                 )
 
+                if 'cache_conceitos_json' not in st.session_state:
+                    st.session_state.cache_conceitos_json = json.dumps(concepts_lists, indent=2, ensure_ascii=False)
+
                 st.download_button(
                     "📥 Conceitos (JSON)",
-                    json.dumps(concepts_lists, indent=2, ensure_ascii=False),
+                    st.session_state.cache_conceitos_json,
                     "concepts.json",
                     "application/json",
                     width="stretch",
                     key="dl_conceitos_json"
                 )
 
-                cooc_json = [
-                    {"conceito1": c1, "conceito2": c2, "frequencia": f}
-                    for (c1, c2), f in pairs.items()
-                ]
+                if 'cache_cooc_json' not in st.session_state:
+                    cooc_json = [
+                        {"conceito1": c1, "conceito2": c2, "frequencia": f}
+                        for (c1, c2), f in pairs.items()
+                    ]
+                    st.session_state.cache_cooc_json = json.dumps(cooc_json, indent=2, ensure_ascii=False)
 
                 st.download_button(
                     "📥 Coocorrências (JSON)",
-                    json.dumps(cooc_json, indent=2, ensure_ascii=False),
+                    st.session_state.cache_cooc_json,
                     "cooccurrences.json",
                     "application/json",
                     width="stretch",
@@ -5232,54 +5247,59 @@ with tab4:
             with col2:
                 st.subheader("📊 CSV")
 
-                df_articles_export = pd.DataFrame([
-                    {
-                        'title': a.get('title', ''),
-                        'year': a.get('year', ''),
-                        'num_concepts': len(a.get('concepts', []))
-                    }
-                    for a in articles
-                ])
+                if 'cache_artigos_csv' not in st.session_state:
+                    df_articles_export = pd.DataFrame([
+                        {
+                            'title': a.get('title', ''),
+                            'year': a.get('year', ''),
+                            'num_concepts': len(a.get('concepts', []))
+                        }
+                        for a in articles
+                    ])
+                    st.session_state.cache_artigos_csv = df_articles_export.to_csv(index=False)
 
                 st.download_button(
                     "📥 Artigos (CSV)",
-                    df_articles_export.to_csv(index=False),
+                    st.session_state.cache_artigos_csv,
                     "articles.csv",
                     "text/csv",
                     width="stretch",
                     key="dl_artigos_csv"
                 )
 
-                # Recriar contador de conceitos para exportação
-                from collections import Counter
-                all_concepts_export = []
-                for a in articles:
-                    for c in a.get('concepts', []):
-                        nome = c.get('display_name', c.get('name', ''))
-                        if nome:
-                            all_concepts_export.append(nome)
-                freq_export = Counter(all_concepts_export)
-                
-                df_concepts = pd.DataFrame(
-                    freq_export.most_common(),
-                    columns=['concept', 'frequency']
-                )
+                if 'cache_conceitos_csv' not in st.session_state:
+                    from collections import Counter
+                    all_concepts_export = []
+                    for a in articles:
+                        for c in a.get('concepts', []):
+                            nome = c.get('display_name', c.get('name', ''))
+                            if nome:
+                                all_concepts_export.append(nome)
+                    freq_export = Counter(all_concepts_export)
+                    
+                    df_concepts = pd.DataFrame(
+                        freq_export.most_common(),
+                        columns=['concept', 'frequency']
+                    )
+                    st.session_state.cache_conceitos_csv = df_concepts.to_csv(index=False)
 
                 st.download_button(
                     "📥 Conceitos (CSV)",
-                    df_concepts.to_csv(index=False),
+                    st.session_state.cache_conceitos_csv,
                     "concepts.csv",
                     "text/csv",
                     width="stretch",
                     key="dl_conceitos_csv"
                 )
 
-                edges_list = [[u, v, d['weight']] for u, v, d in G.edges(data=True)]
-                df_cooc = pd.DataFrame(edges_list, columns=['source', 'target', 'weight'])
+                if 'cache_cooc_csv' not in st.session_state:
+                    edges_list = [[u, v, d['weight']] for u, v, d in G.edges(data=True)]
+                    df_cooc = pd.DataFrame(edges_list, columns=['source', 'target', 'weight'])
+                    st.session_state.cache_cooc_csv = df_cooc.to_csv(index=False)
 
                 st.download_button(
                     "📥 Coocorrências (CSV)",
-                    df_cooc.to_csv(index=False),
+                    st.session_state.cache_cooc_csv,
                     "cooccurrences.csv",
                     "text/csv",
                     width="stretch",
@@ -5290,18 +5310,18 @@ with tab4:
             with col3:
                 st.subheader("🔧 Redes")
 
-                # 1. GraphML (Já existente)
-                import tempfile
+                # 1. GraphML
                 try:
-                    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.graphml') as f:
-                        nx.write_graphml(G, f.name)
-                        # Reabre para leitura
-                    with open(f.name, 'r', encoding='utf-8') as file:
-                        graphml_content = file.read()
+                    if 'cache_graphml_painel' not in st.session_state:
+                        import tempfile
+                        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.graphml') as f:
+                            nx.write_graphml(G, f.name)
+                        with open(f.name, 'r', encoding='utf-8') as file:
+                            st.session_state.cache_graphml_painel = file.read()
                     
                     st.download_button(
                         "📥 Grafo (GraphML)",
-                        graphml_content,
+                        st.session_state.cache_graphml_painel,
                         "graph.graphml",
                         "application/xml",
                         help="Para Gephi ou Cytoscape",
@@ -5311,13 +5331,14 @@ with tab4:
                 except Exception as e:
                     st.error(f"Erro GraphML: {e}")
 
-                # 2. Pajek .net (NOVO - INSERIDO AQUI)
+                # 2. Pajek .net
                 try:
-                    # Usa a função nova que criamos no export_utils
-                    pajek_data = exp.generate_pajek_net(G)
+                    if 'cache_pajek_painel' not in st.session_state:
+                        st.session_state.cache_pajek_painel = exp.generate_pajek_net(G)
+                    
                     st.download_button(
                         "📥 Grafo (.net Pajek)", 
-                        pajek_data, 
+                        st.session_state.cache_pajek_painel, 
                         "graph.net", 
                         "text/plain",
                         help="Para VOSviewer ou Pajek",
@@ -5337,11 +5358,12 @@ with tab4:
             
             # 1. Botão Excel
             try:
-                excel_data = exp.generate_excel(articles)
+                if 'cache_excel' not in st.session_state:
+                    st.session_state.cache_excel = exp.generate_excel(articles)
                 with col_exp1:
                     st.download_button(
                         label="📊 Excel (.xlsx)",
-                        data=excel_data,
+                        data=st.session_state.cache_excel,
                         file_name="delineia_resultados.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         help="Planilha formatada com conceitos, score e level.",
@@ -5353,11 +5375,12 @@ with tab4:
             
             # 2. Botão BibTeX
             try:
-                bibtex_data = exp.generate_bibtex(articles)
+                if 'cache_bibtex' not in st.session_state:
+                    st.session_state.cache_bibtex = exp.generate_bibtex(articles)
                 with col_exp2:
                     st.download_button(
                         label="🎓 BibTeX (.bib)",
-                        data=bibtex_data,
+                        data=st.session_state.cache_bibtex,
                         file_name="delineia_referencias.bib",
                         mime="text/plain",
                         help="Para LaTeX/Overleaf.",
@@ -5369,11 +5392,12 @@ with tab4:
                 
             # 3. Botão RIS
             try:
-                ris_data = exp.generate_ris(articles)
+                if 'cache_ris' not in st.session_state:
+                    st.session_state.cache_ris = exp.generate_ris(articles)
                 with col_exp3:
                     st.download_button(
                         label="📚 RIS (Zotero)",
-                        data=ris_data,
+                        data=st.session_state.cache_ris,
                         file_name="delineia_referencias.ris",
                         mime="application/x-research-info-systems",
                         help="Para Zotero, Mendeley, EndNote.",
@@ -5395,26 +5419,31 @@ with tab4:
                     zip_buffer = BytesIO()
 
                     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-                        # JSON
-                        zf.writestr('articles.json', json.dumps(articles, indent=2, ensure_ascii=False))
-                        zf.writestr('concepts.json', json.dumps(concepts_lists, indent=2, ensure_ascii=False))
-                        zf.writestr('cooccurrences.json', json.dumps(cooc_json, indent=2, ensure_ascii=False))
+                        # JSON (usa cache ou gera na hora)
+                        zf.writestr('articles.json', st.session_state.get('cache_artigos_json', json.dumps(articles, indent=2, ensure_ascii=False)))
+                        zf.writestr('concepts.json', st.session_state.get('cache_conceitos_json', json.dumps(concepts_lists, indent=2, ensure_ascii=False)))
+                        cooc_json_zip = st.session_state.get('cache_cooc_json', json.dumps([{"conceito1": c1, "conceito2": c2, "frequencia": f} for (c1, c2), f in pairs.items()], indent=2, ensure_ascii=False))
+                        zf.writestr('cooccurrences.json', cooc_json_zip)
 
-                        # CSV
-                        zf.writestr('articles.csv', df_articles_export.to_csv(index=False))
-                        zf.writestr('concepts.csv', df_concepts.to_csv(index=False))
-                        zf.writestr('cooccurrences.csv', df_cooc.to_csv(index=False))
+                        # CSV (usa cache ou gera na hora)
+                        zf.writestr('articles.csv', st.session_state.get('cache_artigos_csv', pd.DataFrame([{'title': a.get('title', ''), 'year': a.get('year', ''), 'num_concepts': len(a.get('concepts', []))} for a in articles]).to_csv(index=False)))
+                        zf.writestr('concepts.csv', st.session_state.get('cache_conceitos_csv', ''))
+                        zf.writestr('cooccurrences.csv', st.session_state.get('cache_cooc_csv', pd.DataFrame([[u, v, d['weight']] for u, v, d in G.edges(data=True)], columns=['source', 'target', 'weight']).to_csv(index=False)))
 
-                        # Redes
-                        zf.writestr('graph.graphml', graphml_content)
-                        # Adicionando o .net ao ZIP também
+                        # Redes (usa cache ou gera na hora)
+                        graphml_zip = st.session_state.get('cache_graphml_painel', '')
+                        if graphml_zip:
+                            zf.writestr('graph.graphml', graphml_zip)
+                        
+                        # Pajek .net
                         try:
-                            if isinstance(pajek_data, bytes):
-                                zf.writestr('graph.net', pajek_data)
+                            pajek_zip = st.session_state.get('cache_pajek_painel', exp.generate_pajek_net(G))
+                            if isinstance(pajek_zip, bytes):
+                                zf.writestr('graph.net', pajek_zip)
                             else:
-                                zf.writestr('graph.net', pajek_data.encode('utf-8'))
+                                zf.writestr('graph.net', pajek_zip.encode('utf-8'))
                         except:
-                            pass # Se falhar o pajek, gera o zip sem ele
+                            pass  # Se falhar o pajek, gera o zip sem ele
 
                         # --- DADOS RICOS (Excel, BibTeX, RIS) ---
                         # Excel (.xlsx)
