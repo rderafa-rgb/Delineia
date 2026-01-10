@@ -508,6 +508,14 @@ with st.sidebar:
             - SEMELER, A.R.; SANTOS, R.A.; SOARES, K.U. Análise de domínio aplicada aos estudos fronteiriços brasileiros: metadados de publicações científicas de acesso aberto extraídos da plataforma Lattes. In: *ANUÁRIO Unbral das fronteiras brasileiras*: volume 1. Porto Alegre: Instituto de Geociências, 2014. p.37–65.
            """)
 
+    with st.expander("Advertência"):
+        st.markdown("""
+            *Atenção:*
+            - IAs podem cometer erros.
+            - IAs podem produzir viés. Potenciais riscos sociais ou comportamentais.
+            - IAs podem gerar alucinações ou insegurança científica. 
+           """) 
+
     st.markdown("---") # Linha divisória
 
     # LICENÇA CREATIVE COMMONS (Formatada em HTML)
