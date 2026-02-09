@@ -279,7 +279,7 @@ class GeminiQueryGenerator:
         return fallback
 
     def generate_full_report(self, nome: str, tema: str, questao: str,
-                            keywords: List[str], google_academico: str = "", 
+                            keywords: List[str], busca_espontanea: str = "", 
                             genero: str = "Neutro") -> str:
         """Gera avaliação crítica e construtiva do projeto"""
         keywords_str = ', '.join(keywords)
@@ -296,7 +296,7 @@ Aluno: {nome} (você vai chamá-lo de {primeiro_nome})
 Tema proposto: {tema}
 Questão de pesquisa: {questao}
 Palavras-chave escolhidas: {keywords_str}
-Busca espontânea (o que digitaria no Google Acadêmico): {google_academico if google_academico else "Não informado"}
+Busca espontânea (o que digitaria em mecanismos de busca): {busca_espontanea if busca_espontanea else "Não informado"}
 
 ---
 
@@ -320,7 +320,7 @@ Escreva DOIS parágrafos conversando com {primeiro_nome}:
 • Encerre com: "Recomendo que você converse com seu orientador sobre esses pontos e observe atentamente o grafo de coocorrências apresentado adiante, pois ele pode revelar relações importantes entre conceitos que ajudarão a refinar suas palavras-chave e a delimitar melhor o escopo da sua pesquisa."
 
 **PARÁGRAFO 3 (OPCIONAL) - Sobre a busca espontânea:**
-Se o aluno informou o que digitaria no Google Acadêmico ("{google_academico}"), compare brevemente com as palavras-chave formais. A diferença entre linguagem natural de busca e termos técnicos revela o nível de familiaridade com o vocabulário científico da área. Use isso para orientar, não para criticar.
+Se o aluno informou o que digitaria em mecanismos de busca ("{busca_espontanea}"), compare brevemente com as palavras-chave formais. A diferença entre linguagem natural de busca e termos técnicos revela o nível de familiaridade com o vocabulário científico da área. Use isso para orientar, não para criticar.
 
 **DIRETRIZES:**
 • Tom de conversa: use "você" e o primeiro nome
@@ -901,8 +901,8 @@ Sugira exatamente 5 palavras-chave complementares que:
         # Dados declarados pelo aluno
         tema_A = meta_antigo.get('aluno_tema', 'Não informado')
         tema_B = meta_novo.get('aluno_tema', 'Não informado')
-        google_A = meta_antigo.get('aluno_google_academico', 'Não informado')
-        google_B = meta_novo.get('aluno_google_academico', 'Não informado')
+        busca_A = meta_antigo.get('aluno_busca_espontanea', meta_antigo.get('aluno_google_academico', 'Não informado'))
+        busca_B = meta_novo.get('aluno_busca_espontanea', meta_novo.get('aluno_google_academico', 'Não informado'))
         questao_A = meta_antigo.get('aluno_questao', 'Não informado')
         questao_B = meta_novo.get('aluno_questao', 'Não informado')
         confianca_A = meta_antigo.get('aluno_confianca_ini', 'Não informado')
@@ -919,7 +919,7 @@ Você é um orientador de pesquisa experiente. Analise a evolução entre dois d
 - **Questão de pesquisa:** {questao_A}
 - **Nível de confiança inicial:** {confianca_A}
 - **String de busca gerada:** {string_A}
-- **Busca espontânea (Google):** {google_A}
+- **Busca espontânea (Google):** {busca_A}
 - **Conceitos exclusivos (amostra):** {antigos_sample}
 
 ## DADOS DO DELINEAMENTO B (Atual)
@@ -927,7 +927,7 @@ Você é um orientador de pesquisa experiente. Analise a evolução entre dois d
 - **Questão de pesquisa:** {questao_B}
 - **Nível de confiança inicial:** {confianca_B}
 - **String de busca gerada:** {string_B}
-- **Busca espontânea (Google):** {google_B}
+- **Busca espontânea (Google):** {busca_B}
 - **Conceitos exclusivos (amostra):** {novos_sample}
 
 ## MÉTRICAS DA COMPARAÇÃO
@@ -1051,14 +1051,14 @@ class ResearchScopePipeline:
         self.gemini = GeminiQueryGenerator()
         self.analyzer = CooccurrenceAnalyzer()
 
-    def process(self, nome: str, tema: str, questao: str, keywords: List[str], genero: str = "Neutro", google_academico: str = "") -> Dict:
+    def process(self, nome: str, tema: str, questao: str, keywords: List[str], genero: str = "Neutro", busca_espontanea: str = "") -> Dict:
         """Executa pipeline"""
         
         primeiro_nome = nome.split()[0] if nome else "estudante"
 
         # 1. Avaliação (passando gênero)
         log_diagnostico("Etapa 1/7: Gerando avaliação do projeto...", "info")
-        full_report = self.gemini.generate_full_report(nome, tema, questao, keywords, google_academico, genero)
+        full_report = self.gemini.generate_full_report(nome, tema, questao, keywords, busca_espontanea, genero)
 
         # 2. Termos complementares
         log_diagnostico("Etapa 2/7: Gerando termos complementares...", "info")

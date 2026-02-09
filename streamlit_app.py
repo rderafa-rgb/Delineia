@@ -164,10 +164,10 @@ def get_pipeline_instance():
     """Cache da instância do pipeline para não recriar objetos pesados."""
     return ResearchScopePipeline(OPENALEX_EMAIL)
 
-def run_cached_pipeline(nome, tema, questao, kws, genero, google_academico=""):
+def run_cached_pipeline(nome, tema, questao, kws, genero, busca_espontanea=""):
     pipe = ResearchScopePipeline(OPENALEX_EMAIL)
     # A função process retorna dicionários e grafos NetworkX, que o Streamlit serializa bem
-    return pipe.process(nome, tema, questao, kws, genero=genero, google_academico=google_academico)
+    return pipe.process(nome, tema, questao, kws, genero=genero, busca_espontanea=busca_espontanea)
 
 @st.cache_data(ttl="1h", show_spinner=False)
 def generate_cached_pdf(form_data, result, selected_concepts, suggested_keywords, suggested_strings, badges):
@@ -704,7 +704,7 @@ def salvar_grafo_historico(id_usuario, form_data, result):
             ["aluno_tema", form_data.get('tema', ''), "", ""],
             ["aluno_questao", form_data.get('questao', ''), "", ""],
             ["aluno_confianca_ini", form_data.get('confianca', ''), "", ""],
-            ["aluno_google_academico", form_data.get('google_academico', ''), "", ""],
+            ["aluno_busca_espontanea", form_data.get('busca_espontanea', ''), "", ""],
             ["pipeline_string", result.get('search_string', ''), "", ""],
             ["pipeline_artigos_total", result.get('articles_count', 0), "", ""],
         ]
@@ -778,7 +778,8 @@ def enviar_formulario_inicial(form_data, existing_id=None):
             form_data['tema'],
             form_data['questao'],
             form_data['palavras_chave'],
-            form_data.get('google_academico', ''),
+            form_data.get('ferramentas_busca', ''),
+            form_data.get('busca_espontanea', ''),
             form_data.get('confianca', '')
         ]
         
@@ -864,6 +865,7 @@ def atualizar_termos_sugeridos(id_usuario, suggested_keywords):
 
 def enviar_formulario_avaliacao(id_usuario, avaliacao_data):
     """Envia avaliação do usuário para Google Sheets"""
+    print(f"[AVAL] Iniciando envio para id: {id_usuario}")
     try:
         sheet = conectar_google_sheets()
         if sheet is None:
@@ -919,10 +921,22 @@ def enviar_formulario_avaliacao(id_usuario, avaliacao_data):
             tempo_total
         ]
         
+        print(f"[AVAL] Worksheet título: '{worksheet.title}'")
+        print(f"[AVAL] Worksheet row_count: {worksheet.row_count}")
+        print(f"[AVAL] Row montada: {len(row)} colunas")
+        print(f"[AVAL] Colunas do cabeçalho: {worksheet.row_values(1)}")
+        
         worksheet.append_row(row, value_input_option='RAW')
+        
+        # Verifica se realmente gravou
+        all_data = worksheet.get_all_values()
+        print(f"[AVAL] Total de linhas após append: {len(all_data)}")
+        print(f"[AVAL] Última linha: {all_data[-1][:3]}...")  # Mostra só as 3 primeiras colunas
+        print(f"[AVAL] ✅ Envio concluído com sucesso!")
         return True
         
     except Exception as e:
+        print(f"[AVAL] ❌ ERRO: {e}")
         st.error(f"❌ Erro ao enviar avaliação: {e}")
         return False
 
@@ -1878,8 +1892,48 @@ with tab1:
                 help="Separe as palavras-chave por vírgula"
             )
 
-            google_academico = st.text_area(
-                "F1.4. Se você fosse pesquisar referências para seu projeto no Google Acadêmico, o que você colocaria no campo de busca?*",
+            # --- NOVO: F1.4 - Ferramentas de busca ---
+            st.markdown('<p style="font-size: 14px; margin-bottom: 0.4rem;">F1.4. Quais ferramentas, mecanismos ou serviços você usa para buscar informação científica?</p>', unsafe_allow_html=True)
+            col_fer1, col_fer2, col_fer3 = st.columns(3)
+            with col_fer1:
+                fer_google = st.checkbox("Google", key="fer_google")
+                fer_gscholar = st.checkbox("Google Acadêmico", key="fer_gscholar")
+                fer_scielo = st.checkbox("Scielo", key="fer_scielo")
+                fer_scopus = st.checkbox("Scopus", key="fer_scopus")
+                fer_wos = st.checkbox("Web of Science", key="fer_wos")
+                fer_scihub = st.checkbox("Sci-Hub", key="fer_scihub")
+            with col_fer2:
+                fer_semantic = st.checkbox("Semantic Scholar", key="fer_semantic")
+                fer_pubmed = st.checkbox("PubMed", key="fer_pubmed")
+                fer_eric = st.checkbox("ERIC", key="fer_eric")
+                fer_capes = st.checkbox("Portal Periódicos da Capes", key="fer_capes")
+                fer_repositorio = st.checkbox("Repositório Institucional", key="fer_repositorio")
+                fer_biblioteca = st.checkbox("Biblioteca Universitária", key="fer_biblioteca")
+            with col_fer3:
+                fer_outro = st.checkbox("Outro(s)", key="fer_outro")
+                fer_outro_texto = st.text_input(
+                    "Qual(is)?",
+                    key="fer_outro_texto",
+                    placeholder="Ex: BASE, OpenAlex...",
+                    help="Informe outros mecanismos de busca que você utiliza, separados por vírgula"
+                )
+
+            # Consolida seleções em uma string
+            ferramentas_selecionadas = ", ".join([nome for nome, marcado in [
+                ("Google", fer_google), ("Google Acadêmico", fer_gscholar),
+                ("Scielo", fer_scielo), ("Scopus", fer_scopus),
+                ("Web of Science", fer_wos), ("Sci-Hub", fer_scihub),
+                ("Semantic Scholar", fer_semantic), ("PubMed", fer_pubmed),
+                ("ERIC", fer_eric), ("Portal Periódicos da Capes", fer_capes),
+                ("Repositório Institucional", fer_repositorio),
+                ("Biblioteca Universitária", fer_biblioteca),
+                ("Outro(s)", fer_outro)
+            ] if marcado])
+            if fer_outro_texto:
+                ferramentas_selecionadas += f", {fer_outro_texto}"
+
+            busca_espontanea = st.text_area(
+                "F1.5. Se você fosse pesquisar referências para seu projeto em algum destes mecanismos, o que você colocaria no campo de busca?*",
                 placeholder="Ex: Uso de jogos na escola",
                 help="Campo livre para indicar palavras, frases, etc. que você quer pesquisar",
                 height=100
@@ -1889,7 +1943,7 @@ with tab1:
             st.subheader("💭 Autoavaliação")
 
             confianca = st.radio(
-                "F1.5. Qual seu nível de segurança em relação às palavras-chave escolhidas?",
+                "F1.6. Qual seu nível de segurança em relação às palavras-chave escolhidas?",
                 options=[
                     "Totalmente seguro",
                     "Seguro",
@@ -1911,7 +1965,7 @@ with tab1:
             )
 
             if submitted:
-                if not all([nome, email, tema, questao, palavras_chave, google_academico]):
+                if not all([nome, email, tema, questao, palavras_chave, busca_espontanea]):
                     st.error("⚠️ Por favor, preencha todos os campos obrigatórios (*)")
                 else:
                     # Força o reinício da trilha na etapa de visualização (a)
@@ -1932,8 +1986,9 @@ with tab1:
                         'tema': tema,
                         'questao': questao,
                         'palavras_chave': palavras_chave,
+                        'ferramentas_busca': ferramentas_selecionadas,
                         'confianca': confianca,
-                        'google_academico': google_academico,
+                        'busca_espontanea': busca_espontanea,
                         'timestamp': datetime.now(timezone(timedelta(hours=-3))).strftime("%d/%m/%Y às %H:%M")
                     }
 
@@ -1963,7 +2018,7 @@ with tab1:
                             tempo_inicio = time_module.time()
                             
                             # Usa a função cacheada
-                            st.session_state.resultado = run_cached_pipeline(nome, tema, questao, kws, genero, google_academico)
+                            st.session_state.resultado = run_cached_pipeline(nome, tema, questao, kws, genero, busca_espontanea)
                             tempo_fim = time_module.time()
 
                             # Enviar resultados para Google Sheets
@@ -2658,7 +2713,7 @@ Para prosseguir com o preenchimento deste formulário, assinale a alternativa ma
                     'q30': q30,
                     # Convite à continuidade
                     'tcle_aceite': tcle_aceite,
-                    'tecle_rejeita': tcle_rejeita,
+                    'tcle_rejeita': tcle_rejeita,
                     'aceite_continuidade': aceite_continuidade,
                     'rejeita_continuidade': rejeita_continuidade,
                     # Metadados
@@ -2670,19 +2725,25 @@ Para prosseguir com o preenchimento deste formulário, assinale a alternativa ma
                 st.session_state.avaliacao_data = avaliacao_data
 
                 # Enviar para Google Sheets
+                envio_ok = False
                 if 'id_usuario' in st.session_state:
-                    enviar_formulario_avaliacao(
+                    envio_ok = enviar_formulario_avaliacao(
                         st.session_state.id_usuario,
                         avaliacao_data
                     )
+                else:
+                    st.warning("⚠️ ID do usuário não encontrado. Avaliação salva localmente, mas não enviada à planilha.")
 
-                # Badge de conclusão (Agora usando a função g() para o gênero correto)
+                # Badge de conclusão
                 badge_final = f'💎 {g("Avaliador", "Avaliadora")}'
                 add_badge(badge_final)
 
                 # Feedback visual
                 st.session_state.mostrar_resumo_final = True
-                st.success("✅ Avaliação enviada com sucesso!")
+                if envio_ok:
+                    st.success("✅ Avaliação enviada com sucesso!")
+                else:
+                    st.warning("⚠️ Avaliação registrada localmente, mas houve falha no envio à planilha.")
                 
         if st.session_state.get('mostrar_resumo_final'):
             
