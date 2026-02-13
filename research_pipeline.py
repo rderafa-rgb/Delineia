@@ -1023,21 +1023,23 @@ class CooccurrenceAnalyzer:
         centrality = nx.degree_centrality(Gs)
         sizes = [centrality[n] * 3000 + 300 for n in Gs.nodes()]
 
-        plt.figure(figsize=(16, 12), facecolor='white')
+        fig, ax = plt.subplots(figsize=(16, 12), facecolor='white')
 
         nx.draw_networkx_nodes(Gs, pos, node_size=sizes, node_color=colors,
-                              alpha=0.85, edgecolors='white', linewidths=2.5)
-        nx.draw_networkx_edges(Gs, pos, alpha=0.25, edge_color='gray')
+                              alpha=0.85, edgecolors='white', linewidths=2.5,
+                              ax=ax)
+        nx.draw_networkx_edges(Gs, pos, alpha=0.25, edge_color='gray',
+                              ax=ax)
         nx.draw_networkx_labels(Gs, pos, font_size=11, font_weight='bold',
-                               font_family='sans-serif')
+                               font_family='sans-serif', ax=ax)
 
-        plt.title("9 conceitos - (Miller, 7±2)", 
-                 fontsize=20, fontweight='bold', pad=25)
-        plt.axis('off')
-        plt.tight_layout()
+        ax.set_title("9 conceitos - (Miller, 7±2)", 
+                    fontsize=20, fontweight='bold', pad=25)
+        ax.axis('off')
+        fig.tight_layout()
 
-        plt.savefig(path, dpi=300, bbox_inches='tight', facecolor='white')
-        plt.close()
+        fig.savefig(path, dpi=300, bbox_inches='tight', facecolor='white')
+        plt.close(fig)
 
         return path
 
@@ -1091,13 +1093,14 @@ class ResearchScopePipeline:
 
         # 6. Construir grafo
         log_diagnostico("Etapa 6/7: Construindo grafo...", "info")
-        G = self.analyzer.build_graph(concepts_lists, min_cooc=1)
+        analyzer = CooccurrenceAnalyzer()  # instância local — isolada por chamada
+        G = analyzer.build_graph(concepts_lists, min_cooc=1)
         log_diagnostico(f"Grafo: {len(G.nodes())} nós, {len(G.edges())} arestas", "success")
 
         # 7. Visualizar e interpretar (passando gênero)
         log_diagnostico("Etapa 7/7: Gerando visualização e análise...", "info")
-        viz_path = self.analyzer.visualize_graph(G, 9)
-        top_concepts = self.analyzer.get_top_nodes(G, 9)
+        viz_path = analyzer.visualize_graph(G, 9)
+        top_concepts = analyzer.get_top_nodes(G, 9)
         log_diagnostico(f"Top conceitos: {top_concepts[:5]}...", "info")
 
         glossary, interpretation = self.gemini.create_glossary_and_interpretation(

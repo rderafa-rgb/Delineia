@@ -1933,7 +1933,7 @@ with tab1:
                 ferramentas_selecionadas += f", {fer_outro_texto}"
 
             busca_espontanea = st.text_area(
-                "F1.5. Se você fosse pesquisar referências para seu projeto em algum destes mecanismos, o que você colocaria no campo de busca?*",
+                "F1.5. Se você fosse pesquisar referências para seu projeto em algum destes mecanismos, o que você colocaria no campo de busca?",
                 placeholder="Ex: Uso de jogos na escola",
                 help="Campo livre para indicar palavras, frases, etc. que você quer pesquisar",
                 height=100
@@ -1943,7 +1943,7 @@ with tab1:
             st.subheader("💭 Autoavaliação")
 
             confianca = st.radio(
-                "F1.6. Qual seu nível de segurança em relação às palavras-chave escolhidas?",
+                "F1.6. Qual seu nível de segurança em relação às palavras-chave escolhidas?*",
                 options=[
                     "Totalmente seguro",
                     "Seguro",
@@ -1965,7 +1965,7 @@ with tab1:
             )
 
             if submitted:
-                if not all([nome, email, tema, questao, palavras_chave, busca_espontanea]):
+                if not all([nome, email, tema, questao, palavras_chave, confianca]):
                     st.error("⚠️ Por favor, preencha todos os campos obrigatórios (*)")
                 else:
                     # Força o reinício da trilha na etapa de visualização (a)
