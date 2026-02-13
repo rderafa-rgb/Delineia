@@ -7,6 +7,7 @@ para identificar EXATAMENTE onde o Gemini está falhando.
 """
 
 import time
+import tempfile
 import re
 from typing import List, Dict, Tuple
 import requests
@@ -1038,11 +1039,13 @@ class CooccurrenceAnalyzer:
         ax.axis('off')
         fig.tight_layout()
 
-        fig.savefig(path, dpi=300, bbox_inches='tight', facecolor='white')
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as f:
+            temp_path = f.name
+
+        fig.savefig(temp_path, dpi=300, bbox_inches='tight', facecolor='white')
         plt.close(fig)
 
-        return path
-
+        return temp_path
 
 # ==================== PIPELINE PRINCIPAL ====================
 class ResearchScopePipeline:
