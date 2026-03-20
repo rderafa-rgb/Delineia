@@ -46,20 +46,23 @@ def wrap_text(text: str, width: int = 90) -> str:
             lines.append('')
     return '\n'.join(lines)
 
-
 def clean_markdown_for_pdf(text: str) -> str:
     """Remove/converte markdown para tags ReportLab."""
     if not text:
         return ""
     
-    # Bold: **texto** → <b>texto</b>
-    text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
-    
-    # Italic: *texto* → <i>texto</i>
-    text = re.sub(r'\*(.+?)\*', r'<i>\1</i>', text)
-    
-    # Backticks: `texto` → <font name="Courier">texto</font>
+    # 1. Backticks PRIMEIRO: `texto` → <font name="Courier">texto</font>
+    # Assim isolamos os termos técnicos de busca antes de processar o resto
     text = re.sub(r'`(.+?)`', r'<font name="Courier">\1</font>', text)
+
+    # 2. Bold: **texto** → <b>texto</b>
+    # O [^<>]+ impede que a regex quebre as tags <font> geradas acima
+    text = re.sub(r'\*\*([^<>]+?)\*\*', r'<b>\1</b>', text)
+    
+    # 3. Italic: *texto* → <i>texto</i>
+    # O (?=\S) e (?<=\S) exigem que o texto itálico comece e termine colado em letras.
+    # O [^*<>]+ impede parear truncamentos (ex: Entomolog*) com outros asteriscos distantes.
+    text = re.sub(r'\*(?=\S)([^*<>]+?)(?<=\S)\*', r'<i>\1</i>', text)
     
     # Remove headers markdown
     text = text.replace('###', '').replace('##', '').replace('#', '')
@@ -71,7 +74,6 @@ def clean_markdown_for_pdf(text: str) -> str:
     text = re.sub(r'\n{3,}', '\n\n', text)
     
     return text.strip()
-
 
 def split_glossary_entries(glossary_text: str) -> list:
     """Divide glossário em entradas individuais."""
