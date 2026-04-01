@@ -73,7 +73,7 @@ st.markdown("""
 
 # ======================== OUTROS IMPORTS ========================
 from datetime import datetime, timezone, timedelta 
-from research_pipeline import ResearchScopePipeline, OpenAlexClient, CooccurrenceAnalyzer, OPENALEX_EMAIL
+from research_pipeline import ResearchScopePipeline, OpenAlexClient, CooccurrenceAnalyzer, OPENALEX_EMAIL, _limpar_markdown_busca
 from pdf_generator import generate_pdf_report
 import pandas as pd
 import networkx as nx
@@ -3527,10 +3527,12 @@ with tab4:
 
     with st.expander("🔍 Configurar Nova Busca", expanded=False):
         # Sincroniza dashboard_query com o campo de texto
-        if 'dashboard_query' in st.session_state and st.session_state.dashboard_query:
-            # Se dashboard_query foi atualizado, propaga para o campo de texto
-            if st.session_state.get('txt_query_painel') != st.session_state.dashboard_query:
-                st.session_state.txt_query_painel = st.session_state.dashboard_query
+        if st.session_state.get('dashboard_query'):
+            # Sincroniza UMA VEZ e limpa o sinalizador para liberar edição manual
+            st.session_state.txt_query_painel = _limpar_markdown_busca(
+                st.session_state.dashboard_query
+            )
+            st.session_state.dashboard_query = ""  # Esvazia para não sobrescrever edições
         
         # Inicializa o valor se não existir
         if 'txt_query_painel' not in st.session_state:

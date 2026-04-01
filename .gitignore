@@ -1,7 +1,8 @@
+@"
 # Credenciais Google
 google_credentials.json
 
-# Variáveis de ambiente
+# Variaveis de ambiente
 .env
 
 # Python
@@ -19,7 +20,8 @@ ENV/
 # Streamlit
 .streamlit/secrets.toml
 
-# Arquivos temporários
+# Arquivos temporarios
 *.log
 *.tmp
 .DS_Store
+"@ | Out-File -FilePath .gitignore -Encoding utf8

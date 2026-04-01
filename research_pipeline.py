@@ -29,6 +29,14 @@ import requests
 import re
 from typing import List, Dict
 
+def _limpar_markdown_busca(texto: str) -> str:
+    """Remove formatação markdown bold (**) preservando aspas internas para sintagmas nominais."""
+    import re
+    limpo = texto.replace("**", "")
+    # Remove blocos de código markdown (```...```) se o Gemini os incluir
+    limpo = re.sub(r'^```[\w]*\n?|```$', '', limpo, flags=re.MULTILINE)
+    return limpo.strip()
+
 # ==================== CLIENTE OPENALEX (ATUALIZADO) ====================
 class OpenAlexClient:
     """Cliente para buscar artigos no OpenAlex com Paginação"""
@@ -475,6 +483,7 @@ Saída: Psychology, School, Teachers, Burnout
             
             objective = f"Busca exploratória baseada nos termos traduzidos para o inglês."
 
+        search_str = _limpar_markdown_busca(search_str)
         return search_str, objective
 
     def create_glossary_and_interpretation(self, concepts: List[str],
@@ -877,6 +886,10 @@ Sugira exatamente 5 palavras-chave complementares que:
             strings['focada']['string'] = ands
         elif pool_focada:
             strings['focada']['string'] = f'"{pool_focada[0]}"'
+        
+        # Limpeza final: remove formatação markdown que o Gemini pode inserir
+        for key in strings:
+            strings[key]['string'] = _limpar_markdown_busca(strings[key]['string'])
         
         return strings
 
