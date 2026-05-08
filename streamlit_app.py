@@ -116,7 +116,7 @@ def extract_concept_metadata(articles: list) -> dict:
     concept_data = defaultdict(lambda: {'scores': [], 'levels': [], 'count': 0})
     
     for article in articles:
-        # Proteção contra artigos sem conceitos
+        # Proteção contra artigos sem tópicos
         for concept in article.get('concepts', []):
             name = concept.get('display_name', '')
             if name:
@@ -207,7 +207,7 @@ def search_openalex_cached(query, limit, min_score, min_level):
     normalized_query = client.normalize_query(query)
     raw_articles = client.search_articles(normalized_query, limit)
     
-    # Processamento leve dos conceitos (extração) para evitar transportar objetos pesados
+    # Processamento leve dos tópicos (extração) para evitar transportar objetos pesados
     # Se possível, faça a filtragem de score/level aqui e retorne apenas o necessário
     return raw_articles
 
@@ -216,8 +216,8 @@ def search_openalex_cached(query, limit, min_score, min_level):
 @st.fragment
 def render_etapa_2a(d, r):
     """Fragment estável para etapa 2a - Visualização do Grafo"""
-    st.header("🕸️ 2. Grafo de conceitos")
-    st.caption("Etapa 2: Explore o grafo e o glossário antes de selecionar os conceitos")
+    st.header("🕸️ 2. Grafo de tópicos")
+    st.caption("Etapa 2: Explore o grafo e o glossário antes de selecionar os tópicos")
 
     with st.container(border=True):
         st.caption("📋 **Dados do Projeto**")
@@ -227,7 +227,7 @@ def render_etapa_2a(d, r):
 
     col1, col2, col3 = st.columns(3)
     col1.metric("📚 Artigos Analisados", r.get('articles_count', 0))
-    col2.metric("🧩 Conceitos no Grafo", r['graph_stats']['nodes'])
+    col2.metric("🧩 Tópicos no Grafo", r['graph_stats']['nodes'])
     col3.metric("🔗 Conexões", r['graph_stats']['edges'])
 
     col_grafo, col_glossario = st.columns([1, 1])
@@ -240,13 +240,13 @@ def render_etapa_2a(d, r):
             st.warning("⚠️ Visualização não disponível")
 
     with col_glossario:
-        st.subheader("📖 Glossário de Conceitos")
+        st.subheader("📖 Glossário de Tópicos")
         with st.container(height=400):
             st.markdown(r.get('glossary', '⚠️ Glossário não disponível'))
 
     st.divider()
     
-    with st.expander("📚 Por que limitamos a 9 conceitos?", expanded=False):
+    with st.expander("📚 Por que limitamos a 9 tópicos?", expanded=False):
         st.markdown("""
 Limitar a exibição de nós em grafos de palavras-chave reduz a sobrecarga cognitiva, 
 permitindo que o usuário identifique relações semânticas sem exceder sua capacidade 
@@ -261,24 +261,24 @@ p. 81-97, 1956. DOI: [https://doi.org/10.1037/h0043158](https://doi.org/10.1037/
 
     st.info("""
     💡 **Próximo passo:** Observe atentamente o grafo e o glossário acima. 
-    Na próxima etapa, você selecionará os conceitos mais relevantes para sua pesquisa.
+    Na próxima etapa, você selecionará os tópicos mais relevantes para sua pesquisa.
     Essa seleção será usada para gerar uma interpretação personalizada do grafo.
     """)
 
 @st.fragment
 def render_etapa_2b(d, r):
-    """Fragment estável para etapa 2b - Seleção de Conceitos"""
+    """Fragment estável para etapa 2b - Seleção de Tópicos"""
     primeiro_nome = d['nome'].split()[0]
-    st.header("🎯 3. Seleção de Conceitos")
-    st.caption("Etapa 3: Escolha os conceitos mais relevantes para sua pesquisa")
+    st.header("🎯 3. Seleção de Tópicos")
+    st.caption("Etapa 3: Escolha os tópicos mais relevantes para sua pesquisa")
 
     st.markdown(f"""
-    ### {primeiro_nome}, quais conceitos do grafo são mais relevantes para seu projeto?
+    ### {primeiro_nome}, quais tópicos do grafo são mais relevantes para seu projeto?
 
-    Considerando seu tema **"{d['tema']}"**, selecione os conceitos que você considera 
+    Considerando seu tema **"{d['tema']}"**, selecione os tópicos que você considera 
     mais importantes para o delineamento do escopo da sua pesquisa.
 
-    *Selecione pelo menos 1 conceito para continuar.*
+    *Selecione pelo menos 1 tópico para continuar.*
     """)
 
     with st.expander("🕸️ Grafo de Referência", expanded=False):
@@ -289,9 +289,9 @@ def render_etapa_2b(d, r):
 def render_etapa_2c(d, r, selected):
     """Fragment estável para etapa 2c - Relatório"""
     st.header("📋 4. Relatório")
-    st.caption("Etapa 4: Interpretação baseada nos conceitos que você selecionou")
+    st.caption("Etapa 4: Interpretação baseada nos tópicos que você selecionou")
 
-    st.success(f"✅ **Conceitos selecionados:** {', '.join(selected)}")
+    st.success(f"✅ **Tópicos selecionados:** {', '.join(selected)}")
 
     with st.container(border=True):
         col1, col2 = st.columns(2)
@@ -323,7 +323,7 @@ def render_etapa_2c(d, r, selected):
     if r.get('visualization_path'):
         st.image(r['visualization_path'], width="stretch")
 
-    with st.expander("📖 Glossário de Conceitos", expanded=False):
+    with st.expander("📖 Glossário de Tópicos", expanded=False):
         st.markdown(r.get('glossary', '⚠️ Glossário não disponível'))
 
     st.subheader("🔑 Sugestões de Palavras-chave")
@@ -409,9 +409,9 @@ with st.sidebar:
         st.markdown("""
             - **Delineascópio:**
               - Trilha gamificada
-              - Visualização de conceitos
+              - Visualização de tópicos
               - Glossário
-              - Seleção de conceitos
+              - Seleção de tópicos
               - Avaliação do projeto:
                 - Palavras-chave
                 - Questão de pesquisa
@@ -428,15 +428,15 @@ with st.sidebar:
             - **Histórico:** 
               - Comparação entre grafos
               - Abstração hierárquica
-                - Conceitos incluídos
-                - Conceitos excluídos
+                - Tópicos incluídos
+                - Tópicos excluídos
                 - Núcleo estável
               - Análise Pedagógica da Mudança
               - Relatório em PDF
             - **Painel:** 
               - Busca de dados com OpenAlex:
                 - Artigos: *métricas de artigos e metadados únicos*
-                - Conceitos: *métricas de conceitos, nuvem de palavras e lei de Zipf*
+                - Tópicos: *métricas de tópicos, nuvem de palavras e lei de Zipf*
                 - Coocorrências: *métricas de pares associados e similaridade*
                 - Grafo: *visualização estática e clusterização*
                 - Mapa Temático: *posição estratégica do cluster*
@@ -500,6 +500,7 @@ with st.sidebar:
     with st.expander("Publicações"):
         st.markdown("""
             *Artigos relacionados:*
+            - SANTOS, R.A.; BENI, P.F.; REATEGUI, E.B.; BARONE, D.A.C. Justiça, Responsabilidade, Transparência e Ética (FATE) em sistemas de recomendação na educação: uma análise de coocorrência de palavras. *Revista Ibero-Americana de Ciência da Informação*, v.19, n.2, p.356-377, 2026. Doi: https://doi.org/10.26512/rici.v19.n2.2026.60555.
             - SANTOS, R.A.; REATEGUI, E.B. Uso de inteligência artificial generativa e análise de palavras-chave para apoiar o planejamento de projetos de pesquisa no ensino superior. *RELATEC: Revista Latinoamericana de Tecnología Educativa*, v.24, n.2, p.87–104, 2025. Doi: https://doi.org/10.17398/1695-288X.24.2.87.
             - SANTOS, R.A.; REATEGUI, E.B.; CAREGNATO, S.E. Análise de coocorrência de palavras na pesquisa brasileira em HIV/AIDS indexada na Web of Science no período 1993-2020. *Informação & Informação*, v.27, n.2, p.248–273, 2022. Doi: https://doi.org/10.5433/1981-8920.2022v27n2p248. Disponível em: https://ojs.uel.br/revistas/uel/index.php/informacao/article/view/45335.        
            
@@ -512,7 +513,7 @@ with st.sidebar:
         st.markdown("""
             *Atenção:*
             - IAs podem cometer erros.
-            - IAs podem produzir viés. Potenciais riscos sociais ou comportamentais.
+            - IAs podem produzir viés e potenciais riscos sociais ou comportamentais.
             - IAs podem gerar alucinações ou insegurança científica. 
            """) 
 
@@ -1109,7 +1110,7 @@ def process_openalex_dataframe(articles):
         authors = art.get('authorships', [])
         first_author = authors[0].get('author', {}).get('display_name', 'N/A') if authors else 'N/A'
         
-        # Pega top 3 conceitos
+        # Pega top 3 tópicos
         concepts = [c.get('display_name', '') for c in art.get('concepts', [])]
         top_concepts = ", ".join(concepts[:3])
         
@@ -1117,7 +1118,7 @@ def process_openalex_dataframe(articles):
             'Título': art.get('title', 'Sem título'),
             'Ano': art.get('publication_year', art.get('year', 'N/A')),
             'Autor (1º)': first_author,
-            'Top Conceitos': top_concepts,
+            'Top Tópicos': top_concepts,
             'Citações': art.get('cited_by_count', 0),
             'DOI/URL': art.get('doi', art.get('url', ''))
         })
@@ -1327,7 +1328,7 @@ def render_tab3_interacao():
     """
     
     st.title("🔬 Exploração Interativa do Grafo")
-    st.caption("Visualize e explore a rede de conceitos de forma dinâmica")
+    st.caption("Visualize e explore a rede de tópicos de forma dinâmica")
     
     if st.session_state.get('resultado') is None:
         st.info("👈 Complete primeiro o **Delineascópio** para visualizar o grafo interativo.")
@@ -1349,14 +1350,14 @@ def render_tab3_interacao():
         rodape_institucional()
         return
     
-    # Extrair metadados dos conceitos
+    # Extrair metadados dos tópicos
     articles = r.get('raw_articles', [])
     concept_metadata = extract_concept_metadata(articles)
     
     selected_concepts = st.session_state.get('selected_concepts', [])
     
     # ==================== CONTROLES DE FILTRO ====================
-    with st.expander(f"⚙️ **Filtros do Grafo** ({len(G.nodes())} conceitos disponíveis)", expanded=True):
+    with st.expander(f"⚙️ **Filtros do Grafo** ({len(G.nodes())} tópicos disponíveis)", expanded=True):
         
         # Linha 1: Filtros numéricos
         col_f1, col_f2, col_f3 = st.columns(3)
@@ -1396,26 +1397,26 @@ def render_tab3_interacao():
         
         st.divider()
         
-        # Linha 2: Seleção de conceitos (INCLUSÃO/EXCLUSÃO)
+        # Linha 2: Seleção de tópicos (INCLUSÃO/EXCLUSÃO)
         all_concepts_sorted = sorted(G.nodes())
         
         col_inc, col_exc = st.columns(2)
         
         with col_inc:
             include_concepts = st.multiselect(
-                "✅ Incluir apenas estes conceitos:",
+                "✅ Incluir apenas estes tópicos:",
                 options=all_concepts_sorted,
                 default=[],
                 help="Deixe vazio para incluir todos. Se selecionar, mostra APENAS os escolhidos.",
-                placeholder="Todos os conceitos (padrão)"
+                placeholder="Todos os tópicos (padrão)"
             )
         
         with col_exc:
             exclude_concepts = st.multiselect(
-                "❌ Excluir estes conceitos:",
+                "❌ Excluir estes tópicos:",
                 options=all_concepts_sorted,
                 default=[],
-                help="Conceitos que serão removidos do grafo.",
+                help="Tópicos que serão removidos do grafo.",
                 placeholder="Nenhum excluído (padrão)"
             )
         
@@ -1601,14 +1602,14 @@ def render_tab3_interacao():
                 file_name="grafo_nos.csv",
                 mime="text/csv",
                 width="stretch",
-                help="Lista de conceitos com métricas",
+                help="Lista de tópicos com métricas",
                 key="dl_nos_csv"
             )
     
     # ==================== CONSTRUTOR DE CHAVE DE BUSCA ====================
     st.divider()
     st.subheader("🔧 Construtor de Chave de Busca")
-    st.caption("Monte sua própria chave de busca selecionando conceitos do grafo e inserindo operadores booleanos")
+    st.caption("Monte sua própria chave de busca selecionando tópicos do grafo e inserindo operadores booleanos")
     
     with st.expander("**Construir Chave Personalizada**", expanded=False):
         
@@ -1618,17 +1619,17 @@ def render_tab3_interacao():
         if 'collected_terms' not in st.session_state:
             st.session_state.collected_terms = []
 
-        # Conceitos disponíveis (do grafo filtrado ou original)
+        # Tópicos disponíveis (do grafo filtrado ou original)
         available_concepts = sorted(G_filtered.nodes()) if len(G_filtered.nodes()) > 0 else sorted(G.nodes())
         
         # ========== SEÇÃO 1: SELEÇÃO DE CONCEITOS ==========
-        st.markdown("**1. Selecione um conceito:**")
+        st.markdown("**1. Selecione um tópico:**")
         
         selected_concept = st.selectbox(
             "Conceito para formatar:",
             options=[""] + available_concepts,
             index=0,
-            help="Escolha um conceito para formatar e adicionar à chave",
+            help="Escolha um tópico para formatar e adicionar à chave",
             label_visibility="collapsed",
             key="sel_conceito_construtor"
         )
@@ -1717,7 +1718,7 @@ def render_tab3_interacao():
             
             # Botões para inserir termos coletados
             if st.session_state.collected_terms:
-                st.markdown("**Inserir conceitos:**")
+                st.markdown("**Inserir tópicos:**")
                 num_cols = 4
                 for i in range(0, len(st.session_state.collected_terms), num_cols):
                     cols = st.columns(num_cols)
@@ -1795,21 +1796,21 @@ with tab1:
 
     with col2:
         if st.session_state.step >= 2:
-            st.success("✅ 2. Grafo de conceitos")
+            st.success("✅ 2. Grafo de tópicos")
             if f'🔬 {g("Pesquisador", "Pesquisadora")}' not in st.session_state.badges:
                 add_badge(f'🔬 {g("Pesquisador", "Pesquisadora")}')
         else:
-            st.info("⏳ 2. Grafo de conceitos")
+            st.info("⏳ 2. Grafo de tópicos")
 
     with col3:
         if st.session_state.step >= 2 and sub_step in ['b', 'c']:
-            st.success("✅ 3. Seleção de conceitos")
+            st.success("✅ 3. Seleção de tópicos")
             if f'🧩 {g("Seletor", "Seletora")}' not in st.session_state.badges:
                 add_badge(f'🧩 {g("Seletor", "Seletora")}')
         elif st.session_state.step == 2 and sub_step == 'a':
-            st.info("⏳ 3. Seleção de conceitos")
+            st.info("⏳ 3. Seleção de tópicos")
         else:
-            st.info("⏳ 3. Seleção de conceitos")
+            st.info("⏳ 3. Seleção de tópicos")
 
     with col4:
         if st.session_state.step >= 2 and sub_step == 'c':
@@ -2065,7 +2066,7 @@ with tab1:
 
             render_etapa_2a(d, r)
 
-            if st.button("Continuar para Seleção de Conceitos ▶️", type="primary", width="stretch", key="btn_continuar_2a"):
+            if st.button("Continuar para Seleção de Tópicos ▶️", type="primary", width="stretch", key="btn_continuar_2a"):
                 st.session_state.sub_step = 'b'
                 st.rerun()
 
@@ -2080,7 +2081,7 @@ with tab1:
             render_etapa_2b(d, r)
 
             top_concepts = r.get('top_concepts', [])[:9]
-            st.subheader("📋 Conceitos Identificados na Rede")
+            st.subheader("📋 Tópicos Identificados na Rede")
             cols = st.columns(3)
             selected = []
 
@@ -2098,9 +2099,9 @@ with tab1:
             num_selected = len(selected)
 
             if num_selected == 0:
-                st.warning("⚠️ Selecione pelo menos 1 conceito para continuar")
+                st.warning("⚠️ Selecione pelo menos 1 tópico para continuar")
             else:
-                st.success(f"✅ **{num_selected} conceito(s) selecionado(s):** {', '.join(selected)}")
+                st.success(f"✅ **{num_selected} tópico(s) selecionado(s):** {', '.join(selected)}")
 
             col1, col2 = st.columns(2)
 
@@ -2211,7 +2212,7 @@ with tab1:
                 articles_count = r.get('articles_count', 0)
                 graph_stats = r.get('graph_stats', {})
                 st.caption(f"📊 Resultados: {articles_count} artigos encontrados | "
-                          f"{graph_stats.get('nodes', 0)} conceitos | "
+                          f"{graph_stats.get('nodes', 0)} tópicos | "
                           f"{graph_stats.get('edges', 0)} coocorrências")
 
             st.divider()
@@ -2411,7 +2412,7 @@ Para prosseguir com o preenchimento deste formulário, assinale a alternativa ma
             )
 
             q11 = st.radio(
-                "F2.11. O grafo de coocorrências me ajudou a visualizar relações entre conceitos",
+                "F2.11. O grafo de coocorrências me ajudou a visualizar relações entre tópicos",
                 ["Concordo Totalmente", "Concordo", "Neutro", "Discordo", "Discordo Totalmente"],
                 horizontal=True,
                 key="q11"
@@ -2931,7 +2932,7 @@ O estudante chega ao ensino superior carregando esse objeto opaco. Ele o segura 
 
 Simbolicamente, é uma intuição turva. Um vulto. Um interesse que ainda não tem palavras. É um desenho que não pode ser visto. É um mapa por fazer. Como traçar o que ainda não se vê? É preciso, então, um delineascópio. Um aparelho de luz refletida. Não a luz que cega, mas a que projeta os contornos do que já está lá. Esta tese é uma das engrenagens da engenharia desta máquina. O estudante coloca seu objeto opaco (sua ideia de tema, sua questão de pesquisa inicial, suas primeiras palavras-chave) na máquina. A máquina, então, usa duas fontes de luz para projetar essa ideia na grande teia da literatura científica.
 
-A primeira luz é a análise de coocorrência de palavras. Ela funciona exatamente como um episcópio: ela reflete a luz sobre o objeto opaco do aluno e projeta as conexões que ele não podia ver. O estudante vê seu termo (por exemplo, "*gamification*") e, de repente, projetado na tela, ele o vê ligado a "*motivation*", "*higher education*", "*engagement*", "*learning outcomes*". O grafo de coocorrência é a projeção. O opaco tornou-se visível, relacional, delineável. O estudante pode, agora, pegar seu lápis e traçar as conexões que a luz revelou. A máquina oferece uma visão complementar dos conceitos centrais.
+A primeira luz é a análise de coocorrência de palavras. Ela funciona exatamente como um episcópio: ela reflete a luz sobre o objeto opaco do aluno e projeta as conexões que ele não podia ver. O estudante vê seu termo (por exemplo, "*gamification*") e, de repente, projetado na tela, ele o vê ligado a "*motivation*", "*higher education*", "*engagement*", "*learning outcomes*". O grafo de coocorrência é a projeção. O opaco tornou-se visível, relacional, delineável. O estudante pode, agora, pegar seu lápis e traçar as conexões que a luz revelou. A máquina oferece uma visão complementar dos tópicos centrais.
 
 A segunda luz é generativa. São os grandes modelos de linguagem (LLMs). Se a coocorrência é a projeção, o LLM é o *feedback*, a mediação. É a voz que ajuda o estudante a ajustar o foco do delineascópio. Ele não se limita a projetar o que existe; ele conversa com a projeção. Ele oferece o *feedback* textual automatizado. Ele olha para a projeção e sussurra: "As palavras-chave designadas para o projeto se mostram alinhadas... No entanto, algumas expressões ainda podem ser consideradas genéricas... É recomendável que você considere a possibilidade de incorporar termos mais descritivos… Converse com seu orientador…".[^15] Ele sugere novas lentes, novas palavras. O delineamento do escopo deixa de ser uma tarefa burocrática de definição de limites e se torna um ato poético de projeção e descoberta. Deixa de ser um ato de solidão e passa a ser um ato de mediação. E no centro deste ato, o estudante. Este projeto coloca o aluno no centro desse processo. O estudante não é um receptor passivo de *design*. Ele é o delineador[^16].
 
@@ -3127,15 +3128,15 @@ with tab3:
                 delta = metrics['qtd_2'] - metrics['qtd_1']
                 col_res2.metric(
                     "Tamanho do Vocabulário", 
-                    f"{metrics['qtd_2']} conceitos",
+                    f"{metrics['qtd_2']} tópicos",
                     f"{delta:+}",
-                    help="Diferença no número total de conceitos."
+                    help="Diferença no número total de tópicos."
                 )
                 
                 col_res3.metric(
-                    "Novos Conceitos", 
+                    "Novos Tópicos", 
                     len(metrics['exclusivos_novos']),
-                    help="Conceitos que existem em B mas não em A."
+                    help="Tópicos que existem em B mas não em A."
                 )
                 
                 # 2. Detalhamento Semântico (UM ABAIXO DO OUTRO)
@@ -3144,7 +3145,7 @@ with tab3:
                 # LEGENDA DOS NÍVEIS (similar ao Mapa Temático)
                 with st.expander("📖 Legenda: Níveis de Abstração (OpenAlex)", expanded=False):
                     st.markdown("""
-                    O **OpenAlex** organiza conceitos científicos em 6 níveis hierárquicos de abstração (Level):
+                    O **OpenAlex** organiza tópicos científicos em 6 níveis hierárquicos de abstração (Level):
                     
                     - 🌍 **L0 - Raiz:** Grandes áreas do conhecimento (ex: Medicine, Science)
                     - 🙂 **L1 - Área:** Disciplinas amplas (ex: Biology, Psychology)
@@ -3154,9 +3155,9 @@ with tab3:
                     - 🤓 **L5 - Específico:** Termos muito específicos (ex: CRISPR)
                     
                     **Interpretação:**  
-                    Níveis baixos (L0-L2) = conceitos abrangentes  
-                    Níveis altos (L4-L5) = conceitos específicos  
-                    Conceitos são introduzidos nos mapas hierárquicos segundo a declaração de relevância presente em Score.
+                    Níveis baixos (L0-L2) = tópicos abrangentes  
+                    Níveis altos (L4-L5) = tópicos específicos  
+                    Tópicos são introduzidos nos mapas hierárquicos segundo a declaração de relevância presente em Score.
                     """)
                 
                 # === O QUE ENTROU (NOVIDADES) ===
@@ -3220,7 +3221,7 @@ with tab3:
                             
                             try:
                                 st.graphviz_chart(graph_nov, width="stretch")
-                                st.caption(f"Top {total_nov} conceitos de {len(novos)} novidades, por relevância.")
+                                st.caption(f"Top {total_nov} tópicos de {len(novos)} novidades, por relevância.")
                             except:
                                 st.success(", ".join(sorted(novos)[:50]))
                         
@@ -3234,7 +3235,7 @@ with tab3:
                                     for c in conceitos_nov[i*tam_fatia:(i+1)*tam_fatia]:
                                         st.markdown(f"<div style='margin-bottom:2px; color:#16a34a;'>• {c}</div>", unsafe_allow_html=True)
                     else:
-                        st.info("Nenhum conceito novo adicionado.")
+                        st.info("Nenhum tópico novo adicionado.")
 
                 # === O QUE SAIU (REMOVIDOS) ===
                 with st.container(border=True):
@@ -3306,14 +3307,14 @@ with tab3:
                                     for c in conceitos_ant[i*tam:(i+1)*tam]:
                                         st.markdown(f"<div style='margin-bottom:2px; color:#dc2626;'>• {c}</div>", unsafe_allow_html=True)
                     else:
-                        st.info("Nenhum conceito foi removido.")
+                        st.info("Nenhum tópico foi removido.")
                 
                 # 3. NÚCLEO ESTÁVEL (TESAURO VISUAL HIERÁRQUICO)
                 comuns = metrics['comuns']
                 
                 with st.container(border=True):
-                    st.subheader(f"🌳 Núcleo Estável ({len(comuns)} conceitos)")
-                    st.caption("Conceitos que permaneceram na sua estrutura, organizados por nível de abstração.")
+                    st.subheader(f"🌳 Núcleo Estável ({len(comuns)} tópicos)")
+                    st.caption("Tópicos que permaneceram na sua estrutura, organizados por nível de abstração.")
 
                     if len(comuns) > 0:
                         # SEPARAÇÃO POR 6 NÍVEIS NATIVOS DO OPENALEX
@@ -3387,7 +3388,7 @@ with tab3:
                                 
                                 try:
                                     st.graphviz_chart(graph_code, width="stretch")
-                                    st.caption(f"Exibindo top {total_mostrado} conceitos (de {len(comuns)}) por relevância. OpenAlex Level 0-5.")
+                                    st.caption(f"Exibindo top {total_mostrado} tópicos (de {len(comuns)}) por relevância. OpenAlex Level 0-5.")
                                 except Exception as e:
                                     st.warning("⚠️ Não foi possível renderizar o mapa.")
                                     with st.expander("Erro técnico"):
@@ -3571,12 +3572,12 @@ with tab4:
                 )
                 st.session_state.painel_min_score = st.slider(
                     "Score mínimo:", 0.0, 1.0, st.session_state.painel_min_score, 0.05,
-                    help="Relevância mínima do conceito (0-1). Valores maiores = conceitos mais relevantes",
+                    help="Relevância mínima do tópico (0-1). Valores maiores = tópicos mais relevantes",
                     key="slider_score_painel"
                 )
                 st.session_state.painel_min_level = st.slider(
                     "Level mínimo:", 0, 5, st.session_state.painel_min_level, 1,
-                    help="Nível hierárquico do conceito (0-5). 0 = geral, 5 = muito específico",
+                    help="Nível hierárquico do tópico (0-5). 0 = geral, 5 = muito específico",
                     key="slider_level_painel"
                 )
                 st.session_state.painel_min_cooc = st.slider (
@@ -3658,7 +3659,7 @@ with tab4:
 
         # Criar sub-abas para análises (Adicionei "📜 Histórico")
         t1, t2, t3, t4, t5, t6, t7 = st.tabs([
-            "📚 Artigos", "🧩 Conceitos", "🔗 Coocorrências", 
+            "📚 Artigos", "🧩 Tópicos", "🔗 Coocorrências", 
             "🕸️ Grafo", "🗺️ Mapa Temático", "📊 Estatísticas", 
             "💾 Exportação"
         ])
@@ -3726,14 +3727,14 @@ with tab4:
                         st.write("**🔗 Link:** N/A")
     
                 with col2:
-                    st.metric("Conceitos", len(selected.get('concepts', [])))
+                    st.metric("Tópicos", len(selected.get('concepts', [])))
     
-                st.subheader("📋 Conceitos do Artigo")
+                st.subheader("📋 Tópicos do Artigo")
     
                 concepts_df = pd.DataFrame([
                     {
                         # Usa display_name ou name, igual fizemos no pipeline
-                        'Conceito': c.get('display_name', c.get('name', 'Sem nome')), 
+                        'Tópico': c.get('display_name', c.get('name', 'Sem nome')), 
                         'Score': f"{c.get('score', 0):.3f}",
                         'Level': c.get('level', '?')
                     }
@@ -3743,7 +3744,7 @@ with tab4:
                 if not concepts_df.empty:
                     st.dataframe(concepts_df, width="stretch")
                 else:
-                    st.info("Nenhum conceito encontrado")
+                    st.info("Nenhum tópico encontrado")
     
                 with st.expander("🔍 Ver JSON completo"):
                     st.json(selected)
@@ -4032,21 +4033,21 @@ with tab4:
 
         # ========== SUB-ABA 2: CONCEITOS ==========
         with t2:
-            st.header("🧩 Conceitos")
+            st.header("🧩 Tópicos")
 
             # Estatísticas gerais
             all_concepts = [c for cl in concepts_lists for c in cl]
             freq = Counter(all_concepts)
 
             col1, col2, col3 = st.columns(3)
-            col1.metric("Artigos com Conceitos", len(concepts_lists))
-            col2.metric("Conceitos Únicos", len(freq))
+            col1.metric("Artigos com Tópicos", len(concepts_lists))
+            col2.metric("Tópicos Únicos", len(freq))
             col3.metric("Total de Ocorrências", len(all_concepts))
 
             st.divider()
 
             # ===== NUVEM DE PALAVRAS (com Plotly) =====
-            st.subheader("☁️ Nuvem de Conceitos")
+            st.subheader("☁️ Nuvem de Tópicos")
             
             # Criar dicionário de frequências
             freq_dict = dict(freq.most_common(50))
@@ -4108,14 +4109,14 @@ with tab4:
             
             st.divider()
 
-            # Top conceitos
-            st.subheader("🏆 Conceitos Mais Frequentes")
+            # Top tópicos
+            st.subheader("🏆 Tópicos Mais Frequentes")
 
-            top_n = st.slider("Número de conceitos:", 10, 50, 20, 5, key="top_concepts")
+            top_n = st.slider("Número de tópicos:", 10, 50, 20, 5, key="top_concepts")
 
             df_freq = pd.DataFrame(
                 freq.most_common(top_n),
-                columns=['Conceito', 'Frequência']
+                columns=['Tópico', 'Frequência']
             )
 
             # Tabela primeiro
@@ -4130,7 +4131,7 @@ with tab4:
                 x='Frequência',
                 y='Conceito',
                 orientation='h',
-                title=f"Top {top_n} Conceitos Mais Frequentes",
+                title=f"Top {top_n} Tópicos Mais Frequentes",
                 color='Frequência',
                 color_continuous_scale='blues'
             )
@@ -4293,15 +4294,15 @@ with tab4:
                     """)
 
             # Distribuição
-            st.subheader("📊 Distribuição de Conceitos por Artigo")
+            st.subheader("📊 Distribuição de Tópicos por Artigo")
 
             concepts_per_article = [len(c) for c in concepts_lists]
 
             fig2 = px.histogram(
                 x=concepts_per_article,
                 nbins=20,
-                labels={'x': 'Número de conceitos', 'y': 'Frequência'},
-                title="Distribuição de Conceitos por Artigo"
+                labels={'x': 'Número de tópicos', 'y': 'Frequência'},
+                title="Distribuição de Tópicos por Artigo"
             )
 
             st.plotly_chart(fig2, width="stretch")
@@ -4314,10 +4315,10 @@ with tab4:
 
             # ========== EVOLUÇÃO TEMPORAL DOS CONCEITOS ==========
             st.divider()
-            st.subheader("📈 Evolução dos Conceitos ao Longo do Tempo")
+            st.subheader("📈 Evolução dos Tópicos ao Longo do Tempo")
             
-            # Extrair conceitos por ano
-            conceito_ano = {}  # {conceito: {ano: frequência}}
+            # Extrair tópicos por ano
+            conceito_ano = {}  # {tópico: {ano: frequência}}
             
             for article in articles:
                 ano = article.get('year')
@@ -4338,9 +4339,9 @@ with tab4:
                         conceito_ano[nome][ano] += 1
             
             if conceito_ano:
-                # Calcular total por conceito e selecionar top N
+                # Calcular total por tópico e selecionar top N
                 top_n_temporal = st.slider(
-                    "Número de conceitos a exibir:", 
+                    "Número de tópicos a exibir:", 
                     5, 20, 10, 1, 
                     key="slider_top_temporal"
                 )
@@ -4383,13 +4384,13 @@ with tab4:
                         ))
                     
                     fig_temporal.update_layout(
-                        title=f'Top {top_n_temporal} Conceitos ao Longo do Tempo',
+                        title=f'Top {top_n_temporal} Tópicos ao Longo do Tempo',
                         xaxis_title='Ano',
                         yaxis_title='Frequência',
                         height=500,
                         hovermode='x unified',
                         legend=dict(
-                            title='Conceitos (Total)',
+                            title='Tópicos (Total)',
                             orientation='v',
                             yanchor='top',
                             y=1,
@@ -4411,7 +4412,7 @@ with tab4:
                         # Criar DataFrame pivot
                         dados_pivot = []
                         for conceito, total in top_conceitos:
-                            row = {'Conceito': conceito, 'Total': total}
+                            row = {'tópico': conceito, 'Total': total}
                             for ano in anos_range:
                                 row[str(ano)] = conceito_ano[conceito].get(ano, 0)
                             dados_pivot.append(row)
@@ -4421,7 +4422,7 @@ with tab4:
                 else:
                     st.info("Dados temporais insuficientes para gerar o gráfico.")
             else:
-                st.info("Não foi possível extrair dados de conceitos por ano.")
+                st.info("Não foi possível extrair dados de tópicos por ano.")
 
         # ========== SUB-ABA 3: COOCORRÊNCIAS ==========
         with t3:
@@ -4464,7 +4465,7 @@ with tab4:
             # Matriz de calor
             st.subheader("🔥 Matriz de Calor de Coocorrências")
 
-            top_heatmap = st.slider("Conceitos na matriz:", 5, 20, 10, 1, key="heatmap_size")
+            top_heatmap = st.slider("Tópicos na matriz:", 5, 20, 10, 1, key="heatmap_size")
 
             top_concepts = [c for c, _ in freq.most_common(top_heatmap)]
 
@@ -4478,8 +4479,8 @@ with tab4:
 
             fig = px.imshow(
                 matrix,
-                labels=dict(x="Conceito", y="Conceito", color="Coocorrências"),
-                title=f"Matriz de Calor - Top {top_heatmap} Conceitos",
+                labels=dict(x="Tópico", y="Tópico", color="Coocorrências"),
+                title=f"Matriz de Calor - Top {top_heatmap} Tópicos",
                 color_continuous_scale='Blues'
             )
             fig.update_layout(height=600)
@@ -4492,7 +4493,7 @@ with tab4:
             st.subheader("📐 Matriz de Similaridade (Cosseno de Salton)")
             st.caption("Salton(i,j) = coocorrência(i,j) / √(freq(i) × freq(j)) — normaliza coocorrências, valores de 0 a 1")
             
-            top_salton = st.slider("Conceitos na matriz de Salton:", 5, 20, 15, 1, key="salton_size")
+            top_salton = st.slider("Tópicos na matriz de Salton:", 5, 20, 15, 1, key="salton_size")
             
             top_concepts_salton = [c for c, _ in freq.most_common(top_salton)]
             
@@ -4507,8 +4508,8 @@ with tab4:
             
             fig_salton = px.imshow(
                 salton_matrix,
-                labels=dict(x="Conceito", y="Conceito", color="Similaridade"),
-                title=f"Similaridade de Salton - Top {top_salton} Conceitos",
+                labels=dict(x="Tópico", y="Tópico", color="Similaridade"),
+                title=f"Similaridade de Salton - Top {top_salton} Tópicos",
                 color_continuous_scale='Greens'
             )
             fig_salton.update_layout(height=600)
@@ -4517,7 +4518,7 @@ with tab4:
             
             # Botão para baixar matriz completa
             with st.expander("💾 Baixar Matriz Completa de Salton"):
-                st.caption("Matriz com todos os conceitos do grafo")
+                st.caption("Matriz com todos os tópicos do grafo")
                 
                 if 'cache_salton_csv' not in st.session_state:
                     all_concepts = list(freq.keys())
@@ -4569,7 +4570,7 @@ with tab4:
                     continue
                 
                 concepts = article.get('concepts', [])
-                # Filtrar conceitos relevantes
+                # Filtrar tópicos relevantes
                 nomes = [
                     c.get('display_name', c.get('name', ''))
                     for c in concepts
@@ -4635,7 +4636,7 @@ with tab4:
                 fig_heatmap.update_layout(
                     title='Intensidade de Coocorrência ao Longo do Tempo',
                     xaxis_title='Ano',
-                    yaxis_title='Par de Conceitos',
+                    yaxis_title='Par de Tópicos',
                     height=max(400, top_n_pares * 35),
                     yaxis=dict(tickfont=dict(size=10)),
                     xaxis=dict(tickangle=45)
@@ -4704,12 +4705,12 @@ with tab4:
                         
                         for par_atual, freq_atual in top_por_periodo[periodo_atual]:
                             for par_prox, freq_prox in top_por_periodo[periodo_prox]:
-                                # Verificar sobreposição de conceitos
+                                # Verificar sobreposição de tópicos
                                 set_atual = set(par_atual)
                                 set_prox = set(par_prox)
                                 overlap = len(set_atual & set_prox)
                                 
-                                if overlap >= 1:  # Pelo menos um conceito em comum
+                                if overlap >= 1:  # Pelo menos um tópico em comum
                                     node_label_atual = f"{par_atual[0][:12]}—{par_atual[1][:12]}"
                                     node_label_prox = f"{par_prox[0][:12]}—{par_prox[1][:12]}"
                                     
@@ -4770,7 +4771,7 @@ with tab4:
                         - 🟠 {periodos_lista[1]} (período intermediário)  
                         - 🟢 {periodos_lista[2]} (período recente)
                         
-                        *As conexões indicam continuidade temática (conceitos compartilhados entre pares).*
+                        *As conexões indicam continuidade temática (tópicos compartilhados entre pares).*
                         """)
                     else:
                         st.info("Dados insuficientes para gerar o diagrama Sankey.")
@@ -4860,7 +4861,7 @@ with tab4:
                     st.metric("Número de Comunidades", len(communities))
 
                     for i, comm in enumerate(communities, 1):
-                        with st.expander(f"Comunidade {i} ({len(comm)} conceitos)"):
+                        with st.expander(f"Comunidade {i} ({len(comm)} tópicos)"):
                             members = sorted(list(comm))
                             st.write(", ".join(members))
 
@@ -4922,7 +4923,7 @@ with tab4:
                     fig = go.Figure(
                         data=[edge_trace, node_trace],
                         layout=go.Layout(
-                            title="Rede Interativa de Conceitos",
+                            title="Rede Interativa de Tópicos",
                             showlegend=False,
                             hovermode='closest',
                             margin=dict(b=0, l=0, r=0, t=40),
@@ -4942,7 +4943,7 @@ with tab4:
             st.header("🗺️ Mapa Temático")
 
             st.markdown("""
-            O **Mapa Temático** organiza os conceitos em clusters e os classifica em quatro quadrantes
+            O **Mapa Temático** organiza os tópicos em clusters e os classifica em quatro quadrantes
             a partir de centralidade (importância no campo) e densidade (coesão interna):
 
             - 🎯 **Temas Motores**: Centrais e bem desenvolvidos (PRIORIZE)
@@ -4952,7 +4953,7 @@ with tab4:
             """)
 
             if len(G.nodes()) < 5:
-                st.warning("⚠️ Poucos conceitos no grafo para gerar um mapa temático confiável (mínimo ≈ 10).")
+                st.warning("⚠️ Poucos tópicos no grafo para gerar um mapa temático confiável (mínimo ≈ 10).")
             else:
                 col1, col2 = st.columns(2)
 
@@ -4969,7 +4970,7 @@ with tab4:
                         min_value=2,
                         max_value=10,
                         value=3,
-                        help="Quantidade mínima de conceitos por cluster"
+                        help="Quantidade mínima de tópicos por cluster"
                     )
 
                 if st.button("🔍 Gerar Mapa Temático", type="primary", key="generate_thematic_map"):
@@ -5007,11 +5008,11 @@ with tab4:
                                 
                                 tipo = tipo_map.get(quadrante, "Basic Theme")
 
-                                # conceitos do cluster (set -> lista ordenada)
+                                # tópicos do cluster (set -> lista ordenada)
                                 conceitos_cluster = sorted(clusters_detected[idx])
                                 tamanho_cluster = len(conceitos_cluster)
 
-                                # conceito principal: primeiro da lista de principais ou primeiro do cluster
+                                # tópico principal: primeiro da lista de principais ou primeiro do cluster
                                 if isinstance(row.get("conceitos_principais", ""), str) and row["conceitos_principais"].strip():
                                     conceito_principal = row["conceitos_principais"].split(",")[0].strip()
                                 else:
@@ -5024,7 +5025,7 @@ with tab4:
                                     "tamanho": tamanho_cluster,
                                     "centralidade": float(row["centralidade"]),
                                     "densidade": float(row["densidade"]),
-                                    "conceitos": conceitos_cluster,
+                                    "tópicos": conceitos_cluster,
                                     "conceito_principal": conceito_principal,
                                 }
 
@@ -5044,7 +5045,7 @@ with tab4:
                                     st.metric("Motor Themes", motor_themes)
                                 with col3:
                                     total_concepts = sum(t["tamanho"] for t in thematic_data)
-                                    st.metric("Conceitos Agrupados", total_concepts)
+                                    st.metric("Tópicos Agrupados", total_concepts)
                                 with col4:
                                     st.metric("Tamanho Médio", f"{total_concepts / len(thematic_data):.1f}")
 
@@ -5084,7 +5085,7 @@ with tab4:
                                         "Centralidade: %{x:.3f}<br>" +
                                         "Densidade: %{y:.3f}<br>" +
                                         "Tipo: %{customdata[1]}<br>" +
-                                        "Tamanho: %{customdata[2]} conceitos<br>" +
+                                        "Tamanho: %{customdata[2]} tópicos<br>" +
                                         "<extra></extra>"
                                     ),
                                     customdata=[
@@ -5158,8 +5159,8 @@ with tab4:
                                         col1, col2 = st.columns([2, 1])
 
                                         with col1:
-                                            st.write("**Conceitos:**")
-                                            concepts_display = ", ".join(sorted(cluster["conceitos"]))
+                                            st.write("**Tópicos:**")
+                                            concepts_display = ", ".join(sorted(cluster["tópicos"]))
                                             st.write(concepts_display)
 
                                         with col2:
@@ -5215,10 +5216,10 @@ with tab4:
             with col1:
                 st.markdown("**📚 Dados:**")
                 st.write(f"• Artigos: {len(articles)}")
-                st.write(f"• Com conceitos: {len(concepts_lists)}")
+                st.write(f"• Com tópicos: {len(concepts_lists)}")
                 if len(articles) > 0:
                     st.write(f"• Aproveitamento: {len(concepts_lists)/len(articles)*100:.1f}%")
-                st.write(f"• Conceitos total: {len(all_concepts)}")
+                st.write(f"• Tópicos total: {len(all_concepts)}")
                 st.write(f"• Únicos: {len(set(all_concepts))}")
 
             with col2:
@@ -5293,7 +5294,7 @@ with tab4:
                     st.session_state.cache_conceitos_json = json.dumps(concepts_lists, indent=2, ensure_ascii=False)
 
                 st.download_button(
-                    "📥 Conceitos (JSON)",
+                    "📥 Tópicos (JSON)",
                     st.session_state.cache_conceitos_json,
                     "concepts.json",
                     "application/json",
@@ -5358,7 +5359,7 @@ with tab4:
                     st.session_state.cache_conceitos_csv = df_concepts.to_csv(index=False)
 
                 st.download_button(
-                    "📥 Conceitos (CSV)",
+                    "📥 Tópicos (CSV)",
                     st.session_state.cache_conceitos_csv,
                     "concepts.csv",
                     "text/csv",
@@ -5440,7 +5441,7 @@ with tab4:
                         data=st.session_state.cache_excel,
                         file_name="delineia_resultados.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        help="Planilha formatada com conceitos, score e level.",
+                        help="Planilha formatada com tópicos, score e level.",
                         width="stretch",
                         key="dl_excel"
                     )
@@ -5547,7 +5548,7 @@ Data: {datetime.now().strftime("%d/%m/%Y às %H:%M")}
 
 Arquivos no pacote:
 1. DADOS COMPLETOS (Para leitura humana e importação)
-   - delineia_dados.xlsx: Excel com metadados, autores e conceitos
+   - delineia_dados.xlsx: Excel com metadados, autores e tópicos
    - delineia_referencias.bib: Para LaTeX/Overleaf
    - delineia_referencias.ris: Para Zotero/Mendeley
 
