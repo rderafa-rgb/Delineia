@@ -71,7 +71,7 @@ class OpenAlexClient:
                 "page": page,
                 "mailto": self.email,
                 # Campos ricos solicitados explicitamente
-                "select": "id,display_name,publication_year,publication_date,concepts,authorships,primary_location,type,cited_by_count,doi,abstract_inverted_index"
+                "select": "id,display_name,publication_year,publication_date,topics,authorships,primary_location,type,cited_by_count,doi,abstract_inverted_index"
             }
 
             try:
@@ -94,11 +94,11 @@ class OpenAlexClient:
                         'title': work.get('display_name'), # OpenAlex usa display_name como título
                         'year': work.get('publication_year'),
                         'publication_date': work.get('publication_date'),
-                        'concepts': work.get('concepts', []),
+                        'topics': work.get('topics', []),
                         
                         # --- DADOS RICOS PARA EXPORTAÇÃO ---
                         'authorships': work.get('authorships', []),
-                        'primary_location': work.get('primary_location', {}),
+                        'primary_topic': work.get('primary_topic', {}),
                         'type': work.get('type'),
                         'cited_by_count': work.get('cited_by_count'),
                         'doi': work.get('doi'),
@@ -125,22 +125,17 @@ class OpenAlexClient:
     def extract_concepts_for_cooccurrence(self, articles: List[Dict],
                                          min_score: float = 0.35,
                                          min_level: int = 0) -> List[List[str]]:
-        concepts_lists = []
-        
+        topics_lists = []
         for article in articles:
-            # Lógica corrigida para display_name
-            concepts = [
-                c.get('display_name', c.get('name'))
-                for c in article.get('concepts', [])
-                if c.get('score', 0) >= min_score 
-                and c.get('level', 0) >= min_level
-                and (c.get('display_name') or c.get('name'))
+            topics = article.get('topics', [])
+            article_topics = [
+                t.get('display_name', '')
+                for t in topics
+                if t.get('score', 0) >= min_score and t.get('display_name')
             ]
-            
-            if concepts:
-                concepts_lists.append(concepts)
-        
-        return concepts_lists
+            if article_topics:
+                topics_lists.append(article_topics)
+        return topics_lists
 
 # ==================== GERADOR GEMINI COM DIAGNÓSTICO ====================
 class GeminiQueryGenerator:
@@ -1047,7 +1042,7 @@ class CooccurrenceAnalyzer:
         nx.draw_networkx_labels(Gs, pos, font_size=11, font_weight='bold',
                                font_family='sans-serif', ax=ax)
 
-        ax.set_title("9 conceitos - (Miller, 7±2)", 
+        ax.set_title("9 tópicos - (Miller, 7±2)", 
                     fontsize=20, fontweight='bold', pad=25)
         ax.axis('off')
         fig.tight_layout()

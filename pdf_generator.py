@@ -325,7 +325,7 @@ def generate_pdf_report(
     result : dict
         Resultados do processamento (full_report, glossary, graph_interpretation, etc.)
     selected_concepts : list
-        Lista de conceitos selecionados pelo usuário
+        Lista de tópicos selecionados pelo usuário
     suggested_keywords : list
         Lista de dicts com sugestões de palavras-chave [{term_pt, term_en, description}, ...]
     suggested_strings : dict
@@ -442,11 +442,11 @@ def generate_pdf_report(
     story.append(Spacer(1, 0.5*cm))
     
     # ==================== 5. GRAFO DE COOCORRÊNCIAS ====================
-    story.append(Paragraph("Grafo de Coocorrência de Conceitos", styles['heading']))
+    story.append(Paragraph("Grafo de Coocorrência de Tópicos", styles['heading']))
     
     story.append(Paragraph(
-        "O grafo abaixo ilustra as relações entre os principais conceitos identificados na busca por literatura. "
-        "Os nós representam conceitos e as arestas indicam a coocorrência entre eles nos artigos científicos recuperados.",
+        "O grafo abaixo ilustra as relações entre os principais tópicos identificados na busca por literatura. "
+        "Os nós representam tópicos e as arestas indicam a coocorrência entre eles nos artigos científicos recuperados.",
         styles['body']
     ))
     
@@ -458,7 +458,7 @@ def generate_pdf_report(
             # Legenda do grafo
             n_concepts = len(selected_concepts) if selected_concepts else graph_stats.get('nodes', 0)
             story.append(Paragraph(
-                f"Grafo com {n_concepts} conceitos selecionados",
+                f"Grafo com {n_concepts} tópicos selecionados",
                 styles['caption']
             ))
         except Exception as e:
@@ -466,44 +466,29 @@ def generate_pdf_report(
     else:
         story.append(Paragraph("⚠️ Visualização não disponível", styles['body']))
     
-    # ==================== 6. CONCEITOS SELECIONADOS ====================
+    # ==================== 6. TÓPICOS SELECIONADOS ====================
     if selected_concepts:
-        story.append(Paragraph("Conceitos Selecionados", styles['heading']))
-        
+        story.append(Paragraph("Tópicos Selecionados", styles['heading']))
+    
         story.append(Paragraph(
-            f"Você selecionou <b>{len(selected_concepts)}</b> conceitos para delinear o escopo do seu projeto:",
+            f"Você selecionou <b>{len(selected_concepts)}</b> tópicos para delinear o escopo do seu projeto:",
             styles['body']
         ))
-        
-        # Criar tabela de conceitos
-        concepts_per_row = 3
-        concept_rows = []
-        for i in range(0, len(selected_concepts), concepts_per_row):
-            row = selected_concepts[i:i+concepts_per_row]
-            # Preencher com vazios se necessário
-            while len(row) < concepts_per_row:
-                row.append('')
-            concept_rows.append(row)
-        
-        if concept_rows:
-            concepts_table = Table(concept_rows, colWidths=[5.5*cm, 5.5*cm, 5.5*cm])
-            concepts_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#ecfdf5')),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, -1), 9),
-                ('PADDING', (0, 0), (-1, -1), 8),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#10b981')),
-                ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#065f46'))
-            ]))
-            story.append(concepts_table)
+    
+        # Lista vertical com quebra automática de linha (evita sobreposição)
+        from reportlab.platypus import ListFlowable, ListItem
+        items = []
+        for c in selected_concepts:
+            items.append(ListItem(Paragraph(c, styles['body_left']), bulletType='bullet', leftIndent=15))
+    
+        story.append(ListFlowable(items, bulletType='bullet', leftIndent=25, spaceAfter=15))
     
     # ==================== 7. GLOSSÁRIO ====================
-    story.append(Paragraph("Glossário de Conceitos", styles['heading']))
+    story.append(Paragraph("Glossário de Tópicos", styles['heading']))
     
     glossary_text = result.get('glossary', 'Não disponível')
     
-    if glossary_text and glossary_text != 'Não disponível' and 'Poucos conceitos' not in glossary_text:
+    if glossary_text and glossary_text != 'Não disponível' and 'Poucos tópicos' not in glossary_text:
         glossary_clean = clean_markdown_for_pdf(glossary_text)
         entries = split_glossary_entries(glossary_clean)
         
@@ -557,8 +542,8 @@ def generate_pdf_report(
         
         string_order = ['ampla', 'focada']
         string_labels = {
-            'ampla': ('Chave de busca ampla (exploratória)', 'Usa operadores OR para cobrir o máximo de variações dos conceitos.'),
-            'focada': ('Chave de busca focada (conceitos centrais)', 'Cruza os conceitos mais importantes usando AND para alta precisão.'),            
+            'ampla': ('Chave de busca ampla (exploratória)', 'Usa operadores OR para cobrir o máximo de variações dos tópicos.'),
+            'focada': ('Chave de busca focada (tópicos centrais)', 'Cruza os tópicoss mais importantes usando AND para alta precisão.'),            
         }
         
         for key in string_order:
@@ -676,32 +661,32 @@ def generate_comparison_pdf(
             return None
         
         # Classificar por nível
-        levels_6 = {i: [] for i in range(6)}
+        levels_4 = {i: [] for i in range(4)}
         for c in concepts:
             if c in nodes_info:
                 try:
                     lvl = int(float(nodes_info[c].get('level', 5)))
-                    lvl = min(max(lvl, 0), 5)
+                    lvl = min(max(lvl, 0), 3)
                     score = nodes_info[c].get('score', 0)
-                    levels_6[lvl].append((c, score))
+                    levels_4[lvl].append((c, score))
                 except:
-                    levels_6[5].append((c, 0))
+                    levels_4[5].append((c, 0))
             else:
-                levels_6[5].append((c, 0))
+                levels_4[5].append((c, 0))
         
         # Ordenar por score e pegar top 5 por nível
-        for lvl in levels_6:
-            levels_6[lvl] = sorted(levels_6[lvl], key=lambda x: x[1], reverse=True)[:5]
+        for lvl in levels_4:
+            levels_4[lvl] = sorted(levels_4[lvl], key=lambda x: x[1], reverse=True)[:5]
         
         # Esquemas de cores
         if color_scheme == "green":
-            cores = ["#dcfce7", "#bbf7d0", "#86efac", "#4ade80", "#22c55e", "#16a34a"]
+            cores = [ "#dbeafe",  "#bfdbfe",  "#93c5fd",  "#3b82f6" ]
         elif color_scheme == "red":
             cores = ["#fee2e2", "#fecaca", "#fca5a5", "#f87171", "#ef4444", "#dc2626"]
         else:  # blue
             cores = ["#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa", "#3b82f6", "#2563eb"]
         
-        labels = ["L0", "L1", "L2", "L3", "L4", "L5"]
+        labels = ["Domain", "Field", "Subfield", "Topic"]
         
         # Criar grafo
         dot = graphviz.Digraph(format='png')
@@ -711,12 +696,12 @@ def generate_comparison_pdf(
         total = 0
         niveis_com_dados = []
         
-        for lvl in range(6):
-            if levels_6[lvl]:
+        for lvl in range(4):
+            if levels_4[lvl]:
                 niveis_com_dados.append(lvl)
                 with dot.subgraph() as s:
                     s.attr(rank='same')
-                    for c, _ in levels_6[lvl]:
+                    for c, _ in levels_4[lvl]:
                         node_label = f"{c[:25]}..." if len(c) > 25 else c
                         node_label = f"{node_label}\n({labels[lvl]})"
                         s.node(c, label=node_label, fillcolor=cores[lvl])
@@ -725,8 +710,8 @@ def generate_comparison_pdf(
         # Conexões entre níveis
         for i in range(len(niveis_com_dados) - 1):
             lvl1, lvl2 = niveis_com_dados[i], niveis_com_dados[i+1]
-            if levels_6[lvl1] and levels_6[lvl2]:
-                dot.edge(levels_6[lvl1][0][0], levels_6[lvl2][0][0], style='dashed', color='#94a3b8', arrowhead='none')
+            if levels_4[lvl1] and levels_4[lvl2]:
+                dot.edge(levels_4[lvl1][0][0], levels_4[lvl2][0][0], style='dashed', color='#94a3b8', arrowhead='none')
         
         if total == 0:
             return None
@@ -780,7 +765,7 @@ def generate_comparison_pdf(
     metricas_data = [
         ['Métrica', 'Valor'],
         ['Similaridade (Jaccard)', f'{jaccard*100:.1f}%'],
-        ['Tamanho do Vocabulário (B)', f'{qtd_total} conceitos'],
+        ['Tamanho do Vocabulário (B)', f'{qtd_total} tópicos'],
         ['Conceitos Novos', str(qtd_novos)],
         ['Conceitos Removidos', str(qtd_antigos)],
         ['Núcleo Estável', str(qtd_comuns)]
@@ -817,15 +802,13 @@ def generate_comparison_pdf(
     story.append(Paragraph("Legenda: Níveis de Abstração (OpenAlex)", styles['heading']))
     
     legenda_texto = """
-    <b>L0 (Raiz):</b> Grandes áreas do conhecimento (ex: Medicine, Psychology)<br/>
-    <b>L1 (Area):</b> Disciplinas amplas (ex: Biology, Education)<br/>
-    <b>L2 (Campo):</b> Campos de estudo (ex: Genetics, Pedagogy)<br/>
-    <b>L3 (Subcampo):</b> Especializações (ex: Molecular biology)<br/>
-    <b>L4 (Topico):</b> Tópicos específicos (ex: Gene expression)<br/>
-    <b>L5 (Especifico):</b> Termos muito específicos (ex: CRISPR, PCR)<br/><br/>
-    <i>Níveis baixos (L0-L2) = conceitos abrangentes</i><br/>
-    <i>Níveis altos (L4-L5) = conceitos específicos</i><br/>
-    <i>Conceitos são introduzidos nos mapas hierárquicos segundo a declaração de relevância presente em Score.</i>
+    <b>L0 (Domain):</b> Grandes áreas do conhecimento (ex: Physical Sciences, Life Sciences)<br/>
+    <b>L1 (Field):</b> Disciplinas amplas (ex: Computer Science, Education)<br/>
+    <b>L2 (Subfield):</b> Subáreas (ex: Artificial Intelligence, Pedagogy)<br/>
+    <b>L3 (Topic):</b> Tópicos específicos (ex: Machine Learning, Curriculum Design)<br/><br/>
+    <i>Níveis baixos (L0-L1) = conceitos abrangentes</i><br/>
+    <i>Níveis altos (L2-L3) = conceitos específicos</i><br/>
+    <i>A hierarquia é extraída diretamente da nova API do OpenAlex Topics.</i>
     """
     story.append(Paragraph(legenda_texto, styles['body_left']))
     story.append(Spacer(1, 0.3*cm))
@@ -839,7 +822,7 @@ def generate_comparison_pdf(
         if mapa_novos and os.path.exists(mapa_novos):
             try:
                 story.append(Image(mapa_novos, width=16*cm, height=10*cm, kind='proportional'))
-                story.append(Paragraph(f"<i>Top 5 conceitos de {len(novos)} novidades, por nível de abstração.</i>", styles['footer']))
+                story.append(Paragraph(f"<i>Top 5 tópicos de {len(novos)} novidades, por nível de abstração.</i>", styles['footer']))
             except:
                 pass
         story.append(Spacer(1, 0.2*cm))
@@ -853,7 +836,7 @@ def generate_comparison_pdf(
         if mapa_antigos and os.path.exists(mapa_antigos):
             try:
                 story.append(Image(mapa_antigos, width=16*cm, height=10*cm, kind='proportional'))
-                story.append(Paragraph(f"<i>Top 5 conceitos de {len(antigos)} removidos, por nível de abstração.</i>", styles['footer']))
+                story.append(Paragraph(f"<i>Top 5 tópicos de {len(antigos)} removidos, por nível de abstração.</i>", styles['footer']))
             except:
                 pass
         story.append(Spacer(1, 0.2*cm))
@@ -867,7 +850,7 @@ def generate_comparison_pdf(
         if mapa_comuns and os.path.exists(mapa_comuns):
             try:
                 story.append(Image(mapa_comuns, width=16*cm, height=10*cm, kind='proportional'))
-                story.append(Paragraph(f"<i>Top 5 conceitos de {len(comuns)} do núcleo estável, por nível de abstração.</i>", styles['footer']))
+                story.append(Paragraph(f"<i>Top 5 tópicos de {len(comuns)} do núcleo estável, por nível de abstração.</i>", styles['footer']))
             except:
                 pass
         story.append(Spacer(1, 0.2*cm))

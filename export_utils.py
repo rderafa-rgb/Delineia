@@ -20,13 +20,12 @@ def _extract_authors(article):
     except:
         return ""
 
-def _extract_concepts_string(article):
-    """Auxiliar: Extrai string limpa de conceitos/keywords."""
+def _extract_topics_string(article):
+    """Auxiliar: Extrai string limpa de tópicos/keywords."""
     try:
-        concepts = article.get('concepts') or [] # Proteção contra None
-        
-        # Pega top 5 conceitos usando display_name ou name
-        names = [c.get('display_name', c.get('name', '')) for c in concepts[:5]]
+        # Compatibilidade: tenta 'topics', fallback para 'concepts'
+        items = article.get('topics') or article.get('concepts') or []
+        names = [t.get('display_name', t.get('name', '')) for t in items[:5]]
         return ", ".join([n for n in names if n])
     except:
         return ""
@@ -71,7 +70,7 @@ def generate_excel(articles):
             'Revista/Fonte': _safe_get_source(art),
             'Citações': art.get('cited_by_count', 0),
             'DOI': doi,
-            'Conceitos (Keywords)': _extract_concepts_string(art),
+            'Conceitos (Keywords)': _extract_topics_string(art),
             'Tipo': art.get('type', ''),
             'Link': art.get('doi') or art.get('id', '')
         })
@@ -111,7 +110,7 @@ def generate_bibtex(articles):
             'journal': _safe_get_source(art),
             'doi': doi,
             'url': art.get('doi') or art.get('id', ''),
-            'keywords': _extract_concepts_string(art)
+            'keywords': _extract_topics_string(art)
         }
         
         entry = {k: v for k, v in entry.items() if v}
@@ -139,7 +138,7 @@ def generate_ris(articles):
         doi = (art.get('doi') or '').replace('https://doi.org/', '')
         if doi: lines.append(f"DO  - {doi}")
         
-        kws = _extract_concepts_string(art).split(', ')
+        kws = _extract_topics_string(art).split(', ')
         for kw in kws:
             if kw: lines.append(f"KW  - {kw.strip()}")
             

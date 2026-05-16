@@ -107,41 +107,66 @@ import gc
 
 # ==================== FUNÇÕES AUXILIARES GLOBAIS ====================
 
-def extract_concept_metadata(articles: list) -> dict:
+def extract_topic_metadata(articles: list) -> dict:
     """
-    Extrai metadados ricos (Score e Level) dos artigos brutos do OpenAlex.
-    Essencial para o Histórico Rico e o Tesauro Visual.
+    Extrai metadados ricos (Score e Level mapeado) dos artigos brutos do OpenAlex.
+    
+    Mapeamento da nova estrutura Topics:
+    - topic.get('domain') → Level 0
+    - topic.get('field') → Level 1  
+    - topic.get('subfield') → Level 2
+    - topic (em si) → Level 3
+    
+    Compatibilidade: para 'concepts' legados, usa o campo 'level' direto.
     """
     from collections import defaultdict
-    concept_data = defaultdict(lambda: {'scores': [], 'levels': [], 'count': 0})
+    topic_data = defaultdict(lambda: {'scores': [], 'levels': [], 'count': 0})
     
     for article in articles:
-        # Proteção contra artigos sem tópicos
-        for concept in article.get('concepts', []):
-            name = concept.get('display_name', '')
+        # Compatibilidade: tenta 'topics' (novo), fallback para 'concepts' (legado)
+        items = article.get('topics') or article.get('concepts') or []
+        
+        for item in items:
+            name = item.get('display_name', item.get('name', ''))
             if name:
                 try:
-                    score = float(concept.get('score', 0))
-                    level = float(concept.get('level', 0))
+                    score = float(item.get('score', 0))
                     
-                    concept_data[name]['scores'].append(score)
-                    concept_data[name]['levels'].append(level)
-                    concept_data[name]['count'] += 1
-                except:
+                    # 🔄 LÓGICA DE EXTRAÇÃO DE LEVEL
+                    if 'topics' in article and item.get('domain'):
+                        # Nova estrutura: determina level pela hierarquia aninhada
+                        if item.get('domain'):
+                            level = 0
+                        elif item.get('field'):
+                            level = 1
+                        elif item.get('subfield'):
+                            level = 2
+                        else:
+                            level = 3  # Topic em si
+                    else:
+                        # Legado: usa campo 'level' direto se existir
+                        level = float(item.get('level', 3))
+                    
+                    topic_data[name]['scores'].append(score)
+                    topic_data[name]['levels'].append(level)
+                    topic_data[name]['count'] += 1
+                except (ValueError, TypeError, KeyError):
                     continue
 
     metadata = {}
-    for name, data in concept_data.items():
-        # Calcula médias
+    for name, data in topic_data.items():
         avg_score = sum(data['scores']) / len(data['scores']) if data['scores'] else 0
-        avg_level = sum(data['levels']) / len(data['levels']) if data['levels'] else 0
+        avg_level = sum(data['levels']) / len(data['levels']) if data['levels'] else 3.0
         
         metadata[name] = {
             'freq': data['count'],
             'score': avg_score,
-            'level': avg_level
+            'level': avg_level  # ✅ Agora calcula level médio real
         }
     return metadata
+
+# 🔌 ALIAS DE COMPATIBILIDADE
+extract_concept_metadata = extract_topic_metadata
 
 # ========================= BASE64 =============================
 
@@ -690,8 +715,8 @@ def salvar_grafo_historico(id_usuario, form_data, result):
         
         # Recupera metadados ricos (Score/Level) usando a função global
         raw_articles = result.get('raw_articles', [])
-        if 'extract_concept_metadata' in globals():
-            concept_meta = extract_concept_metadata(raw_articles)
+        if 'extract_topic_metadata' in globals():
+            concept_meta = extract_topic_metadata(raw_articles)
         else:
             # Fallback seguro caso a função não esteja no topo
             concept_meta = {} 
@@ -722,7 +747,7 @@ def salvar_grafo_historico(id_usuario, form_data, result):
                 node, 
                 freq.get(node, 1), 
                 f"{m.get('score', 0):.4f}", 
-                f"{m.get('level', 0):.1f}"
+                f"{m.get('level', 3):.1f}"  # Fallback para 3 se não houver level
             ])
             
         # 3. BLOCO DE ARESTAS (GRAFO REAL)
@@ -1352,7 +1377,7 @@ def render_tab3_interacao():
     
     # Extrair metadados dos tópicos
     articles = r.get('raw_articles', [])
-    concept_metadata = extract_concept_metadata(articles)
+    concept_metadata = extract_topic_metadata(articles)
     
     selected_concepts = st.session_state.get('selected_concepts', [])
     
@@ -3145,19 +3170,14 @@ with tab3:
                 # LEGENDA DOS NÍVEIS (similar ao Mapa Temático)
                 with st.expander("📖 Legenda: Níveis de Abstração (OpenAlex)", expanded=False):
                     st.markdown("""
-                    O **OpenAlex** organiza tópicos científicos em 6 níveis hierárquicos de abstração (Level):
-                    
-                    - 🌍 **L0 - Raiz:** Grandes áreas do conhecimento (ex: Medicine, Science)
-                    - 🙂 **L1 - Área:** Disciplinas amplas (ex: Biology, Psychology)
-                    - 😊 **L2 - Campo:** Campos de estudo (ex: Genetics, Neuroscience)
-                    - 🤔 **L3 - Subcampo:** Especializações (ex: Molecular biology)
-                    - 🧐 **L4 - Tópico:** Tópicos específicos (ex: Gene expression)
-                    - 🤓 **L5 - Específico:** Termos muito específicos (ex: CRISPR)
-                    
-                    **Interpretação:**  
-                    Níveis baixos (L0-L2) = tópicos abrangentes  
-                    Níveis altos (L4-L5) = tópicos específicos  
-                    Tópicos são introduzidos nos mapas hierárquicos segundo a declaração de relevância presente em Score.
+                    O **OpenAlex Topics** organiza tópicos científicos em 4 níveis hierárquicos:
+                    - 🌍 **Nível 0 (Domain):** Grandes áreas (ex: Physical Sciences)
+                    - 🌐 **Nível 1 (Field):** Disciplinas (ex: Computer Science)
+                    - 🔬 **Nível 2 (Subfield):** Subáreas (ex: Artificial Intelligence)
+                    - 🎯 **Nível 3 (Topic):** Termos específicos (ex: Machine Learning)
+
+                    **Nota:** O grafo de coocorrência e as sugestões de escopo utilizam prioritariamente o **Nível 3 (Topic)**, 
+                    pois oferecem a precisão terminológica ideal para delineamento de pesquisa.
                     """)
                 
                 # === O QUE ENTROU (NOVIDADES) ===
@@ -3170,19 +3190,19 @@ with tab3:
                         
                         with tab_nov_map:
                             # Classifica por level
-                            novos_por_level = {i: [] for i in range(6)}
+                            novos_por_level = {i: [] for i in range(4)}
                             for c in novos:
                                 if c in nodes_info:
                                     try:
-                                        lvl = int(float(nodes_info[c].get('level', 5)))
-                                        lvl = min(max(lvl, 0), 5)
+                                        lvl = int(float(nodes_info[c].get('level', 3)))
+                                        lvl = min(max(lvl, 0), 3)
                                         novos_por_level[lvl].append(c)
                                     except:
-                                        novos_por_level[5].append(c)
+                                        novos_por_level[3].append(c)
                                 else:
-                                    novos_por_level[5].append(c)
+                                    novos_por_level[3].append(c)
                             
-                            def top_by_score_nov(lista, n=5):
+                            def top_by_score_nov(lista, n=3):
                                 scored = [(c, nodes_info.get(c, {}).get('score', 0)) for c in lista]
                                 scored.sort(key=lambda x: x[1], reverse=True)
                                 return [c for c, _ in scored[:n]]
@@ -3191,7 +3211,7 @@ with tab3:
                             
                             cores_nov = ["#dcfce7", "#bbf7d0", "#86efac", "#4ade80", "#22c55e", "#16a34a"]
                             font_nov = ["#14532d", "#14532d", "#14532d", "#14532d", "#ffffff", "#ffffff"]
-                            labels = ["L0: Raiz", "L1: Área", "L2: Campo", "L3: Subcampo", "L4: Tópico", "L5: Específico"]
+                            labels = ["L0: Domain", "L1: Field", "L2: Subfield", "L3: Topic"]
                             
                             graph_nov = '''digraph {
     rankdir=TB;
@@ -3201,7 +3221,7 @@ with tab3:
                             total_nov = 0
                             niveis_nov = []
                             
-                            for lvl in range(6):
+                            for lvl in range(4):
                                 top = top_by_score_nov(novos_por_level[lvl])
                                 if top:
                                     niveis_nov.append(lvl)
@@ -3246,17 +3266,17 @@ with tab3:
                         tab_ant_map, tab_ant_list = st.tabs(["🗺️ Mapa Hierárquico", "🔤 Lista Alfabética"])
                         
                         with tab_ant_map:
-                            antigos_por_level = {i: [] for i in range(6)}
+                            antigos_por_level = {i: [] for i in range(4)}
                             for c in antigos:
                                 if c in nodes_info:
                                     try:
-                                        lvl = int(float(nodes_info[c].get('level', 5)))
-                                        lvl = min(max(lvl, 0), 5)
+                                        lvl = int(float(nodes_info[c].get('level', 3)))
+                                        lvl = min(max(lvl, 0), 3)
                                         antigos_por_level[lvl].append(c)
                                     except:
-                                        antigos_por_level[5].append(c)
+                                        antigos_por_level[3].append(c)
                                 else:
-                                    antigos_por_level[5].append(c)
+                                    antigos_por_level[3].append(c)
                             
                             def top_by_score_ant(lista, n=5):
                                 scored = [(c, nodes_info.get(c, {}).get('score', 0)) for c in lista]
@@ -3274,7 +3294,7 @@ with tab3:
                             total_ant = 0
                             niveis_ant = []
                             
-                            for lvl in range(6):
+                            for lvl in range(4):
                                 top = top_by_score_ant(antigos_por_level[lvl])
                                 if top:
                                     niveis_ant.append(lvl)
@@ -3317,27 +3337,33 @@ with tab3:
                     st.caption("Tópicos que permaneceram na sua estrutura, organizados por nível de abstração.")
 
                     if len(comuns) > 0:
-                        # SEPARAÇÃO POR 6 NÍVEIS NATIVOS DO OPENALEX
-                        levels_6 = {i: [] for i in range(6)}
+                        # 1. INICIALIZAR lista de indefinidos (corrige erro linha 3331)
                         indef = []
-                        
+    
+                        # Mapeamento corrigido para 4 níveis (clama 4/5 para 3)
+                        levels_4 = {i: [] for i in range(4)}
+    
+                        # 2. USAR a variável correta 'comuns' (corrige erro linha 3316)
                         for c in comuns:
                             if c in nodes_info:
                                 try:
-                                    lvl = int(float(nodes_info[c].get('level', -1)))
-                                    if 0 <= lvl <= 5:
-                                        levels_6[lvl].append(c)
-                                    else:
-                                        indef.append(c)
+                                    lvl = int(float(nodes_info[c].get('level', 3)))
+                                    lvl = min(max(lvl, 0), 3) # Força no máximo nível 3
+                                    levels_4[lvl].append(c)
                                 except:
+                                    # Se falhar a conversão, marca como indefinido e fallback p/ 3
                                     indef.append(c)
+                                    levels_4[3].append(c)
                             else:
+                                # Se não tiver metadata, marca como indefinido e fallback p/ 3
                                 indef.append(c)
+                                levels_4[3].append(c)
 
                         # EXIBIÇÃO (MAPA OU LISTA)
                         tab_vis, tab_list = st.tabs(["🗺️ Mapa Hierárquico", "🔤 Lista Alfabética"])
-                        
+    
                         with tab_vis:
+                            # 3. Verificação de qualidade (agora 'indef' existe)
                             if len(indef) > len(comuns) * 0.8:
                                 st.warning("⚠️ Dados históricos sem níveis hierárquicos suficientes.")
                                 st.info("Use a aba 'Lista Alfabética' ao lado.")
@@ -3353,7 +3379,7 @@ with tab3:
                                 # Cores e labels para 6 níveis (gradiente azul)
                                 cores = ["#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa", "#3b82f6", "#2563eb"]
                                 font_cores = ["#1e3a5f", "#1e3a5f", "#1e3a5f", "#ffffff", "#ffffff", "#ffffff"]
-                                labels = ["L0: Raiz", "L1: Área", "L2: Campo", "L3: Subcampo", "L4: Tópico", "L5: Específico"]
+                                labels = ["L0: Domain", "L1: Field", "L2: Subfield", "L3: Topic"]
                                 
                                 graph_code = '''digraph {
     rankdir=TB;
@@ -3365,8 +3391,8 @@ with tab3:
                                 total_mostrado = 0
                                 niveis_com_dados = []
                                 
-                                for lvl in range(6):
-                                    top = top_by_score(levels_6[lvl])
+                                for lvl in range(4):
+                                    top = top_by_score(levels_4[lvl])
                                     if top:
                                         niveis_com_dados.append(lvl)
                                         for c in top:
@@ -3379,8 +3405,8 @@ with tab3:
                                 for i in range(len(niveis_com_dados) - 1):
                                     lvl_atual = niveis_com_dados[i]
                                     lvl_prox = niveis_com_dados[i + 1]
-                                    top_atual = top_by_score(levels_6[lvl_atual], 1)
-                                    top_prox = top_by_score(levels_6[lvl_prox], 1)
+                                    top_atual = top_by_score(levels_4[lvl_atual], 1)
+                                    top_prox = top_by_score(levels_4[lvl_prox], 1)
                                     if top_atual and top_prox:
                                         graph_code += f'    {clean(top_atual[0])} -> {clean(top_prox[0])} [color="#94a3b8", style=dashed, arrowhead=none];\n'
                                 
@@ -3429,13 +3455,30 @@ with tab3:
                         with col_pdf:
                             try:
                                 from pdf_generator import generate_comparison_pdf
-                                
+        
                                 safe_df1 = st.session_state.get('df1_rico')
                                 safe_df2 = st.session_state.get('df2_rico')
-                                meta_antigo = getattr(safe_df1, 'attrs', {}).get('metadata', {}) if safe_df1 is not None else {}
-                                meta_novo = getattr(safe_df2, 'attrs', {}).get('metadata', {}) if safe_df2 is not None else {}
-                                
-                                # Cache do PDF para evitar "Missing File"
+        
+                                # Fallbacks seguros para metadados
+                                meta_antigo = {}
+                                meta_novo = {}
+                                if safe_df1 is not None:
+                                    attrs1 = getattr(safe_df1, 'attrs', {})
+                                    meta_antigo = attrs1.get('metadata', {}) if isinstance(attrs1, dict) else {}
+                                if safe_df2 is not None:
+                                    attrs2 = getattr(safe_df2, 'attrs', {})
+                                    meta_novo = attrs2.get('metadata', {}) if isinstance(attrs2, dict) else {}
+        
+                                # nodes_info com fallback
+                                nodes_info = {}
+                                if safe_df2 is not None:
+                                    attrs2 = getattr(safe_df2, 'attrs', {})
+                                    nodes_info = attrs2.get('nodes_dict', {}) if isinstance(attrs2, dict) else {}
+                                if not nodes_info and safe_df1 is not None:
+                                    attrs1 = getattr(safe_df1, 'attrs', {})
+                                    nodes_info = attrs1.get('nodes_dict', {}) if isinstance(attrs1, dict) else {}
+        
+                                # Cache do PDF
                                 if 'cache_pdf_historico' not in st.session_state:
                                     st.session_state.cache_pdf_historico = generate_comparison_pdf(
                                         form_data=st.session_state.get('form_data', {}),
@@ -3445,10 +3488,10 @@ with tab3:
                                         analise_ia=st.session_state['ultima_analise_historico'],
                                         nodes_info=nodes_info
                                     )
-                                
+        
                                 nome_aluno_limpo = st.session_state.get('form_data', {}).get('nome', 'aluno').split()[0]
                                 nome_arquivo = f"compara_grafos_{nome_aluno_limpo}.pdf"
-                                
+        
                                 st.download_button(
                                     label="📥 Baixar Relatório PDF",
                                     data=st.session_state.cache_pdf_historico,
@@ -3459,6 +3502,7 @@ with tab3:
                                 )
                             except Exception as e:
                                 st.warning(f"PDF indisponível: {e}")
+                                # Debug: st.exception(e)
                         
                         with col_novo:
                             if st.button("🔄 Novo Delineamento", key="btn_novo_delin", width="stretch", type="primary"):
@@ -3476,36 +3520,52 @@ with tab3:
                             # Preparação de variáveis básicas
                             nome_aluno = st.session_state.form_data.get('nome', 'Pesquisador').split()[0]
                             genero_aluno = st.session_state.form_data.get('genero', 'Neutro')
-                            
+    
                             with st.spinner(f"🧠 O Orientador Artificial está analisando a trajetória de {nome_aluno}..."):
                                 try:
-                                    # Garante que a instância do gerador existe
+                                    # 1. Garante que a instância do gerador existe
                                     if 'gemini_gen' not in st.session_state:
                                         from research_pipeline import GeminiQueryGenerator
                                         st.session_state.gemini_gen = GeminiQueryGenerator()
-                                    
-                                    # 1. EXTRAÇÃO DO CONTEXTO HISTÓRICO
+            
+                                    # 2. Preparação de variáveis com fallbacks seguros
                                     safe_df1 = st.session_state.get('df1_rico')
                                     safe_df2 = st.session_state.get('df2_rico')
-                                    
-                                    meta_antigo = getattr(safe_df1, 'attrs', {}).get('metadata', {}) if safe_df1 is not None else {}
-                                    meta_novo = getattr(safe_df2, 'attrs', {}).get('metadata', {}) if safe_df2 is not None else {}
 
-                                    # 2. CHAMADA DA NOVA FUNÇÃO CONTEXTUAL                                    
+                                    # Função auxiliar para extrair metadados com segurança
+                                    def safe_get_metadata(df):
+                                        if df is None:
+                                            return {}
+                                        attrs = getattr(df, 'attrs', {})
+                                        return attrs.get('metadata', {}) if isinstance(attrs, dict) else {}
+
+                                    meta_antigo = safe_get_metadata(safe_df1)
+                                    meta_novo = safe_get_metadata(safe_df2)
+
+                                    # 3. Garante que nodes_info tenha fallback
+                                    nodes_info = {}
+                                    if safe_df2 is not None:
+                                        nodes_info = getattr(safe_df2, 'attrs', {}).get('nodes_dict', {}) or {}
+                                    if not nodes_info and safe_df1 is not None:
+                                        nodes_info = getattr(safe_df1, 'attrs', {}).get('nodes_dict', {}) or {}
+
+                                    # 4. Chamada da função contextual
                                     analise = st.session_state.gemini_gen.generate_contextual_evolution_analysis(
                                         metrics=metrics,
                                         meta_antigo=meta_antigo,
                                         meta_novo=meta_novo,
                                         genero=genero_aluno
                                     )
-                                    
-                                    # 3. Salva e recarrega
+
+                                    # 5. Salva e recarrega
                                     st.session_state['ultima_analise_historico'] = analise
                                     st.rerun()
-                                    
+            
                                 except Exception as e:
                                     st.error(f"Erro na conexão com IA: {str(e)}")
-                                    # Dica de debug: st.write(e)
+                                    # Opcional: mostrar detalhes técnicos em um expander
+                                    with st.expander("🐛 Detalhes técnicos do erro"):
+                                        st.exception(e)
                 else:
                     st.info("Os dois delineamentos são idênticos.")
 
@@ -3571,13 +3631,9 @@ with tab4:
                     key="slider_limit_painel"
                 )
                 st.session_state.painel_min_score = st.slider(
-                    "Score mínimo:", 0.0, 1.0, st.session_state.painel_min_score, 0.05,
-                    help="Relevância mínima do tópico (0-1). Valores maiores = tópicos mais relevantes",
-                    key="slider_score_painel"
-                )
-                st.session_state.painel_min_level = st.slider(
-                    "Level mínimo:", 0, 5, st.session_state.painel_min_level, 1,
-                    help="Nível hierárquico do tópico (0-5). 0 = geral, 5 = muito específico",
+                    "Nível mínimo (0=Domain, 1=Field, 2=Subfield, 3=Topic): ", 
+                    0, 3, st.session_state.painel_min_level, 1,
+                    help="Hierarquia do OpenAlex Topics. 0 mais amplo, 3 mais específico.",
                     key="slider_level_painel"
                 )
                 st.session_state.painel_min_cooc = st.slider (
@@ -3612,9 +3668,9 @@ with tab4:
                     
                     for article in raw_articles:
                         concepts = [
-                            c.get('display_name', c.get('name')) 
-                            for c in article.get('concepts', [])
-                            if c.get('score', 0) >= min_score and c.get('level', 0) >= min_level
+                            t.get('display_name', '') 
+                            for t in article.get('topics', [])
+                            if t.get('score', 0) >= min_score  # Removido o filtro de level (não existe mais)
                         ]
                         if concepts:
                             filtered_concepts_lists.append(concepts)
@@ -3733,12 +3789,11 @@ with tab4:
     
                 concepts_df = pd.DataFrame([
                     {
-                        # Usa display_name ou name, igual fizemos no pipeline
-                        'Tópico': c.get('display_name', c.get('name', 'Sem nome')), 
-                        'Score': f"{c.get('score', 0):.3f}",
-                        'Level': c.get('level', '?')
+                        'Tópico': t.get('display_name', 'Sem nome'), 
+                        'Score': f"{t.get('score', 0):.3f}",
+                        'Level': 'Topic'  # Topics são sempre nível específico no novo schema
                     }
-                    for c in selected.get('concepts', [])
+                    for t in selected.get('topics', [])
                 ])
     
                 if not concepts_df.empty:
@@ -4129,7 +4184,7 @@ with tab4:
             fig = px.bar(
                 df_freq,
                 x='Frequência',
-                y='Conceito',
+                y='Tópico',
                 orientation='h',
                 title=f"Top {top_n} Tópicos Mais Frequentes",
                 color='Frequência',
@@ -4325,9 +4380,9 @@ with tab4:
                 if not ano:
                     continue
                     
-                concepts = article.get('concepts', [])
+                concepts = article.get('topics', [])
                 for c in concepts:
-                    nome = c.get('display_name', c.get('name', ''))
+                    nome = c.get('display_name', '')
                     score = c.get('score', 0)
                     
                     # Filtrar por score mínimo
@@ -4569,12 +4624,11 @@ with tab4:
                 if not ano:
                     continue
                 
-                concepts = article.get('concepts', [])
-                # Filtrar tópicos relevantes
+                concepts = article.get('topics', [])
                 nomes = [
-                    c.get('display_name', c.get('name', ''))
-                    for c in concepts
-                    if c.get('score', 0) >= 0.35 and (c.get('display_name') or c.get('name'))
+                    t.get('display_name', '')
+                    for t in concepts
+                    if t.get('score', 0) >= 0.35 and t.get('display_name')
                 ]
                 
                 if len(nomes) >= 2:
@@ -4997,34 +5051,35 @@ with tab4:
 
                             # garante alinhamento: mesma ordem de metrics_df e clusters_detected
                             for idx, row in metrics_df.reset_index(drop=True).iterrows():
-                                quadrante = row.get("quadrante", "Basic Theme") # Fallback seguro
-                                if "quadrante" not in row:
-                                    # Recalcula quadrante se não vier do cache (segurança)
+                                # 1. Quadrante (com fallback seguro)
+                                quadrante = row.get("quadrante", "")
+                                if not quadrante:
                                     from thematic_map_module import ThematicMapAnalyzer
                                     quadrante = ThematicMapAnalyzer.classify_quadrant(
-                                        row["centralidade_norm"], 
-                                        row["densidade_norm"]
+                                        float(row.get("centralidade_norm", 0)), 
+                                        float(row.get("densidade_norm", 0))
                                     )
-                                
+            
                                 tipo = tipo_map.get(quadrante, "Basic Theme")
 
-                                # tópicos do cluster (set -> lista ordenada)
-                                conceitos_cluster = sorted(clusters_detected[idx])
+                                # 2. Tópicos do cluster (fallback se a lista não vier do cache)
+                                conceitos_cluster = sorted(clusters_detected[idx]) if idx < len(clusters_detected) else []
                                 tamanho_cluster = len(conceitos_cluster)
 
-                                # tópico principal: primeiro da lista de principais ou primeiro do cluster
-                                if isinstance(row.get("conceitos_principais", ""), str) and row["conceitos_principais"].strip():
-                                    conceito_principal = row["conceitos_principais"].split(",")[0].strip()
+                                # 3. Conceito principal (ACESSO SEGURO - corrige o KeyError)
+                                conceitos_principais_raw = row.get("conceitos_principais", "")
+                                if isinstance(conceitos_principais_raw, str) and conceitos_principais_raw.strip():
+                                    conceito_principal = conceitos_principais_raw.split(", ")[0].strip()
                                 else:
                                     conceito_principal = conceitos_cluster[0] if conceitos_cluster else ""
 
                                 registro = {
                                     "cluster_id": idx + 1,
-                                    "nome": row["nome"],
+                                    "nome": row.get("nome", f"Cluster {idx+1}"),
                                     "tipo": tipo,
                                     "tamanho": tamanho_cluster,
-                                    "centralidade": float(row["centralidade"]),
-                                    "densidade": float(row["densidade"]),
+                                    "centralidade": float(row.get("centralidade", 0.0)),
+                                    "densidade": float(row.get("densidade", 0.0)),
                                     "tópicos": conceitos_cluster,
                                     "conceito_principal": conceito_principal,
                                 }

@@ -22,7 +22,7 @@ class ThematicMapAnalyzer:
         """
         Args:
             graph: grafo de coocorrências (NetworkX)
-            concepts_lists: lista de listas de conceitos por artigo
+            concepts_lists: lista de listas de tópicos por artigo
         """
         self.G = graph
         self.concepts_lists = concepts_lists
@@ -112,7 +112,7 @@ class ThematicMapAnalyzer:
             density = self._density_for_cluster(cluster, matrix)
             centrality = self._centrality_for_cluster(cluster, all_nodes, matrix)
 
-            # Principais conceitos = top 5 pelo grau interno
+            # Principais tópicos = top 5 pelo grau interno
             subG = self.G.subgraph(cluster)
             degs = sorted(subG.degree(), key=lambda x: x[1], reverse=True)
             main_concepts = [n for n, _ in degs[:5]]
@@ -120,11 +120,11 @@ class ThematicMapAnalyzer:
             data.append(
                 {
                     "nome": f"Cluster {idx}",
-                    "conceitos": sorted(cluster),
+                    "tópicos": sorted(cluster),
                     "densidade": density,
                     "centralidade": centrality,
                     "tamanho": len(cluster),
-                    "conceitos_principais": ", ".join(main_concepts),
+                    "tópicos_principais": ", ".join(main_concepts),
                 }
             )
 
@@ -200,12 +200,12 @@ class ThematicMapAnalyzer:
             hover_text = (
                 f"<b>{row['nome']}</b><br>"
                 f"Quadrante: {row['Quadrante']}<br>"
-                f"Tamanho: {row['tamanho']} conceitos<br>"
+                f"Tamanho: {row['tamanho']} tópicos<br>"
                 f"Densidade: {row['densidade']:.3f} "
                 f"({row['densidade_norm']:.2f})<br>"
                 f"Centralidade: {row['centralidade']:.3f} "
                 f"({row['centralidade_norm']:.2f})<br>"
-                f"Principais conceitos: {row['conceitos_principais']}"
+                f"Principais tópicos: {row['tópicos_principais']}"
             )
 
             fig.add_trace(
@@ -328,12 +328,12 @@ class ThematicMapAnalyzer:
         df["Interpretação"] = df["Quadrante"].map(interpretations)
 
         result = df[
-            ["nome", "Quadrante", "tamanho", "conceitos_principais", "Interpretação"]
+            ["nome", "Quadrante", "tamanho", "tópicos_principais", "Interpretação"]
         ].rename(
             columns={
                 "nome": "Cluster",
                 "tamanho": "Nº Conceitos",
-                "conceitos_principais": "Principais Conceitos",
+                "tópicos_principais": "Principais Conceitos",
             }
         )
 
