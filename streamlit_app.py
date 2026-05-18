@@ -109,19 +109,12 @@ import gc
 
 def extract_topic_metadata(articles: list) -> dict:
     """
-    Extrai metadados ricos (Score e Level mapeado) dos artigos brutos do OpenAlex.
-    
-    Mapeamento da nova estrutura Topics:
-    - topic.get('domain') → Level 0
-    - topic.get('field') → Level 1  
-    - topic.get('subfield') → Level 2
-    - topic (em si) → Level 3
-    
-    Compatibilidade: para 'concepts' legados, usa o campo 'level' direto.
+    Extrai metadados ricos incluindo hierarquia completa.
+    Adiciona ao dicionário: Domain (0), Field (1), Subfield (2) e Topic (3).
     """
     from collections import defaultdict
     topic_data = defaultdict(lambda: {'scores': [], 'levels': [], 'count': 0})
-    
+
     for article in articles:
         # Compatibilidade: tenta 'topics' (novo), fallback para 'concepts' (legado)
         items = article.get('topics') or article.get('concepts') or []
@@ -132,27 +125,48 @@ def extract_topic_metadata(articles: list) -> dict:
                 try:
                     score = float(item.get('score', 0))
                     
-                    # 🔄 LÓGICA DE EXTRAÇÃO DE LEVEL
-                    if 'topics' in article and item.get('domain'):
-                        # Nova estrutura: determina level pela hierarquia aninhada
-                        if item.get('domain'):
-                            level = 0
-                        elif item.get('field'):
-                            level = 1
-                        elif item.get('subfield'):
-                            level = 2
-                        else:
-                            level = 3  # Topic em si
+                    if 'topics' in article:
+                        # === HIERARQUIA COMPLETA ===
+                        
+                        # 1. Topic (Level 3) - O conceito em si
+                        topic_data[name]['scores'].append(score)
+                        topic_data[name]['levels'].append(3.0)
+                        topic_data[name]['count'] += 1
+                        
+                        # 2. Subfield (Level 2) - O pai do tópico
+                        subfield = item.get('subfield')
+                        if subfield and subfield.get('display_name'):
+                            sf_name = subfield['display_name']
+                            topic_data[sf_name]['scores'].append(score)
+                            topic_data[sf_name]['levels'].append(2.0)
+                            topic_data[sf_name]['count'] += 1
+                        
+                        # 3. Field (Level 1) - O pai do subfield
+                        field = item.get('field')
+                        if field and field.get('display_name'):
+                            f_name = field['display_name']
+                            topic_data[f_name]['scores'].append(score)
+                            topic_data[f_name]['levels'].append(1.0)
+                            topic_data[f_name]['count'] += 1
+                        
+                        # 4. Domain (Level 0) - O pai do field
+                        domain = item.get('domain')
+                        if domain and domain.get('display_name'):
+                            d_name = domain['display_name']
+                            topic_data[d_name]['scores'].append(score)
+                            topic_data[d_name]['levels'].append(0.0)
+                            topic_data[d_name]['count'] += 1
                     else:
-                        # Legado: usa campo 'level' direto se existir
+                        # Legado: usa campo 'level' direto
                         level = float(item.get('level', 3))
-                    
-                    topic_data[name]['scores'].append(score)
-                    topic_data[name]['levels'].append(level)
-                    topic_data[name]['count'] += 1
+                        topic_data[name]['scores'].append(score)
+                        topic_data[name]['levels'].append(level)
+                        topic_data[name]['count'] += 1
+                        
                 except (ValueError, TypeError, KeyError):
                     continue
 
+    # Calcula as médias
     metadata = {}
     for name, data in topic_data.items():
         avg_score = sum(data['scores']) / len(data['scores']) if data['scores'] else 0
@@ -161,7 +175,7 @@ def extract_topic_metadata(articles: list) -> dict:
         metadata[name] = {
             'freq': data['count'],
             'score': avg_score,
-            'level': avg_level  # ✅ Agora calcula level médio real
+            'level': avg_level
         }
     return metadata
 

@@ -660,19 +660,21 @@ def generate_comparison_pdf(
         except ImportError:
             return None
         
+        # INICIALIZAÇÃO CORRETA DO levels_4
+        levels_4 = {0: [], 1: [], 2: [], 3: []}
+    
         # Classificar por nível
-        levels_4 = {i: [] for i in range(4)}
         for c in concepts:
             if c in nodes_info:
                 try:
-                    lvl = int(float(nodes_info[c].get('level', 5)))
-                    lvl = min(max(lvl, 0), 3)
+                    lvl = int(float(nodes_info[c].get('level', 3)))
+                    lvl = min(max(lvl, 0), 3)  # Garante intervalo 0-3
                     score = nodes_info[c].get('score', 0)
                     levels_4[lvl].append((c, score))
                 except:
-                    levels_4[5].append((c, 0))
+                    levels_4[3].append((c, 0))  # Fallback seguro para Level 3
             else:
-                levels_4[5].append((c, 0))
+                levels_4[3].append((c, 0))
         
         # Ordenar por score e pegar top 5 por nível
         for lvl in levels_4:
