@@ -779,8 +779,30 @@ def salvar_grafo_historico(id_usuario, form_data, result):
             # Aqui garantimos que source e target estão nas colunas A e B
             edges_data.append([u, v, weight, f"{salton:.4f}"])
         
-        # Montagem Final: Metadata -> Nodes -> Edges
-        full_payload = context_data + nodes_section + nodes_header + nodes_data + edges_section + edges_header + edges_data
+        # 4. BLOCO DE HIERARQUIA (domain → field → subfield → topic)
+        hierarchy_section = [["---HIERARCHY---", "", "", ""]]
+        hierarchy_header  = [["topic", "subfield", "field", "domain"]]
+        hierarchy_data    = []
+        topics_salvos     = set()
+        graph_nodes       = set(G.nodes())
+
+        for article in raw_articles:
+            for item in (article.get('topics') or []):
+                topic_name = item.get('display_name', '')
+                if topic_name in graph_nodes and topic_name not in topics_salvos:
+                    sf = (item.get('subfield') or {}).get('display_name', '')
+                    f  = (item.get('field')    or {}).get('display_name', '')
+                    d  = (item.get('domain')   or {}).get('display_name', '')
+                    hierarchy_data.append([topic_name, sf, f, d])
+                    topics_salvos.add(topic_name)
+
+        # Montagem Final: Metadata -> Nodes -> Edges -> Hierarchy
+        full_payload = (
+            context_data
+            + nodes_section + nodes_header + nodes_data
+            + edges_section + edges_header + edges_data
+            + hierarchy_section + hierarchy_header + hierarchy_data
+        )
         
         worksheet = sheet.add_worksheet(title=tab_title, rows=len(full_payload)+20, cols=5)
         worksheet.update(full_payload)
@@ -1813,6 +1835,74 @@ def render_tab3_interacao():
     rodape_institucional()
 
 # ==================== ABAS PRINCIPAIS ====================
+def build_hierarchy_graphviz(concepts: list, hierarchy: dict, color_scheme: str = "blue") -> str:
+    """
+    Gera código Graphviz mostrando a árvore real Domain→Field→Subfield→Topic.
+    Usa dados salvos em ---HIERARCHY--- no Sheets.
+    """
+    palettes = {
+        "blue":  {0: "#dbeafe", 1: "#93c5fd", 2: "#3b82f6", 3: "#1d4ed8"},
+        "green": {0: "#dcfce7", 1: "#86efac", 2: "#22c55e", 3: "#15803d"},
+        "red":   {0: "#fee2e2", 1: "#fca5a5", 2: "#ef4444", 3: "#b91c1c"},
+    }
+    fonts = {
+        "blue":  {0: "#1e3a8a", 1: "#1e3a8a", 2: "#ffffff", 3: "#ffffff"},
+        "green": {0: "#14532d", 1: "#14532d", 2: "#ffffff", 3: "#ffffff"},
+        "red":   {0: "#7f1d1d", 1: "#7f1d1d", 2: "#ffffff", 3: "#ffffff"},
+    }
+    fill = palettes.get(color_scheme, palettes["blue"])
+    font = fonts.get(color_scheme,   fonts["blue"])
+
+    def safe(s):
+        return '"' + str(s)[:28].replace('"', "'").replace('\n', ' ') + '"'
+
+    # Monta árvore: domain → field → subfield → [topics]
+    tree            = {}
+    sf_to_field     = {}
+    field_to_domain = {}
+    topic_to_sf     = {}
+
+    for c in list(concepts)[:10]:
+        h  = hierarchy.get(c, {})
+        d  = h.get('domain',   '') or '(sem domínio)'
+        f  = h.get('field',    '') or '(sem field)'
+        sf = h.get('subfield', '') or '(sem subfield)'
+
+        tree.setdefault(d, {}).setdefault(f, {}).setdefault(sf, [])
+        tree[d][f][sf].append(c)
+        sf_to_field[sf]     = f
+        field_to_domain[f]  = d
+        topic_to_sf[c]      = sf
+
+    dot  = 'digraph {\n'
+    dot += '  rankdir=TB;\n'
+    dot += '  node [shape=box, style="filled,rounded", fontname="Arial", fontsize=9, margin="0.15,0.06"];\n'
+    dot += '  nodesep=0.4; ranksep=0.5; bgcolor="transparent";\n'
+    added = set()
+
+    for d, fields in tree.items():
+        if d not in added:
+            dot += f'  {safe(d)} [fillcolor="{fill[0]}", fontcolor="{font[0]}", label="{d[:22]}\\n(Domain)"];\n'
+            added.add(d)
+        for f, subfields in fields.items():
+            if f not in added:
+                dot += f'  {safe(f)} [fillcolor="{fill[1]}", fontcolor="{font[1]}", label="{f[:22]}\\n(Field)"];\n'
+                added.add(f)
+            dot += f'  {safe(d)} -> {safe(f)} [color="#94a3b8", arrowsize=0.6];\n'
+            for sf, topics in subfields.items():
+                if sf not in added:
+                    dot += f'  {safe(sf)} [fillcolor="{fill[2]}", fontcolor="{font[2]}", label="{sf[:22]}\\n(Subfield)"];\n'
+                    added.add(sf)
+                dot += f'  {safe(f)} -> {safe(sf)} [color="#94a3b8", arrowsize=0.6];\n'
+                for t in topics[:3]:
+                    if t not in added:
+                        dot += f'  {safe(t)} [fillcolor="{fill[3]}", fontcolor="{font[3]}", label="{t[:22]}\\n(Topic)"];\n'
+                        added.add(t)
+                    dot += f'  {safe(sf)} -> {safe(t)} [color="#94a3b8", arrowsize=0.6];\n'
+
+    dot += '}'
+    return dot
+
 tab1, tab2, tab3, tab4 = st.tabs(["🤖 Delineascópio", "🔬 Interação", "📜 Histórico", "🔎 Painel"])
 
 # ==================== ABA 1: DELINEASCÓPIO ====================
@@ -3152,6 +3242,13 @@ with tab3:
                 if not nodes_info and 'df1_rico' in st.session_state and st.session_state['df1_rico'] is not None:
                     nodes_info = getattr(st.session_state['df1_rico'], 'attrs', {}).get('nodes_dict', {})
                 
+                # RECUPERA HIERARQUIA (domain→field→subfield→topic)
+                hierarchy = {}
+                if 'df2_rico' in st.session_state and st.session_state['df2_rico'] is not None:
+                    hierarchy = getattr(st.session_state['df2_rico'], 'attrs', {}).get('hierarchy', {})
+                if not hierarchy and 'df1_rico' in st.session_state and st.session_state['df1_rico'] is not None:
+                    hierarchy = getattr(st.session_state['df1_rico'], 'attrs', {}).get('hierarchy', {})
+
                 st.divider()
                 st.subheader("📊 Resultados da Comparação")
                 
@@ -3203,61 +3300,15 @@ with tab3:
                         tab_nov_map, tab_nov_list = st.tabs(["🗺️ Mapa Hierárquico", "🔤 Lista Alfabética"])
                         
                         with tab_nov_map:
-                            # Classifica por level
-                            novos_por_level = {i: [] for i in range(4)}
-                            for c in novos:
-                                if c in nodes_info:
-                                    try:
-                                        lvl = int(float(nodes_info[c].get('level', 3)))
-                                        lvl = min(max(lvl, 0), 3)
-                                        novos_por_level[lvl].append(c)
-                                    except:
-                                        novos_por_level[3].append(c)
-                                else:
-                                    novos_por_level[3].append(c)
-                            
-                            def top_by_score_nov(lista, n=3):
-                                scored = [(c, nodes_info.get(c, {}).get('score', 0)) for c in lista]
-                                scored.sort(key=lambda x: x[1], reverse=True)
-                                return [c for c, _ in scored[:n]]
-                            
-                            def clean(s): return '"' + s.replace('"', "'").replace('\n', ' ') + '"'
-                            
-                            cores_nov = ["#dcfce7", "#bbf7d0", "#86efac", "#4ade80", "#22c55e", "#16a34a"]
-                            font_nov = ["#14532d", "#14532d", "#14532d", "#14532d", "#ffffff", "#ffffff"]
-                            labels = ["L0: Domain", "L1: Field", "L2: Subfield", "L3: Topic"]
-                            
-                            graph_nov = '''digraph {
-    rankdir=TB;
-    node [shape=box, style="filled,rounded", fontname="Arial", fontsize=10, margin="0.15,0.08"];
-    nodesep=0.3; ranksep=0.6; bgcolor="transparent";
-'''
-                            total_nov = 0
-                            niveis_nov = []
-                            
-                            for lvl in range(4):
-                                top = top_by_score_nov(novos_por_level[lvl])
-                                if top:
-                                    niveis_nov.append(lvl)
-                                    for c in top:
-                                        label_n = f"{c}\\n({labels[lvl]})"
-                                        graph_nov += f'    {clean(c)} [fillcolor="{cores_nov[lvl]}", fontcolor="{font_nov[lvl]}", label="{label_n}"];\n'
-                                    graph_nov += f'    {{ rank=same; {" ".join([clean(c) for c in top])} }}\n'
-                                    total_nov += len(top)
-                            
-                            for i in range(len(niveis_nov) - 1):
-                                t1 = top_by_score_nov(novos_por_level[niveis_nov[i]], 1)
-                                t2 = top_by_score_nov(novos_por_level[niveis_nov[i+1]], 1)
-                                if t1 and t2:
-                                    graph_nov += f'    {clean(t1[0])} -> {clean(t2[0])} [color="#86efac", style=dashed, arrowhead=none];\n'
-                            
-                            graph_nov += "}"
-                            
-                            try:
-                                st.graphviz_chart(graph_nov, width="stretch")
-                                st.caption(f"Top {total_nov} tópicos de {len(novos)} novidades, por relevância.")
-                            except:
-                                st.success(", ".join(sorted(novos)[:50]))
+                            if not hierarchy:
+                                st.info("⚠️ Dados hierárquicos ausentes. Realize um novo delineamento para habilitar esta visualização.")
+                            else:
+                                try:
+                                    st.graphviz_chart(build_hierarchy_graphviz(novos, hierarchy, "green"), width="stretch")
+                                    st.caption(f"Árvore hierárquica de {min(len(novos), 10)} de {len(novos)} novidades (Domain → Field → Subfield → Topic).")
+                                except Exception as e:
+                                    st.warning("Não foi possível renderizar o mapa hierárquico.")
+                                    st.success(", ".join(sorted(novos)[:50]))
                         
                         with tab_nov_list:
                             conceitos_nov = sorted(novos)
@@ -3280,57 +3331,15 @@ with tab3:
                         tab_ant_map, tab_ant_list = st.tabs(["🗺️ Mapa Hierárquico", "🔤 Lista Alfabética"])
                         
                         with tab_ant_map:
-                            antigos_por_level = {i: [] for i in range(4)}
-                            for c in antigos:
-                                if c in nodes_info:
-                                    try:
-                                        lvl = int(float(nodes_info[c].get('level', 3)))
-                                        lvl = min(max(lvl, 0), 3)
-                                        antigos_por_level[lvl].append(c)
-                                    except:
-                                        antigos_por_level[3].append(c)
-                                else:
-                                    antigos_por_level[3].append(c)
-                            
-                            def top_by_score_ant(lista, n=5):
-                                scored = [(c, nodes_info.get(c, {}).get('score', 0)) for c in lista]
-                                scored.sort(key=lambda x: x[1], reverse=True)
-                                return [c for c, _ in scored[:n]]
-                            
-                            cores_ant = ["#fee2e2", "#fecaca", "#fca5a5", "#f87171", "#ef4444", "#dc2626"]
-                            font_ant = ["#7f1d1d", "#7f1d1d", "#7f1d1d", "#ffffff", "#ffffff", "#ffffff"]
-                            
-                            graph_ant = '''digraph {
-    rankdir=TB;
-    node [shape=box, style="filled,rounded", fontname="Arial", fontsize=10, margin="0.15,0.08"];
-    nodesep=0.3; ranksep=0.6; bgcolor="transparent";
-'''
-                            total_ant = 0
-                            niveis_ant = []
-                            
-                            for lvl in range(4):
-                                top = top_by_score_ant(antigos_por_level[lvl])
-                                if top:
-                                    niveis_ant.append(lvl)
-                                    for c in top:
-                                        label_a = f"{c}\\n({labels[lvl]})"
-                                        graph_ant += f'    {clean(c)} [fillcolor="{cores_ant[lvl]}", fontcolor="{font_ant[lvl]}", label="{label_a}"];\n'
-                                    graph_ant += f'    {{ rank=same; {" ".join([clean(c) for c in top])} }}\n'
-                                    total_ant += len(top)
-                            
-                            for i in range(len(niveis_ant) - 1):
-                                t1 = top_by_score_ant(antigos_por_level[niveis_ant[i]], 1)
-                                t2 = top_by_score_ant(antigos_por_level[niveis_ant[i+1]], 1)
-                                if t1 and t2:
-                                    graph_ant += f'    {clean(t1[0])} -> {clean(t2[0])} [color="#fca5a5", style=dashed, arrowhead=none];\n'
-                            
-                            graph_ant += "}"
-                            
-                            try:
-                                st.graphviz_chart(graph_ant, width="stretch")
-                                st.caption(f"Top {total_ant} conceitos de {len(antigos)} removidos, por relevância.")
-                            except:
-                                st.error(", ".join(sorted(antigos)[:50]))
+                            if not hierarchy:
+                                st.info("⚠️ Dados hierárquicos ausentes. Realize um novo delineamento para habilitar esta visualização.")
+                            else:
+                                try:
+                                    st.graphviz_chart(build_hierarchy_graphviz(antigos, hierarchy, "red"), width="stretch")
+                                    st.caption(f"Árvore hierárquica de {min(len(antigos), 10)} de {len(antigos)} removidos (Domain → Field → Subfield → Topic).")
+                                except Exception as e:
+                                    st.warning("Não foi possível renderizar o mapa hierárquico.")
+                                    st.error(", ".join(sorted(antigos)[:50]))
                         
                         with tab_ant_list:
                             conceitos_ant = sorted(antigos)
@@ -3351,88 +3360,18 @@ with tab3:
                     st.caption("Tópicos que permaneceram na sua estrutura, organizados por nível de abstração.")
 
                     if len(comuns) > 0:
-                        # 1. INICIALIZAR lista de indefinidos (corrige erro linha 3331)
-                        indef = []
-    
-                        # Mapeamento corrigido para 4 níveis (clama 4/5 para 3)
-                        levels_4 = {i: [] for i in range(4)}
-    
-                        # 2. USAR a variável correta 'comuns' (corrige erro linha 3316)
-                        for c in comuns:
-                            if c in nodes_info:
-                                try:
-                                    lvl = int(float(nodes_info[c].get('level', 3)))
-                                    lvl = min(max(lvl, 0), 3) # Força no máximo nível 3
-                                    levels_4[lvl].append(c)
-                                except:
-                                    # Se falhar a conversão, marca como indefinido e fallback p/ 3
-                                    indef.append(c)
-                                    levels_4[3].append(c)
-                            else:
-                                # Se não tiver metadata, marca como indefinido e fallback p/ 3
-                                indef.append(c)
-                                levels_4[3].append(c)
-
                         # EXIBIÇÃO (MAPA OU LISTA)
                         tab_vis, tab_list = st.tabs(["🗺️ Mapa Hierárquico", "🔤 Lista Alfabética"])
     
                         with tab_vis:
-                            # 3. Verificação de qualidade (agora 'indef' existe)
-                            if len(indef) > len(comuns) * 0.8:
-                                st.warning("⚠️ Dados históricos sem níveis hierárquicos suficientes.")
-                                st.info("Use a aba 'Lista Alfabética' ao lado.")
+                            if not hierarchy:
+                                st.info("⚠️ Dados hierárquicos ausentes. Realize um novo delineamento para habilitar esta visualização.")
                             else:
-                                # Top N por nível (ordenados por score)
-                                def top_by_score(lista, n=6):
-                                    scored = [(c, nodes_info.get(c, {}).get('score', 0)) for c in lista]
-                                    scored.sort(key=lambda x: x[1], reverse=True)
-                                    return [c for c, _ in scored[:n]]
-                                
-                                def clean(s): return '"' + s.replace('"', "'").replace('\n', ' ') + '"'
-                                
-                                # Cores e labels para 6 níveis (gradiente azul)
-                                cores = ["#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa", "#3b82f6", "#2563eb"]
-                                font_cores = ["#1e3a5f", "#1e3a5f", "#1e3a5f", "#ffffff", "#ffffff", "#ffffff"]
-                                labels = ["L0: Domain", "L1: Field", "L2: Subfield", "L3: Topic"]
-                                
-                                graph_code = '''digraph {
-    rankdir=TB;
-    node [shape=box, style="filled,rounded", fontname="Arial", fontsize=10, margin="0.15,0.08"];
-    nodesep=0.3;
-    ranksep=0.6;
-    bgcolor="transparent";
-'''
-                                total_mostrado = 0
-                                niveis_com_dados = []
-                                
-                                for lvl in range(4):
-                                    top = top_by_score(levels_4[lvl])
-                                    if top:
-                                        niveis_com_dados.append(lvl)
-                                        for c in top:
-                                            label_node = f"{c}\\n({labels[lvl]})"
-                                            graph_code += f'    {clean(c)} [fillcolor="{cores[lvl]}", fontcolor="{font_cores[lvl]}", label="{label_node}"];\n'
-                                        graph_code += f'    {{ rank=same; {" ".join([clean(c) for c in top])} }}\n'
-                                        total_mostrado += len(top)
-                                
-                                # Conexões entre níveis adjacentes que têm dados
-                                for i in range(len(niveis_com_dados) - 1):
-                                    lvl_atual = niveis_com_dados[i]
-                                    lvl_prox = niveis_com_dados[i + 1]
-                                    top_atual = top_by_score(levels_4[lvl_atual], 1)
-                                    top_prox = top_by_score(levels_4[lvl_prox], 1)
-                                    if top_atual and top_prox:
-                                        graph_code += f'    {clean(top_atual[0])} -> {clean(top_prox[0])} [color="#94a3b8", style=dashed, arrowhead=none];\n'
-                                
-                                graph_code += "}"
-                                
                                 try:
-                                    st.graphviz_chart(graph_code, width="stretch")
-                                    st.caption(f"Exibindo top {total_mostrado} tópicos (de {len(comuns)}) por relevância. OpenAlex Level 0-5.")
+                                    st.graphviz_chart(build_hierarchy_graphviz(comuns, hierarchy, "blue"), width="stretch")
+                                    st.caption(f"Árvore hierárquica de {min(len(comuns), 10)} de {len(comuns)} tópicos estáveis (Domain → Field → Subfield → Topic).")
                                 except Exception as e:
                                     st.warning("⚠️ Não foi possível renderizar o mapa.")
-                                    with st.expander("Erro técnico"):
-                                        st.write(e)
                                     st.write(", ".join(sorted(comuns)[:30]) + "...")
 
                         with tab_list:

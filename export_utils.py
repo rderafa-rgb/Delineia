@@ -276,7 +276,8 @@ def parse_history_data(all_values):
     data = {
         "meta": {},
         "nodes": {},
-        "edges": []
+        "edges": [],
+        "hierarchy": {} # topic_name → {subfield, field, domain}
     }
     
     current_section = None
@@ -295,9 +296,12 @@ def parse_history_data(all_values):
         elif first_cell == "---EDGES---":
             current_section = "edges"
             continue
+        elif first_cell == "---HIERARCHY---":
+            current_section = "hierarchy"
+            continue
             
         # 2. Ignora cabeçalhos das colunas (se a linha for "Id", "source", etc)
-        if first_cell.lower() in ["id", "source", "valor"]:
+        if first_cell.lower() in ["id", "source", "valor", "topic"]:
             continue
             
         # 3. Processa dados
@@ -323,6 +327,15 @@ def parse_history_data(all_values):
             if len(row) >= 3 and row[1].strip():
                 data["edges"].append(row)
 
+        elif current_section == "hierarchy":
+            # Esperado: [topic, subfield, field, domain]
+            if len(row) >= 4 and row[0].strip():
+                data["hierarchy"][row[0]] = {
+                    'subfield': row[1],
+                    'field':    row[2],
+                    'domain':   row[3]
+                }
+    
     return data
 
 def carregar_grafo_do_sheets(worksheet):
@@ -343,6 +356,7 @@ def carregar_grafo_do_sheets(worksheet):
             # Isso permite que a gente acesse df.attrs['metadata']['aluno_tema'] na Tab 3!
             df.attrs['nodes_dict'] = parsed['nodes']
             df.attrs['metadata'] = parsed['meta']
+            df.attrs['hierarchy'] = parsed.get('hierarchy', {})
             
             return df
         return None
