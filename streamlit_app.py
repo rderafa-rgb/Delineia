@@ -3439,7 +3439,8 @@ with tab3:
                                         meta_antigo=meta_antigo,
                                         meta_novo=meta_novo,
                                         analise_ia=st.session_state['ultima_analise_historico'],
-                                        nodes_info=nodes_info
+                                        nodes_info=nodes_info,
+                                        hierarchy=hierarchy
                                     )
         
                                 nome_aluno_limpo = st.session_state.get('form_data', {}).get('nome', 'aluno').split()[0]

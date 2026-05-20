@@ -621,7 +621,8 @@ def generate_comparison_pdf(
     meta_antigo: dict,
     meta_novo: dict,
     analise_ia: str = None,
-    nodes_info: dict = None
+    nodes_info: dict = None,
+    hierarchy: dict = None
 ) -> bytes:
     """
     Gera PDF do relatório de comparação de delineamentos com mapas hierárquicos.
@@ -649,84 +650,108 @@ def generate_comparison_pdf(
     mapa_antigos = None
     mapa_comuns = None
     
-    # ==================== FUNÇÃO: GERAR MAPA HIERÁRQUICO ====================
+    # GERAR MAPA HIERÁRQUICO
     def create_hierarchical_map(concepts: list, color_scheme: str = "blue") -> str:
-        """Gera imagem PNG do mapa hierárquico usando Graphviz."""
-        if not concepts or len(concepts) == 0:
+        """
+        Gera PNG do mapa hierárquico real (Domain→Field→Subfield→Topic)
+        usando o dicionário hierarchy salvo no Sheets.
+        """
+        if not concepts or not hierarchy:
             return None
-        
+
         try:
             import graphviz
         except ImportError:
             return None
-        
-        # INICIALIZAÇÃO CORRETA DO levels_4
-        levels_4 = {0: [], 1: [], 2: [], 3: []}
-    
-        # Classificar por nível
-        for c in concepts:
-            if c in nodes_info:
-                try:
-                    lvl = int(float(nodes_info[c].get('level', 3)))
-                    lvl = min(max(lvl, 0), 3)  # Garante intervalo 0-3
-                    score = nodes_info[c].get('score', 0)
-                    levels_4[lvl].append((c, score))
-                except:
-                    levels_4[3].append((c, 0))  # Fallback seguro para Level 3
-            else:
-                levels_4[3].append((c, 0))
-        
-        # Ordenar por score e pegar top 5 por nível
-        for lvl in levels_4:
-            levels_4[lvl] = sorted(levels_4[lvl], key=lambda x: x[1], reverse=True)[:5]
-        
-        # Esquemas de cores
-        if color_scheme == "green":
-            cores = [ "#dbeafe",  "#bfdbfe",  "#93c5fd",  "#3b82f6" ]
-        elif color_scheme == "red":
-            cores = ["#fee2e2", "#fecaca", "#fca5a5", "#f87171", "#ef4444", "#dc2626"]
-        else:  # blue
-            cores = ["#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa", "#3b82f6", "#2563eb"]
-        
-        labels = ["Domain", "Field", "Subfield", "Topic"]
-        
-        # Criar grafo
+
+        # Paletas por esquema
+        palettes = {
+            "blue":  {0: "#dbeafe", 1: "#93c5fd", 2: "#3b82f6", 3: "#1d4ed8"},
+            "green": {0: "#dcfce7", 1: "#86efac", 2: "#22c55e", 3: "#15803d"},
+            "red":   {0: "#fee2e2", 1: "#fca5a5", 2: "#ef4444", 3: "#b91c1c"},
+        }
+        font_colors = {
+            "blue":  {0: "#1e3a8a", 1: "#1e3a8a", 2: "#ffffff", 3: "#ffffff"},
+            "green": {0: "#14532d", 1: "#14532d", 2: "#ffffff", 3: "#ffffff"},
+            "red":   {0: "#7f1d1d", 1: "#7f1d1d", 2: "#ffffff", 3: "#ffffff"},
+        }
+        fill = palettes.get(color_scheme, palettes["blue"])
+        font = font_colors.get(color_scheme, font_colors["blue"])
+
+        # Monta árvore domain → field → subfield → [topics]
+        tree = {}
+        for c in list(concepts)[:10]:
+            h  = hierarchy.get(c, {})
+            d  = h.get('domain',   '') or '(sem domínio)'
+            f  = h.get('field',    '') or '(sem field)'
+            sf = h.get('subfield', '') or '(sem subfield)'
+            tree.setdefault(d, {}).setdefault(f, {}).setdefault(sf, [])
+            tree[d][f][sf].append(c)
+
+        # IDs únicos por nó (evita colisão de nomes)
+        node_ids  = {}
+        _counter  = [0]
+
+        def get_id(s):
+            if s not in node_ids:
+                _counter[0] += 1
+                node_ids[s] = f"n{_counter[0]}"
+            return node_ids[s]
+
+        def lbl(s, suffix):
+            s_short = (s[:22] + "…") if len(s) > 22 else s
+            return f"{s_short}\n({suffix})"
+
         dot = graphviz.Digraph(format='png')
         dot.attr(rankdir='TB', bgcolor='white', dpi='120', size='7,5')
-        dot.attr('node', shape='box', style='filled,rounded', fontname='Arial', fontsize='9', margin='0.1,0.05')
-        
+        dot.attr('node', shape='box', style='filled,rounded',
+                 fontname='Arial', fontsize='9', margin='0.12,0.06')
+
+        added = set()
         total = 0
-        niveis_com_dados = []
-        
-        for lvl in range(4):
-            if levels_4[lvl]:
-                niveis_com_dados.append(lvl)
-                with dot.subgraph() as s:
-                    s.attr(rank='same')
-                    for c, _ in levels_4[lvl]:
-                        node_label = f"{c[:25]}..." if len(c) > 25 else c
-                        node_label = f"{node_label}\n({labels[lvl]})"
-                        s.node(c, label=node_label, fillcolor=cores[lvl])
+
+        for d, fields in tree.items():
+            d_id = get_id(d)
+            if d_id not in added:
+                dot.node(d_id, label=lbl(d, 'Domain'),
+                         fillcolor=fill[0], fontcolor=font[0])
+                added.add(d_id)
+                total += 1
+            for f, subfields in fields.items():
+                f_id = get_id(f)
+                if f_id not in added:
+                    dot.node(f_id, label=lbl(f, 'Field'),
+                             fillcolor=fill[1], fontcolor=font[1])
+                    added.add(f_id)
+                    total += 1
+                dot.edge(d_id, f_id, color='#94a3b8', arrowsize='0.6')
+                for sf, topics in subfields.items():
+                    sf_id = get_id(sf)
+                    if sf_id not in added:
+                        dot.node(sf_id, label=lbl(sf, 'Subfield'),
+                                 fillcolor=fill[2], fontcolor=font[2])
+                        added.add(sf_id)
                         total += 1
-        
-        # Conexões entre níveis
-        for i in range(len(niveis_com_dados) - 1):
-            lvl1, lvl2 = niveis_com_dados[i], niveis_com_dados[i+1]
-            if levels_4[lvl1] and levels_4[lvl2]:
-                dot.edge(levels_4[lvl1][0][0], levels_4[lvl2][0][0], style='dashed', color='#94a3b8', arrowhead='none')
-        
+                    dot.edge(f_id, sf_id, color='#94a3b8', arrowsize='0.6')
+                    for t in topics[:3]:
+                        t_id = get_id(t)
+                        if t_id not in added:
+                            dot.node(t_id, label=lbl(t, 'Topic'),
+                                     fillcolor=fill[3], fontcolor=font[3])
+                            added.add(t_id)
+                            total += 1
+                        dot.edge(sf_id, t_id, color='#94a3b8', arrowsize='0.6')
+
         if total == 0:
             return None
-        
-        # Salvar como PNG temporário
+
         try:
-            with tempfile.NamedTemporaryFile(suffix='', delete=False) as f:
-                temp_path = f.name
-            
+            with tempfile.NamedTemporaryFile(suffix='', delete=False) as tmp:
+                temp_path = tmp.name
             dot.render(temp_path, format='png', cleanup=True)
             return temp_path + '.png'
         except Exception as e:
-            print(f"Erro ao gerar mapa: {e}")
+            print(f"Erro ao gerar mapa hierárquico PDF: {e}")
             return None
     
     # ==================== 1. CAPA ====================
