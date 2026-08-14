@@ -70,6 +70,7 @@ class OpenAlexClient:
                 "per_page": per_page,
                 "page": page,
                 "mailto": self.email,
+                "api_key": OPENALEX_API_KEY,
                 # Campos ricos solicitados explicitamente
                 "select": "id,display_name,publication_year,publication_date,topics,authorships,primary_location,type,cited_by_count,doi,abstract_inverted_index"
             }
@@ -79,6 +80,7 @@ class OpenAlexClient:
                 
                 # Se der erro (ex: 429 too many requests), espera e tenta de novo ou para
                 if response.status_code != 200:
+                    print(f"OpenAlex erro {response.status_code}: {response.text[:200]}")
                     break
                     
                 data = response.json()
@@ -1137,3 +1139,4 @@ class ResearchScopePipeline:
 
 # Variável global
 OPENALEX_EMAIL = st.secrets.get("OPENALEX_EMAIL", "")
+OPENALEX_API_KEY = st.secrets.get("OPENALEX_API_KEY", "")
