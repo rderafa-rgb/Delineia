@@ -436,8 +436,12 @@ with st.sidebar:
             **ORCID:** 
             - https://orcid.org/0000-0002-1529-9063 
             
+            **Homepage:**
+            - https://rderafa-rgb.github.io
+
             **Contato:**
             - rafael.antunes@ufrgs.br
+            - rafaelsantos@ibict.br
             - rderafa@gmail.com
 
             **Github:**
@@ -516,7 +520,8 @@ with st.sidebar:
             - Elisa Boff
             - Fernando Becker
             - Gabriela Trindade Perry
-            - Ida Regina Chitto Stumpf 
+            - Ida Regina Chitto Stumpf
+            - José Luiz Goldfarb 
             - Leandro Krug Wives 
             - Marcus Vinicius de Azevedo Basso
             - Maria de Fátima Santos Maia
@@ -539,9 +544,10 @@ with st.sidebar:
     with st.expander("Publicações"):
         st.markdown("""
             *Artigos relacionados:*
-            - SANTOS, R.A.; BENI, P.F.; REATEGUI, E.B.; BARONE, D.A.C. Justiça, Responsabilidade, Transparência e Ética (FATE) em sistemas de recomendação na educação: uma análise de coocorrência de palavras. *Revista Ibero-Americana de Ciência da Informação*, v.19, n.2, p.356-377, 2026. Doi: https://doi.org/10.26512/rici.v19.n2.2026.60555.
-            - SANTOS, R.A.; REATEGUI, E.B. Uso de inteligência artificial generativa e análise de palavras-chave para apoiar o planejamento de projetos de pesquisa no ensino superior. *RELATEC: Revista Latinoamericana de Tecnología Educativa*, v.24, n.2, p.87–104, 2025. Doi: https://doi.org/10.17398/1695-288X.24.2.87.
-            - SANTOS, R.A.; REATEGUI, E.B.; CAREGNATO, S.E. Análise de coocorrência de palavras na pesquisa brasileira em HIV/AIDS indexada na Web of Science no período 1993-2020. *Informação & Informação*, v.27, n.2, p.248–273, 2022. Doi: https://doi.org/10.5433/1981-8920.2022v27n2p248. Disponível em: https://ojs.uel.br/revistas/uel/index.php/informacao/article/view/45335.        
+            - SANTOS, R.A.; REATEGUI, E.B. Delinéia: sistema de apoio ao delineamento de escopo temático no ensino superior. In: ENCONTRO BRASILEIRO DE BIBLIOMETRIA E CIENTOMETRIA, 10., 2026, Curitiba. *Anais* [...] Curitiba: UFPR, 2026. p. 1-8. DOI: https://doi.org/10.22477/x.ebbc.952
+            - SANTOS, R.A.; BENI, P.F.; REATEGUI, E.B.; BARONE, D.A.C. Justiça, Responsabilidade, Transparência e Ética (FATE) em sistemas de recomendação na educação: uma análise de coocorrência de palavras. *Revista Ibero-Americana de Ciência da Informação*, v.19, n.2, p.356-377, 2026. DOI: https://doi.org/10.26512/rici.v19.n2.2026.60555.
+            - SANTOS, R.A.; REATEGUI, E.B. Uso de inteligência artificial generativa e análise de palavras-chave para apoiar o planejamento de projetos de pesquisa no ensino superior. *RELATEC: Revista Latinoamericana de Tecnología Educativa*, v.24, n.2, p.87–104, 2025. DOI: https://doi.org/10.17398/1695-288X.24.2.87.
+            - SANTOS, R.A.; REATEGUI, E.B.; CAREGNATO, S.E. Análise de coocorrência de palavras na pesquisa brasileira em HIV/AIDS indexada na Web of Science no período 1993-2020. *Informação & Informação*, v.27, n.2, p.248–273, 2022. DOI: https://doi.org/10.5433/1981-8920.2022v27n2p248. Disponível em: https://ojs.uel.br/revistas/uel/index.php/informacao/article/view/45335.        
            
             *Colaboração em pesquisas:*
             - REATEGUI, E.B.; BIGOLIN, M.; CARNIATO, M.; SANTOS, R.A. Evaluating the performance of SOBEK text mining keyword extraction algorithm. In: HOLZINGER, A. et al. (ed.). *Machine Learning and Knowledge Extraction*: CD-MAKE 2022. Cham: Springer, 2022. p.233–243. (Lecture Notes in Computer Science, 13480. Doi: https://doi.org/10.1007/978-3-031-14463-9_15.
