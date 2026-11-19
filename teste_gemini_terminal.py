@@ -112,12 +112,9 @@ print("-" * 50)
 
 try:
     model = genai.GenerativeModel(
-        'gemini-2.5-pro',
+        'gemini-4-argon',
         generation_config={
-            'temperature': 1.2,
-            'top_p': 0.95,
-            'top_k': 40,
-            'max_output_tokens': 8192,
+            'max_output_tokens': 16384,
         }
     )
     print(f"✅ Modelo criado: {model.model_name}")

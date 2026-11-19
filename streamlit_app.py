@@ -490,7 +490,7 @@ with st.sidebar:
     with st.expander("Tecnologias"):
         st.markdown("""
             - OpenAlex API
-            - Google Gemini AI 2.5 Pro API
+            - Google Gemini AI 4 Argon API
             - Anthropic Claude Opus 4.5
             - Python
             - HuggingFace
@@ -1043,7 +1043,7 @@ def gerar_analise_evolucao(metrics, nome_aluno):
     
     try:
         # Usa o modelo que já está configurado no seu app
-        model = genai.GenerativeModel('models/gemini-2.5-pro') # Ou o modelo que você estiver usando
+        model = genai.GenerativeModel('models/gemini-4-argon') # Ou o modelo que você estiver usando
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
