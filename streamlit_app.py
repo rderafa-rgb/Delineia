@@ -1043,7 +1043,8 @@ def gerar_analise_evolucao(metrics, nome_aluno):
     
     try:
         # Usa o modelo que já está configurado no seu app
-        model = genai.GenerativeModel('models/gemini-4-argon') # Ou o modelo que você estiver usando
+        from research_pipeline import ESTILO_REDACAO
+        model = genai.GenerativeModel('models/gemini-4-argon', system_instruction=ESTILO_REDACAO)
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
